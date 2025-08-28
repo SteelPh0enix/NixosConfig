@@ -8,6 +8,7 @@
   imports = [
     ./hardware-configuration.nix
     ./boot.nix
+    ./mounts.nix
     ./users.nix
     ./nix.nix
     ./locale.nix
