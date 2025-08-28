@@ -2,34 +2,69 @@
 {
   environment.systemPackages = with pkgs; [
     # development
+    automake
+    cargo
     cmake
     gcc
     gdb
-    mpi
+    gnumake
+    lldb
     llvmPackages.clangWithLibcAndBasicRtAndLibcxx
     llvmPackages.openmp
-    lldb
+    meson
+    mpi
     nixfmt-rfc-style
+    python3Full
+    rustc
 
     # linux tools
-    linuxHeaders
-    wget
-    curl
-    git
-    strace
-    ltrace
-    tcpdump
-    lsof
-    sysstat
     btop
-    psmisc
-    lm_sensors
-    pciutils
-    usbutils
+    curl
     dmidecode
-    hdparm
-    parted
+    dnsutils
+    exfat
+    exfatprogs
+    eza
+    fastfetch
+    fd
+    ffmpeg
+    file
+    findutils
+    gawk
+    git
+    git-lfs
+    gnugrep
+    gnused
+    gnutar
     gparted
+    hdparm
+    jq
+    linuxHeaders
+    lm_sensors
+    lsof
+    ltrace
+    nmap
+    ntfs3g
+    openssl
+    p7zip
+    parted
+    pciutils
+    psmisc
+    ripgrep
+    ripgrep
+    rsync
+    socat
+    strace
+    sysstat
+    tcpdump
+    tree
+    tree
+    usbutils
+    wget
+    which
+    xz
+    zip
+    zstd
   ];
 
   programs.appimage.enable = true;
@@ -76,8 +111,18 @@
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
-  
+
+
   qt.enable = true;
   qt.platformTheme = "gnome";
   qt.style = "adwaita-dark";
+
+  programs.fish.shellAliases = {
+    ls = "eza";
+    l = "eza -lh";
+    la = "eza -alh";
+    lg = "lazygit";
+    e = "$EDITOR";
+    eh = "$EDITOR .";
+  };
 }
