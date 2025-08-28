@@ -3,9 +3,19 @@
   environment.systemPackages = with pkgs; [
     # development
     cmake
+    gcc
+    gdb
+    mpi
+    llvmPackages.clangWithLibcAndBasicRtAndLibcxx
+    llvmPackages.openmp
+    lldb
     nixfmt-rfc-style
 
     # linux tools
+    linuxHeaders
+    wget
+    curl
+    git
     strace
     ltrace
     tcpdump
