@@ -16,5 +16,6 @@
     ./packages.nix
     ./services.nix
     ./fonts.nix
+    ./desktop.nix
   ];
 }
