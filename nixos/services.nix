@@ -8,4 +8,6 @@
     443
   ];
   networking.firewall.allowedUDPPorts = [ ];
+
+  services.openssh.enable = true;
 }
