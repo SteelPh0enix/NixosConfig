@@ -17,5 +17,6 @@
     ./services.nix
     ./fonts.nix
     ./desktop.nix
+    ./virtualisation.nix
   ];
 }
