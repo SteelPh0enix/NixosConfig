@@ -11,5 +11,6 @@
   imports = [
     ./shell.nix
     ./packages.nix
+    ./fonts.nix
   ];
 }
