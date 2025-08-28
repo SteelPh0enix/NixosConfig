@@ -12,5 +12,6 @@
     ./users.nix
     ./locale.nix
     ./network.nix
+    ./packages.nix
   ];
 }
