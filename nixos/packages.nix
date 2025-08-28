@@ -124,5 +124,6 @@
     lg = "lazygit";
     e = "$EDITOR";
     eh = "$EDITOR .";
+    pkgu = "sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all";
   };
 }

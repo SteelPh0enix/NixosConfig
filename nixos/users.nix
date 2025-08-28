@@ -1,4 +1,4 @@
-{ username, ... }:
+{ pkgs, username, ... }:
 {
   users.groups = {
     "${username}" = { };
@@ -26,5 +26,6 @@
     ];
   };
 
+  users.defaultUserShell = pkgs.fish;
   nix.settings.trusted-users = [ username ];
 }
