@@ -6,6 +6,8 @@
     protonvpn-gui
     teams-for-linux
     wezterm
+    spotify
+    discord
   ];
 
   programs.uv.enable = true;
