@@ -26,15 +26,9 @@
         steelph0enix-pc =
           let
             username = "steelph0enix";
-            pkgs-unstable = import inputs.nixpkgs-unstable {
-              system = system;
-              overlays = [ (import ./overlays/unstable.nix) ];
-              config.allowUnfree = true;
-            };
             specialArgs = {
               inherit
                 username
-                pkgs-unstable
                 inputs
                 outputs
                 ;
