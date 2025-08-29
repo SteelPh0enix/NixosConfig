@@ -30,6 +30,7 @@
           nixpkgs.lib.nixosSystem {
             inherit specialArgs;
             system = "x86_64-linux";
+            pkgs.overlays = [ (import ./overlays/llamacpp.nix) ];
             modules = [
               ./nixos/configuration.nix
 
