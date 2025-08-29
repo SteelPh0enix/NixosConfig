@@ -1,4 +1,4 @@
-{ pkgs, nixpkgs-unstable, ... }:
+{ pkgs, pkgs-unstable, ... }:
 {
   environment.systemPackages = with pkgs; [
     # development
@@ -10,7 +10,7 @@
     gdb
     gnumake
     linuxHeaders
-    llama-cpp-rocm
+    pkgs-unstable.llama-cpp-rocm
     lldb
     llvmPackages.clangWithLibcAndBasicRtAndLibcxx
     llvmPackages.openmp
