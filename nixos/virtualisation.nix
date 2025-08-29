@@ -1,4 +1,3 @@
-{ ... }:
 {
   virtualisation = {
     containerd.enable = true;

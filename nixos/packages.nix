@@ -1,27 +1,8 @@
 { pkgs, pkgs-unstable, ... }:
 {
   environment.systemPackages = with pkgs; [
-    # development
-    automake
-    cargo
-    ccache
-    cmake
-    gcc
-    gdb
-    gnumake
-    linuxHeaders
-    pkgs-unstable.llama-cpp-rocm
-    lldb
-    llvmPackages.clangWithLibcAndBasicRtAndLibcxx
-    llvmPackages.openmp
-    meson
-    mpi
-    nixfmt-rfc-style
-    python3Full
-    rustc
-
-    # linux tools
     btop
+    ccache
     curl
     dmidecode
     dnsutils
@@ -43,10 +24,14 @@
     gparted
     hdparm
     jq
+    linuxHeaders
     lm_sensors
     lsof
     ltrace
     neovim
+    nil
+    nixd
+    nixfmt-rfc-style
     nmap
     ntfs3g
     openssl
@@ -54,7 +39,6 @@
     parted
     pciutils
     psmisc
-    ripgrep
     ripgrep
     rsync
     socat
@@ -98,6 +82,7 @@
   programs.less.enable = true;
   programs.neovim.enable = true;
   programs.neovim.defaultEditor = true;
+  programs.nix-ld.enable = true;
   programs.neovim.withPython3 = true;
   programs.npm.enable = true;
   programs.obs-studio.enable = true;
@@ -120,14 +105,4 @@
   qt.enable = true;
   qt.platformTheme = "gnome";
   qt.style = "adwaita-dark";
-
-  programs.fish.shellAliases = {
-    ls = "eza";
-    l = "eza -lh";
-    la = "eza -alh";
-    lg = "lazygit";
-    e = "$EDITOR";
-    eh = "$EDITOR .";
-    pkgu = "sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all";
-  };
 }

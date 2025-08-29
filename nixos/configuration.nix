@@ -1,10 +1,4 @@
 {
-  pkgs,
-  nixpkgs,
-  nixpkgs-unstable,
-  ...
-}:
-{
   system.stateVersion = "25.05";
   nix.settings.experimental-features = [
     "nix-command"
@@ -14,6 +8,7 @@
   imports = [
     ./hardware-configuration.nix
     ./boot.nix
+    ./shell.nix
     ./mounts.nix
     ./users.nix
     ./nix.nix

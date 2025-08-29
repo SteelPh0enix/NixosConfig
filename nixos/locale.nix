@@ -1,4 +1,3 @@
-{ ... }:
 {
   time.timeZone = "Europe/Warsaw";
   i18n.defaultLocale = "en_US.UTF-8";
@@ -14,7 +13,7 @@
     LC_TELEPHONE = "pl_PL.UTF-8";
     LC_TIME = "pl_PL.UTF-8";
   };
-  
+
   services.xserver.xkb = {
     layout = "pl";
     variant = "";
