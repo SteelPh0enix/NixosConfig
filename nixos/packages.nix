@@ -1,13 +1,16 @@
-{ pkgs, ... }:
+{ pkgs, nixpkgs-unstable, ... }:
 {
   environment.systemPackages = with pkgs; [
     # development
     automake
     cargo
+    ccache
     cmake
     gcc
     gdb
     gnumake
+    linuxHeaders
+    llama-cpp-rocm
     lldb
     llvmPackages.clangWithLibcAndBasicRtAndLibcxx
     llvmPackages.openmp
@@ -30,6 +33,7 @@
     ffmpeg
     file
     findutils
+    fzf
     gawk
     git
     git-lfs
@@ -39,10 +43,10 @@
     gparted
     hdparm
     jq
-    linuxHeaders
     lm_sensors
     lsof
     ltrace
+    neovim
     nmap
     ntfs3g
     openssl
@@ -62,6 +66,7 @@
     usbutils
     wget
     which
+    wireshark
     xz
     zip
     zstd
@@ -111,7 +116,6 @@
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
-
 
   qt.enable = true;
   qt.platformTheme = "gnome";
