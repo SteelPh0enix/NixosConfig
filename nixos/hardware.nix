@@ -1,6 +1,7 @@
-{ ... }:
 {
+  hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
+  hardware.graphics.enable32Bit = true;
   hardware.amdgpu = {
     amdvlk.enable = true;
     amdvlk.support32Bit.enable = true;

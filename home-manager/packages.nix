@@ -1,29 +1,34 @@
 { pkgs, ... }:
 {
   home.packages = with pkgs; [
-    gedit
+    discord
     keepassxc
     protonvpn-gui
-    teams-for-linux
-    wezterm
     spotify
-    discord
+    teams-for-linux
   ];
 
-  programs.uv.enable = true;
-  programs.vscode.enable = true;
-  programs.wezterm.enable = true;
-  programs.wezterm.extraConfig = ''
-    local wezterm = require('wezterm')
-    local config = wezterm.config_builder()
+  programs.vscode = {
+    enable = true;
+    mutableExtensionsDir = true;
+  };
 
-    config.color_scheme = 'Kanagawa (Gogh)'
-    config.font_size = 10.5
-    config.font = wezterm.font 'MonaspiceKr NF'
-    config.initial_cols = 120
-    config.initial_rows = 30
+  programs.wezterm = {
+    enable = true;
+    extraConfig = ''
+      local wezterm = require('wezterm')
+      local config = wezterm.config_builder()
 
-    return config'';
+      config.color_scheme = 'Kanagawa (Gogh)'
+      config.font_size = 10.5
+      config.font = wezterm.font 'MonaspiceKr NF'
+      config.initial_cols = 120
+      config.initial_rows = 30
+      config.enable_wayland = false
+
+      return config'';
+  };
+
   programs.yt-dlp.enable = true;
 
   qt.enable = true;

@@ -13,22 +13,18 @@
     {
       self,
       nixpkgs,
-      nixpkgs-unstable,
       home-manager,
       ...
     }@inputs:
     let
-      system = "x86_64-linux";
       inherit (self) outputs;
     in
     {
       nixosConfigurations = {
         steelph0enix-pc =
           let
-            username = "steelph0enix";
             specialArgs = {
               inherit
-                username
                 inputs
                 outputs
                 ;
@@ -36,7 +32,7 @@
           in
           nixpkgs.lib.nixosSystem {
             inherit specialArgs;
-            system = system;
+            system = "x86_64-linux";
             modules = [
               ./nixos/configuration.nix
               home-manager.nixosModules.home-manager
@@ -44,7 +40,7 @@
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
                 home-manager.extraSpecialArgs = inputs // specialArgs;
-                home-manager.users.${username} = import ./home-manager/home.nix;
+                home-manager.users.steelph0enix = import ./home-manager/home.nix;
               }
             ];
           };

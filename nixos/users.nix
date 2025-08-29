@@ -1,17 +1,17 @@
-{ pkgs, username, ... }:
+{ pkgs, ... }:
 {
   users.groups = {
-    "${username}" = { };
+    steelph0enix = { };
     pcap = { };
     wireshark = { };
     docker = { };
   };
 
-  users.users.${username} = {
-    home = "/home/${username}";
+  users.users.steelph0enix = {
+    home = "/home/steelph0enix";
     isNormalUser = true;
     extraGroups = [
-      username
+      "steelph0enix"
       "users"
       "wheel"
       "video"
@@ -27,5 +27,5 @@
   };
 
   users.defaultUserShell = pkgs.fish;
-  nix.settings.trusted-users = [ username ];
+  nix.settings.trusted-users = [ "steelph0enix" ];
 }

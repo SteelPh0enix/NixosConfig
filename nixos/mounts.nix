@@ -1,4 +1,3 @@
-{ ... }:
 {
   fileSystems."/run/media/steelph0enix/Windows" = {
     device = "/dev/disk/by-uuid/8CCECE61CECE4366";
