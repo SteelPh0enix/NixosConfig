@@ -18,6 +18,7 @@
       ...
     }@inputs:
     let
+      system = "x86_64-linux";
       inherit (self) outputs;
     in
     {
@@ -25,15 +26,25 @@
         steelph0enix-pc =
           let
             username = "steelph0enix";
-            specialArgs = { inherit username inputs outputs; };
+            pkgs-unstable = import inputs.nixpkgs-unstable {
+              system = system;
+              overlays = [ (import ./overlays/unstable.nix) ];
+              config.allowUnfree = true;
+            };
+            specialArgs = {
+              inherit
+                username
+                pkgs-unstable
+                inputs
+                outputs
+                ;
+            };
           in
           nixpkgs.lib.nixosSystem {
             inherit specialArgs;
-            system = "x86_64-linux";
-            pkgs.overlays = [ (import ./overlays/llamacpp.nix) ];
+            system = system;
             modules = [
               ./nixos/configuration.nix
-
               home-manager.nixosModules.home-manager
               {
                 home-manager.useGlobalPkgs = true;
