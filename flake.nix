@@ -13,10 +13,12 @@
     {
       self,
       nixpkgs,
+      nixpkgs-unstable,
       home-manager,
       ...
     }@inputs:
     let
+      system = "x86_64-linux";
       inherit (self) outputs;
     in
     {
@@ -28,11 +30,15 @@
                 inputs
                 outputs
                 ;
+
+              pkgsUnstable = import nixpkgs-unstable {
+                inherit system;
+                config.allowUnfree = true;
+              };
             };
           in
           nixpkgs.lib.nixosSystem {
-            inherit specialArgs;
-            system = "x86_64-linux";
+            inherit specialArgs system;
             modules = [
               ./nixos/configuration.nix
               home-manager.nixosModules.home-manager
