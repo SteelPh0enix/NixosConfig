@@ -1,6 +1,16 @@
-{ pkgs, pkgs-unstable, ... }:
+{ pkgs, pkgsUnstable, ... }:
 {
+  nixpkgs.overlays = [
+    (self: super: {
+      llama-cpp-rocm = pkgsUnstable.llama-cpp.override {
+        rocmSupport = true;
+        rocmGpuTargets = "gfx1100";
+      };
+    })
+  ];
+
   environment.systemPackages = with pkgs; [
+    llama-cpp-rocm
     btop
     ccache
     curl
