@@ -35,4 +35,6 @@
     LLAMA_ARG_ENDPOINT_PROPS = 1;
     UV_TORCH_BACKEND = "auto";
   };
+
+  programs.fish.shellInit = builtins.readFile ./init.fish;
 }
