@@ -40,6 +40,7 @@
     ltrace
     neovim
     nil
+    nix-direnv
     nixd
     nixfmt-rfc-style
     nmap
@@ -74,6 +75,10 @@
   programs.command-not-found.enable = true;
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
+  programs.direnv = {
+    enable = true;
+    enableFishIntegration = true;
+  };
   programs.evince.enable = true;
   programs.firefox.enable = true;
   programs.fish.enable = true;
