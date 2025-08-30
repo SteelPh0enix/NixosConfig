@@ -1,5 +1,5 @@
 {
-  programs.fish.shellAliases = {
+  environment.shellAliases = {
     ls = "eza";
     l = "eza -lh";
     la = "eza -alh";
