@@ -9,6 +9,8 @@
     pkgu = "cd /etc/nixos && nix flake update && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all";
     pkgc = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";
+    cfge = "code /etc/nixos";
+    docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
   };
-
 }
