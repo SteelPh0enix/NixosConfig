@@ -118,6 +118,6 @@
   programs.wireshark.usbmon.enable = true;
 
   qt.enable = true;
-  qt.platformTheme = "gnome";
-  qt.style = "adwaita-dark";
+  qt.platformTheme = "kde6";
+  qt.style = "bb10dark";
 }

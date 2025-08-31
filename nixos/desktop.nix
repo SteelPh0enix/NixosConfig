@@ -1,16 +1,24 @@
+{ pkgs, ... }:
 {
   services.xserver.enable = true;
 
-  services.xserver.displayManager.gdm.enable = true;
-  services.xserver.desktopManager.gnome.enable = true;
-  services.gnome.core-developer-tools.enable = true;
-  services.gnome.gnome-keyring.enable = true;
+  services.displayManager.sddm.enable = true;
+  services.displayManager.sddm.wayland.enable = true;
+  services.desktopManager.plasma6.enable = true;
+  services.displayManager.sddm.settings.General.DisplayServer = "wayland";
 
   # Enable automatic login for the user.
   services.displayManager.autoLogin.enable = true;
   services.displayManager.autoLogin.user = "steelph0enix";
 
-  # Workaround for GNOME autologin: https://github.com/NixOS/nixpkgs/issues/103746#issuecomment-945091229
-  systemd.services."getty@tty1".enable = false;
-  systemd.services."autovt@tty1".enable = false;
+  environment.systemPackages = with pkgs; [
+    hardinfo2
+    kdePackages.kcalc
+    kdePackages.kclock
+    kdePackages.ksystemlog
+    kdiff3
+    wayland-utils
+    wl-clipboard
+    xclip
+  ];
 }
