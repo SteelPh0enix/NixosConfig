@@ -1,3 +1,4 @@
+{ pkgs, ... }:
 {
   hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
@@ -6,6 +7,25 @@
     amdvlk.enable = true;
     amdvlk.support32Bit.enable = true;
     opencl.enable = true;
+  };
+
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+    settings = {
+      General = {
+        Experimental = true;
+        FastConnectable = true;
+      };
+      Policy = {
+        AutoEnable = true;
+      };
+    };
+  };
+
+  hardware.pulseaudio = {
+    enable = true;
+    package = pkgs.pulseaudioFull;
   };
 
   # force RADV
@@ -21,5 +41,23 @@
     pulse.enable = true;
     jack.enable = true;
     media-session.enable = true;
+
+    wireplumber.extraConfig.bluetoothEnhancements = {
+      "monitor.bluez.properties" = {
+        "bluez5.enable-sbc-xq" = true;
+        "bluez5.enable-msbc" = true;
+        "bluez5.enable-hw-volume" = true;
+        "bluez5.roles" = [
+          "hsp_hs"
+          "hsp_ag"
+          "hfp_hf"
+          "hfp_ag"
+          "a2dp_sink"
+          "a2dp_source"
+          "bap_sink"
+          "bap_source"
+        ];
+      };
+    };
   };
 }
