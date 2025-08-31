@@ -20,4 +20,5 @@
 
   services.fail2ban.enable = true;
   services.printing.enable = true;
+  services.blueman.enable = true;
 }
