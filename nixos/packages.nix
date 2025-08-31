@@ -11,7 +11,7 @@
 
   environment.systemPackages = with pkgs; [
     llama-cpp-rocm
-    btop
+    btop-rocm
     ccache
     curl
     dmidecode
