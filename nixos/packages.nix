@@ -10,6 +10,7 @@
       llama-cpp-rocm-gfx1100 = llama-cpp.packages.${pkgs.system}.rocm.override {
         rocmGpuTargets = "gfx1100";
         rocmPackages = pkgsUnstable.rocmPackages;
+        allFaQuants = true;
       };
     })
   ];

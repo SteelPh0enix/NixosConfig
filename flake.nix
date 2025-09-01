@@ -10,7 +10,7 @@
 
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
     ucodenix.url = "github:e-tho/ucodenix";
-    llama-cpp.url = "github:ggml-org/llama.cpp";
+    llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
   };
 
   outputs =

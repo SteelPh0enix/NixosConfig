@@ -84,17 +84,14 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1756750429,
-        "narHash": "sha256-uJCj1MpUsRKV3a3Kva5kYBxHVZZuvDJarrQEV9SXzcg=",
-        "owner": "ggml-org",
-        "repo": "llama.cpp",
-        "rev": "078ce23ea77988f2fe1a42afb18d58bc084d55fa",
-        "type": "github"
+        "lastModified": 1756753063,
+        "narHash": "sha256-4RIM8603NStRHvce8LeHGwV2V1vZ5zQ8XqpvTzUoqH0=",
+        "path": "/home/steelph0enix/llama.cpp",
+        "type": "path"
       },
       "original": {
-        "owner": "ggml-org",
-        "repo": "llama.cpp",
-        "type": "github"
+        "path": "/home/steelph0enix/llama.cpp",
+        "type": "path"
       }
     },
     "nix-ai-tools": {
