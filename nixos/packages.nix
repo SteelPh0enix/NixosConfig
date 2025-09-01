@@ -79,6 +79,10 @@
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
+  programs.nix-index.enable = true;
+  programs.nix-index.enableFishIntegration = true;
+  programs.nix-index-database.comma.enable = true;
+
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
 
