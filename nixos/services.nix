@@ -2,6 +2,10 @@
 {
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-work-vm";
+  networking.nameservers = [
+    "1.1.1.1"
+    "8.8.8.8"
+  ];
 
   networking.firewall.allowedTCPPorts = [ ];
   networking.firewall.allowedUDPPorts = [ ];
