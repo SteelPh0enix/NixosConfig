@@ -10,6 +10,7 @@
 
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
     ucodenix.url = "github:e-tho/ucodenix";
+    llama-cpp.url = "github:ggml-org/llama.cpp";
   };
 
   outputs =
@@ -43,6 +44,7 @@
           nixpkgs.lib.nixosSystem {
             inherit specialArgs system;
             modules = [
+              { _module.args = inputs; }
               ./nixos/configuration.nix
               home-manager.nixosModules.home-manager
               {
