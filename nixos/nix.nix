@@ -3,8 +3,8 @@
 
   nix.gc = {
     automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 3d";
+    dates = "daily";
+    options = "--delete-older-than 1d";
   };
 
   nix.settings.auto-optimise-store = true;
