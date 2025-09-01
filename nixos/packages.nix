@@ -43,7 +43,6 @@
     nix-direnv
     nixd
     nixfmt-rfc-style
-    nmap
     ntfs3g
     openssl
     p7zip
