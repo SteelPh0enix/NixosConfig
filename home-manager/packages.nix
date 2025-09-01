@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, nix-ai-tools, ... }:
 {
   home.packages = with pkgs; [
     discord
@@ -6,6 +6,8 @@
     protonvpn-gui
     spotify
     teams-for-linux
+
+    nix-ai-tools.packages.${pkgs.system}.crush
   ];
 
   programs.vscode = {
