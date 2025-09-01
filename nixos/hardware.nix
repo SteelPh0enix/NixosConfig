@@ -1,5 +1,12 @@
 { pkgs, ... }:
 {
+  boot.initrd.kernelModules = [ "amdgpu" ];
+  boot.kernelModules = [ "kvm-amd" ];
+  boot.kernelParams = [
+    "kvm.enable_virt_at_load=0"
+    "microcode.amd_sha_check=off"
+  ];
+
   hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
