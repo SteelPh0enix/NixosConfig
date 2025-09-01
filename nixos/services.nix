@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ ... }:
 {
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-work-vm";
@@ -17,4 +17,6 @@
       AllowUsers = [ "steelph0enix" ];
     };
   };
+
+  security.pam.services.gdm.enableGnomeKeyring = true;
 }
