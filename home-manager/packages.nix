@@ -6,6 +6,7 @@
     protonvpn-gui
     spotify
     teams-for-linux
+    qbittorrent-enhanced
 
     nix-ai-tools.packages.${pkgs.system}.crush
   ];
@@ -32,6 +33,18 @@
   };
 
   programs.yt-dlp.enable = true;
+
+  programs.mpv = {
+    enable = true;
+    package = pkgs.mpv-unwrapped;
+    bindings = {
+      "n" = "playlist-next";
+      "Shift+n" = "add chapter 1";
+      "p" = "playlist-prev";
+      "Shift+p" = "add chapter -1";
+      "s" = "playlist-shuffle";
+    };
+  };
 
   qt.enable = true;
 }
