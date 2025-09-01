@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-pc";
@@ -21,4 +22,10 @@
   services.fail2ban.enable = true;
   services.printing.enable = true;
   services.blueman.enable = true;
+
+  imports = [ inputs.ucodenix.nixosModules.default ];
+  services.ucodenix = {
+    enable = true;
+    cpuModelId = "00A20F10";
+  };
 }
