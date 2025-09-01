@@ -17,6 +17,8 @@
     curl
     dmidecode
     dnsutils
+    docker
+    docker-buildx
     exfat
     exfatprogs
     eza
