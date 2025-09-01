@@ -28,4 +28,7 @@
     enable = true;
     cpuModelId = "00A20F10";
   };
+
+  services.jackett.enable = true;
+  services.flaresolverr.enable = true;
 }
