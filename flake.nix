@@ -8,6 +8,9 @@
     home-manager.url = "github:nix-community/home-manager/release-25.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    nix-index-database.url = "github:nix-community/nix-index-database";
+    nix-index-database.inputs.nixpkgs.follows = "nixpkgs";
+
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
   };
 
@@ -17,6 +20,7 @@
       nixpkgs,
       nixpkgs-unstable,
       home-manager,
+      nix-index-database,
       ...
     }@inputs:
     let
@@ -43,6 +47,7 @@
             inherit specialArgs system;
             modules = [
               ./nixos/configuration.nix
+              nix-index-database.nixosModules.nix-index
               home-manager.nixosModules.home-manager
               {
                 home-manager.backupFileExtension = ".hmgr.backup";
