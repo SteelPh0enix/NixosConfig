@@ -22,4 +22,7 @@
     wl-clipboard
     xclip
   ];
+
+  qt.platformTheme = "kde6";
+  qt.style = "bb10dark";
 }
