@@ -5,6 +5,7 @@
     pcap = { };
     wireshark = { };
     docker = { };
+    vboxusers = { };
   };
 
   users.users.steelph0enix = {
@@ -20,6 +21,7 @@
       "pcap"
       "wireshark"
       "docker"
+      "vboxusers"
     ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPoBzFN664gkpNbjnvTkMaO2zlI0rQTto1gJ+B26fbvO phoen@SteelPh0enixROG"
