@@ -9,6 +9,7 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
+    ucodenix.url = "github:e-tho/ucodenix";
   };
 
   outputs =
@@ -45,6 +46,7 @@
               ./nixos/configuration.nix
               home-manager.nixosModules.home-manager
               {
+                home-manager.backupFileExtension = ".hmgr.backup";
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
                 home-manager.extraSpecialArgs = inputs // specialArgs;
