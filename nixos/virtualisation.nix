@@ -12,5 +12,12 @@
       rootless.enable = true;
       rootless.setSocketVariable = true;
     };
+    virtualbox.host = {
+      enable = true;
+      enableKvm = false;
+      enableExtensionPack = true;
+      enableHardening = true;
+      addNetworkInterface = false;
+    };
   };
 }
