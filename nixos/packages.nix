@@ -1,18 +1,7 @@
-{ pkgs, pkgsUnstable, ... }:
+{ pkgs, ... }:
 {
-  nixpkgs.overlays = [
-    (self: super: {
-      llama-cpp-rocm = pkgsUnstable.llama-cpp.override {
-        rocmSupport = true;
-        rocmGpuTargets = "gfx1100";
-      };
-    })
-  ];
-
   environment.systemPackages = with pkgs; [
-    llama-cpp-rocm
-    lact
-    btop-rocm
+    btop
     ccache
     curl
     dmidecode
@@ -67,9 +56,6 @@
     zstd
   ];
 
-  systemd.packages = with pkgs; [ lact ];
-  systemd.services.lactd.wantedBy = [ "multi-user.target" ];
-
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
 
@@ -87,7 +73,6 @@
   programs.fish.enable = true;
   programs.fzf.fuzzyCompletion = true;
   programs.fzf.keybindings = true;
-  programs.gamemode.enable = true;
   programs.git.enable = true;
   programs.git.lfs.enable = true;
   programs.gnupg.agent = {
@@ -106,12 +91,6 @@
   programs.obs-studio.enable = true;
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
-  programs.steam = {
-    enable = true;
-    localNetworkGameTransfers.openFirewall = true;
-    protontricks.enable = true;
-    remotePlay.openFirewall = true;
-  };
   programs.tcpdump.enable = true;
   programs.thefuck.enable = true;
   programs.thefuck.alias = "fk";
@@ -119,8 +98,4 @@
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
-
-  qt.enable = true;
-  qt.platformTheme = "kde6";
-  qt.style = "bb10dark";
 }

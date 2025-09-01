@@ -1,25 +1,18 @@
 { pkgs, ... }:
 {
   services.xserver.enable = true;
-  services.xserver.videoDrivers = [ "amdgpu" ];
+  services.xserver.displayManager.lightdm.enable = true;
+  services.xserver.desktopManager.xfce.enable = true;
 
-  services.displayManager.sddm.enable = true;
-  services.displayManager.sddm.wayland.enable = true;
-  services.desktopManager.plasma6.enable = true;
-  services.displayManager.sddm.settings.General.DisplayServer = "wayland";
-
-  # Enable automatic login for the user.
   services.displayManager.autoLogin.enable = true;
   services.displayManager.autoLogin.user = "steelph0enix";
 
+  qt.enable = true;
+  qt.platformTheme = "gtk2";
+  qt.style = "bb10dark";
+
   environment.systemPackages = with pkgs; [
     hardinfo2
-    kdePackages.kcalc
-    kdePackages.kclock
-    kdePackages.ksystemlog
-    kdiff3
-    wayland-utils
-    wl-clipboard
     xclip
   ];
 }

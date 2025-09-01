@@ -1,12 +1,7 @@
 { pkgs, nix-ai-tools, ... }:
 {
   home.packages = with pkgs; [
-    discord
     keepassxc
-    protonvpn-gui
-    spotify
-    teams-for-linux
-
     nix-ai-tools.packages.${pkgs.system}.crush
   ];
 
@@ -30,8 +25,6 @@
 
       return config'';
   };
-
-  programs.yt-dlp.enable = true;
 
   qt.enable = true;
 }
