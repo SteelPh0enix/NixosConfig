@@ -7,6 +7,7 @@
     spotify
     teams-for-linux
     qbittorrent-enhanced
+    zenmap
 
     nix-ai-tools.packages.${pkgs.system}.crush
   ];
