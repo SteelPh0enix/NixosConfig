@@ -1,6 +1,7 @@
 { pkgs, ... }:
 {
   services.xserver.enable = true;
+  services.xserver.videoDrivers = [ "amdgpu" ];
 
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
