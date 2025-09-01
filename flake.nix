@@ -8,6 +8,9 @@
     home-manager.url = "github:nix-community/home-manager/release-25.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    nix-index-database.url = "github:nix-community/nix-index-database";
+    nix-index-database.inputs.nixpkgs.follows = "nixpkgs";
+
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
     ucodenix.url = "github:e-tho/ucodenix";
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
@@ -19,6 +22,7 @@
       nixpkgs,
       nixpkgs-unstable,
       home-manager,
+      nix-index-database,
       ...
     }@inputs:
     let
@@ -46,6 +50,7 @@
             modules = [
               { _module.args = inputs; }
               ./nixos/configuration.nix
+              nix-index-database.nixosModules.nix-index
               home-manager.nixosModules.home-manager
               {
                 home-manager.backupFileExtension = ".hmgr.backup";
