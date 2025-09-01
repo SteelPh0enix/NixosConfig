@@ -6,17 +6,18 @@
   ];
 
   imports = [
-    ./hardware-configuration.nix
     ./boot.nix
-    ./shell.nix
-    ./mounts.nix
-    ./users.nix
-    ./nix.nix
+    ./desktop.nix
+    ./fonts.nix
+    ./hardware-configuration.nix
+    ./hardware.nix
     ./locale.nix
+    ./mounts.nix
+    ./nix.nix
     ./packages.nix
     ./services.nix
-    ./fonts.nix
-    ./desktop.nix
+    ./shell.nix
+    ./users.nix
     ./virtualisation.nix
   ];
 }
