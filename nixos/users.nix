@@ -30,4 +30,12 @@
 
   users.defaultUserShell = pkgs.fish;
   nix.settings.trusted-users = [ "steelph0enix" ];
+
+  security.pam.loginLimits = [
+    {
+      domain = "*";
+      item = "memlock";
+      value = "infinity";
+    }
+  ];
 }
