@@ -9,7 +9,6 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
-    ucodenix.url = "github:e-tho/ucodenix";
   };
 
   outputs =
@@ -26,7 +25,7 @@
     in
     {
       nixosConfigurations = {
-        steelph0enix-pc =
+        steelph0enix-work-vm =
           let
             specialArgs = {
               inherit
