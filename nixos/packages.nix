@@ -78,7 +78,6 @@
 
   programs.bat.enable = true;
   programs.ccache.enable = true;
-  programs.command-not-found.enable = true;
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
   programs.direnv = {
