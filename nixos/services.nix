@@ -31,4 +31,6 @@
 
   services.jackett.enable = true;
   services.flaresolverr.enable = true;
+
+  services.thermald.enable = true;
 }

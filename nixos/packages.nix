@@ -23,11 +23,11 @@ in
   ];
 
   environment.systemPackages = with pkgs; [
-    llamaPkgs.llama-cpp
-    lact
+    blueman
     btop-rocm
     ccache
     curl
+    linuxKernel.packages.linux_zen.cpupower
     dmidecode
     dnsutils
     docker
@@ -35,11 +35,13 @@ in
     exfat
     exfatprogs
     eza
+    fail2ban
     fastfetch
     fd
     ffmpeg
     file
     findutils
+    flaresolverr
     fzf
     gawk
     git
@@ -49,8 +51,11 @@ in
     gnutar
     gparted
     hdparm
+    jackett
     jq
+    lact
     linuxHeaders
+    llamaPkgs.llama-cpp
     lm_sensors
     lsof
     ltrace
@@ -61,6 +66,7 @@ in
     nixfmt-rfc-style
     nmap
     ntfs3g
+    openssh
     openssl
     p7zip
     parted
@@ -72,6 +78,7 @@ in
     strace
     sysstat
     tcpdump
+    thermald
     tree
     tree
     usbutils
