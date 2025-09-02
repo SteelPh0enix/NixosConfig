@@ -38,11 +38,6 @@
                 inputs
                 outputs
                 ;
-
-              pkgsUnstable = import nixpkgs-unstable {
-                inherit system;
-                config.allowUnfree = true;
-              };
             };
           in
           nixpkgs.lib.nixosSystem {
