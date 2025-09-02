@@ -46,6 +46,7 @@ in
     gawk
     git
     git-lfs
+    gh
     gnugrep
     gnused
     gnutar
@@ -64,6 +65,7 @@ in
     nix-direnv
     nixd
     nixfmt-rfc-style
+    nixpkgs-review
     nmap
     ntfs3g
     openssh
