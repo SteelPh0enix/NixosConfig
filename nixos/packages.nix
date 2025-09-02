@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   nixpkgs-unstable,
   llama-cpp,
@@ -6,7 +7,40 @@
 }:
 let
   llamaPkgs = import nixpkgs-unstable {
-    overlays = [ (llama-cpp.overlays.default) ];
+    overlays = [
+      (llama-cpp.overlays.default)
+      (self: super: {
+        ccacheWrapper = super.ccacheWrapper.override {
+          extraConfig = ''
+            export CCACHE_COMPRESS=1
+            export CCACHE_DIR="${config.programs.ccache.cacheDir}"
+            export CCACHE_UMASK=007
+            export CCACHE_SLOPPINESS=random_seed
+            if [ ! -d "$CCACHE_DIR" ]; then
+              echo "====="
+              echo "Directory '$CCACHE_DIR' does not exist"
+              echo "Please create it with:"
+              echo "  sudo mkdir -m0770 '$CCACHE_DIR'"
+              echo "  sudo chown root:nixbld '$CCACHE_DIR'"
+              echo "====="
+              exit 1
+            fi
+            if [ ! -w "$CCACHE_DIR" ]; then
+              echo "====="
+              echo "Directory '$CCACHE_DIR' is not accessible for user $(whoami)"
+              echo "Please verify its access permissions"
+              echo "====="
+              exit 1
+            fi
+          '';
+        };
+      })
+      (self: super: {
+        llama-cpp = llamaPkgs.llamaPackages.llama-cpp.override {
+          stdenv = super.ccacheStdenv;
+        };
+      })
+    ];
     system = pkgs.system;
     config.allowUnfree = true;
     config.rocmSupport = true;
@@ -15,7 +49,7 @@ let
 in
 {
   environment.systemPackages = with pkgs; [
-    llamaPkgs.llamaPackages.llama-cpp
+    llamaPkgs.llama-cpp
     lact
     btop-rocm
     ccache
@@ -126,6 +160,8 @@ in
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
+
+  nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
   qt.enable = true;
 }
