@@ -1,5 +1,17 @@
-{ pkgs, nix-ai-tools, ... }:
 {
+  pkgs,
+  nix-ai-tools,
+  nixpkgs-local,
+  ...
+}:
+let
+  localNixpkgs = import nixpkgs-local {
+    system = pkgs.system;
+    config.allowUnfree = true;
+  };
+in
+{
+
   home.packages = with pkgs; [
     discord
     keepassxc
@@ -8,6 +20,8 @@
     teams-for-linux
     qbittorrent-enhanced
     zenmap
+
+    localNixpkgs.stm32cubemx
 
     nix-ai-tools.packages.${pkgs.system}.crush
   ];
