@@ -14,6 +14,7 @@
     amdvlk.enable = true;
     amdvlk.support32Bit.enable = true;
     opencl.enable = true;
+    overdrive.enable = true;
   };
   hardware.graphics.extraPackages = with pkgs; [
     amdvlk
