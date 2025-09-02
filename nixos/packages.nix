@@ -9,7 +9,7 @@ let
   llamaPkgs = import nixpkgs-unstable {
     overlays = [
       (llama-cpp.overlays.default)
-      (import ./overlays/ccache.nix { config = config; })
+      (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
       (import ./overlays/llama-cpp.nix { llamaPkgs = llamaPkgs; })
     ];
     system = pkgs.system;
@@ -18,6 +18,10 @@ let
   };
 in
 {
+  nixpkgs.overlays = [
+    (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
+  ];
+
   environment.systemPackages = with pkgs; [
     llamaPkgs.llama-cpp
     lact
@@ -87,6 +91,7 @@ in
 
   programs.bat.enable = true;
   programs.ccache.enable = true;
+  programs.ccache.cacheDir = "/var/cache/ccache";
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
   programs.direnv = {

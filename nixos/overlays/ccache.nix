@@ -1,11 +1,13 @@
-{ config, ... }:
+{ cacheDir, ... }:
 (self: super: {
   ccacheWrapper = super.ccacheWrapper.override {
     extraConfig = ''
       export CCACHE_COMPRESS=1
-      export CCACHE_DIR="${config.programs.ccache.cacheDir}"
+      export CCACHE_DIR="${cacheDir}"
       export CCACHE_UMASK=007
       export CCACHE_SLOPPINESS=random_seed
+      export HOME="$TMPDIR"
+      echo "ccache dir: $CCACHE_DIR"
       if [ ! -d "$CCACHE_DIR" ]; then
         echo "====="
         echo "Directory '$CCACHE_DIR' does not exist"
