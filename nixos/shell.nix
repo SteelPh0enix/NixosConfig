@@ -6,7 +6,7 @@
     lg = "lazygit";
     e = "$EDITOR";
     eh = "$EDITOR .";
-    pkgu = "cd ~/nixos-config && git checkout main-pc && git pull && nix flake update && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all";
+    pkgu = "cd ~/nixos-config && git checkout main-pc && git pull && nix flake update && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh";
     pkgc = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";
     cfge = "code ~/nixos-config";
