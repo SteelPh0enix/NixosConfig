@@ -47,5 +47,27 @@
     };
   };
 
+  programs.git = {
+    enable = true;
+    lfs.enable = true;
+    userName = "SteelPh0enix";
+    userEmail = "wojciech_olech@hotmail.com";
+    signing = {
+      format = "openpgp";
+      key = "141DE12C7B2F574B";
+      signByDefault = true;
+    };
+  };
+  programs.lazygit.enable = true;
+
+  programs.ripgrep.enable = true;
+  programs.fd.enable = true;
+  programs.eza = {
+    enable = true;
+    enableFishIntegration = true;
+    icons = "always";
+    git = true;
+  };
+
   qt.enable = true;
 }
