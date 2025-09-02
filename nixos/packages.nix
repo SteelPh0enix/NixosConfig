@@ -20,6 +20,7 @@ in
 {
   nixpkgs.overlays = [
     (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
+    (import ./overlays/stm32cubemx.nix)
   ];
 
   environment.systemPackages = with pkgs; [
@@ -75,6 +76,7 @@ in
     ripgrep
     rsync
     socat
+    stm32cubemx
     strace
     sysstat
     tcpdump
