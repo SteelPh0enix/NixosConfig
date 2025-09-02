@@ -83,5 +83,8 @@ in
     git = true;
   };
 
+  programs.gh.enable = true;
+  programs.gh.gitCredentialHelper.enable = true;
+
   qt.enable = true;
 }

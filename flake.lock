@@ -164,8 +164,8 @@
     },
     "nixpkgs-local": {
       "locked": {
-        "lastModified": 1756843109,
-        "narHash": "sha256-JObsNAFw8LULbtZ/5ZaXRlAG8cBGWV74w8fk0k3aD7w=",
+        "lastModified": 1756850338,
+        "narHash": "sha256-tF5X6EcwGvHwfzDX/ImLkv6e75+YHjmdmEFRCSONG+Y=",
         "path": "/home/steelph0enix/nixpkgs",
         "type": "path"
       },
