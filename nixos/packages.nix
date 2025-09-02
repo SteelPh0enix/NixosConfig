@@ -37,7 +37,10 @@ let
       })
       (self: super: {
         llama-cpp = llamaPkgs.llamaPackages.llama-cpp.override {
+          llamaVersion = "1.2.3";
           stdenv = super.ccacheStdenv;
+          buildAllCudaFaQuants = true;
+          useMpi = true;
         };
       })
     ];
