@@ -162,6 +162,18 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/cc2f28000298e1269cea6612cd06ec9979dd5d7f.tar.gz"
       }
     },
+    "nixpkgs-local": {
+      "locked": {
+        "lastModified": 1756843109,
+        "narHash": "sha256-JObsNAFw8LULbtZ/5ZaXRlAG8cBGWV74w8fk0k3aD7w=",
+        "path": "/home/steelph0enix/nixpkgs",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/steelph0enix/nixpkgs",
+        "type": "path"
+      }
+    },
     "nixpkgs-unstable": {
       "locked": {
         "lastModified": 1756542300,
@@ -217,6 +229,7 @@
         "nix-ai-tools": "nix-ai-tools",
         "nix-index-database": "nix-index-database",
         "nixpkgs": "nixpkgs_3",
+        "nixpkgs-local": "nixpkgs-local",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "ucodenix": "ucodenix"
       }
