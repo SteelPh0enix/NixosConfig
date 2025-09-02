@@ -1,22 +1,21 @@
 {
   pkgs,
-  pkgsUnstable,
+  nixpkgs-unstable,
   llama-cpp,
   ...
 }:
+let
+  llamaPkgs = import nixpkgs-unstable {
+    overlays = [ (llama-cpp.overlays.default) ];
+    system = pkgs.system;
+    config.allowUnfree = true;
+    config.rocmSupport = true;
+    config.rocmGpuTargets = "gfx1100";
+  };
+in
 {
-  nixpkgs.overlays = [
-    (self: super: {
-      llama-cpp-rocm-gfx1100 = llama-cpp.packages.${pkgs.system}.rocm.override {
-        rocmGpuTargets = "gfx1100";
-        rocmPackages = pkgsUnstable.rocmPackages;
-        allFaQuants = true;
-      };
-    })
-  ];
-
   environment.systemPackages = with pkgs; [
-    llama-cpp-rocm-gfx1100
+    llamaPkgs.llamaPackages.llama-cpp
     lact
     btop-rocm
     ccache
