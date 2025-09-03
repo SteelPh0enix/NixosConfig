@@ -1,8 +1,8 @@
 {
   environment.shellAliases = {
-    ls = "eza";
-    l = "eza -lh";
-    la = "eza -alh";
+    ls = "eza --icons=always -gM --git";
+    l = "ls -lh";
+    la = "ls -alh";
     lg = "lazygit";
     e = "$EDITOR";
     eh = "$EDITOR .";
