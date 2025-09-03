@@ -101,11 +101,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1756781000,
-        "narHash": "sha256-XAwGEQXTMfJ2xMl+UuSSpCnwQX6SdpZ7ZwNG4zI+eFI=",
+        "lastModified": 1756867454,
+        "narHash": "sha256-1Cm3DppVfK/K6LWoO7c30HBITLlwDceiyWAqdguyb3E=",
         "owner": "numtide",
         "repo": "nix-ai-tools",
-        "rev": "f0ac4567b00dabd8c429b897baa5e75ea872586f",
+        "rev": "caec847f66ec5fc3c3459167c1b6cb9284ffc2cb",
         "type": "github"
       },
       "original": {
@@ -164,8 +164,8 @@
     },
     "nixpkgs-local": {
       "locked": {
-        "lastModified": 1756850728,
-        "narHash": "sha256-oj0UR2X8Hr11zNsw7S/X0jvcACcYf2IOV3rLzse1BPI=",
+        "lastModified": 1756851432,
+        "narHash": "sha256-TBKgK/p2/73RedqJeC3nHWM1Pk9g4ex3GVFa2bGZvt8=",
         "path": "/home/steelph0enix/nixpkgs",
         "type": "path"
       },
@@ -176,11 +176,11 @@
     },
     "nixpkgs-unstable": {
       "locked": {
-        "lastModified": 1756542300,
-        "narHash": "sha256-tlOn88coG5fzdyqz6R93SQL5Gpq+m/DsWpekNFhqPQk=",
+        "lastModified": 1756787288,
+        "narHash": "sha256-rw/PHa1cqiePdBxhF66V7R+WAP8WekQ0mCDG4CFqT8Y=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "d7600c775f877cd87b4f5a831c28aa94137377aa",
+        "rev": "d0fc30899600b9b3466ddb260fd83deb486c32f1",
         "type": "github"
       },
       "original": {
@@ -208,11 +208,11 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1756754095,
-        "narHash": "sha256-9Rsn9XEWINExosFkKEqdp8EI6Mujr1gmQiyrEcts2ls=",
+        "lastModified": 1756886854,
+        "narHash": "sha256-6tooT142NLcFjt24Gi4B0G1pgWLvfw7y93sYEfSHlLI=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "7c815e513adbf03c9098b2bd230c1e0525c8a7f9",
+        "rev": "0e6684e6c5755325f801bda1751a8a4038145d7d",
         "type": "github"
       },
       "original": {
@@ -279,7 +279,7 @@
         "narHash": "sha256-nQDjNvTXU8u0ioCPb/X7/JcKg8wjwlertw7wpthX8tM=",
         "owner": "e-tho",
         "repo": "ucodenix",
-        "rev": "88abe579993589370ff32b759e18cda68e6a7e48",
+        "rev": "1c963fc3600b63daa112b97098141dd6eeb9cd70",
         "type": "github"
       },
       "original": {
