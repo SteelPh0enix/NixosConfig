@@ -7,6 +7,8 @@
   environment.systemPackages = with pkgs; [
     btop
     ccache
+    dotnet-sdk_9
+    dotnet-runtime_9
     curl
     dmidecode
     dnsutils
@@ -61,6 +63,10 @@
     zip
     zstd
   ];
+
+  environment.sessionVariables = {
+    DOTNET_ROOT = "${pkgs.dotnet-sdk_9}/share/dotnet/";
+  };
 
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
