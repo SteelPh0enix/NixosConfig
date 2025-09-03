@@ -1,5 +1,9 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 {
+  nixpkgs.overlays = [
+    (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
+  ];
+
   environment.systemPackages = with pkgs; [
     btop
     ccache
@@ -63,6 +67,7 @@
 
   programs.bat.enable = true;
   programs.ccache.enable = true;
+  programs.ccache.cacheDir = "/var/cache/ccache";
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
   programs.direnv = {
@@ -99,6 +104,8 @@
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
+
+  nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
   qt.enable = true;
 }
