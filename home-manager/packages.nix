@@ -20,6 +20,7 @@ in
     teams-for-linux
     qbittorrent-enhanced
     zenmap
+    gimp
 
     localNixpkgs.stm32cubemx
 
