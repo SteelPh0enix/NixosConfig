@@ -7,8 +7,6 @@
     docker = {
       enable = true;
       enableOnBoot = true;
-      rootless.enable = true;
-      rootless.setSocketVariable = true;
     };
     virtualbox.guest = {
       enable = true;
@@ -17,4 +15,6 @@
       clipboard = true;
     };
   };
+
+  networking.firewall.trustedInterfaces = [ "docker0" ];
 }
