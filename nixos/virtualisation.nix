@@ -7,8 +7,6 @@
     docker = {
       enable = true;
       enableOnBoot = true;
-      autoPrune.enable = true;
-      autoPrune.dates = "daily";
       rootless.enable = true;
       rootless.setSocketVariable = true;
     };
