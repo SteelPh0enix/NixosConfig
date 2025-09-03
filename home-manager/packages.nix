@@ -71,6 +71,18 @@ in
       key = "141DE12C7B2F574B";
       signByDefault = true;
     };
+
+    extraConfig = {
+      core.editor = "nvim";
+      merge.ff = true;
+      rerere.enabled = true;
+      safe.directory = "*";
+      pull.rebase = true;
+      push = {
+        autoSetupRemote = true;
+        default = "simple";
+      };
+    };
   };
   programs.lazygit.enable = true;
 
