@@ -26,5 +26,29 @@
       return config'';
   };
 
+  programs.git = {
+    enable = true;
+    lfs.enable = true;
+    userName = "Wojciech Olech";
+    userEmail = "wojciech.olech@n7space.com";
+    signing = {
+      format = "openpgp";
+      key = "9435CB0C320EFC33";
+      signByDefault = true;
+    };
+
+    extraConfig = {
+      core.editor = "nvim";
+      merge.ff = true;
+      rerere.enabled = true;
+      safe.directory = "*";
+      pull.rebase = true;
+      push = {
+        autoSetupRemote = true;
+        default = "simple";
+      };
+    };
+  };
+
   qt.enable = true;
 }
