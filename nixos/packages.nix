@@ -31,6 +31,7 @@
     gnutar
     gparted
     hdparm
+    icu
     jq
     linuxHeaders
     lm_sensors
