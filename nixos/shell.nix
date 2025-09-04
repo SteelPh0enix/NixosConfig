@@ -6,8 +6,9 @@
     lg = "lazygit";
     e = "$EDITOR";
     eh = "$EDITOR .";
-    pkgu = "cd ~/nixos-config && git checkout main-pc && git pull && nix flake update && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh";
-    pkgc = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
+    os-rebuild = "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh";
+    os-update = "cd ~/nixos-config && nix flake update && os-rebuild";
+    os-clean = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";
     cfge = "code ~/nixos-config";
     docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
@@ -33,6 +34,8 @@
     LLAMA_OFFLINE = 0;
     LLAMA_ARG_ENDPOINT_SLOTS = 1;
     LLAMA_ARG_ENDPOINT_PROPS = 1;
+    LLAMA_ARG_CONTEXT_SHIFT = 1;
+    LLAMA_ARG_NO_CONTEXT_SHIFT = 0;
     UV_TORCH_BACKEND = "auto";
   };
 
