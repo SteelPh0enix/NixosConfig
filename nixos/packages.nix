@@ -53,6 +53,7 @@ in
     gnutar
     gparted
     hdparm
+    icu
     jackett
     jq
     lact
