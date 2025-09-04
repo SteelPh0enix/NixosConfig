@@ -57,6 +57,19 @@
           "bluez5.enable-sbc-xq" = true;
           "bluez5.enable-msbc" = true;
           "bluez5.enable-hw-volume" = true;
+          "bluez5.hfphsp-backend" = "native";
+          "bluez5.codecs" = [
+            "sbc"
+            "sbc_xq"
+            "aac"
+            "ldac"
+            "lc3"
+            "lc3plus_h3"
+            "aptx"
+            "aptx_hd"
+            "aptx_ll"
+            "aptx_ll_duplex"
+          ];
           "bluez5.roles" = [
             "hsp_hs"
             "hsp_ag"
