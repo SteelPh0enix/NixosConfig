@@ -36,16 +36,20 @@ in
       ];
     })
 
+    bear
     blueman
     btop-rocm
     ccache
+    clang
+    clang-tools
+    cmake
     curl
-    dotnet-sdk_9
-    dotnet-runtime_9
     dmidecode
     dnsutils
     docker
     docker-buildx
+    dotnet-runtime_9
+    dotnet-sdk_9
     exfat
     exfatprogs
     eza
@@ -58,6 +62,8 @@ in
     flaresolverr
     fzf
     gawk
+    gcc
+    gdb
     gh
     git
     git-lfs
@@ -72,11 +78,13 @@ in
     lact
     linuxHeaders
     linuxKernel.packages.linux_zen.cpupower
+    lldb
     lm_sensors
     lsof
     ltrace
     neovim
     nil
+    ninja
     nixd
     nixfmt-rfc-style
     nixpkgs-review
@@ -91,6 +99,7 @@ in
     psmisc
     ripgrep
     rsync
+    rust-analyzer
     socat
     strace
     sysstat
@@ -99,6 +108,8 @@ in
     tree
     tree
     usbutils
+    uv
+    valgrind
     wget
     which
     wireshark
