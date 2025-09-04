@@ -27,6 +27,8 @@ in
     btop-rocm
     ccache
     curl
+    dotnet-sdk_9
+    dotnet-runtime_9
     dmidecode
     dnsutils
     docker
