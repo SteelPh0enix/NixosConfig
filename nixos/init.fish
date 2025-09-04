@@ -194,3 +194,14 @@ function serve-llm-mistral
         --cache-type-k q8_0 \
         --cache-type-v q8_0
 end
+
+function serve-llm-hermes
+    serve-llm-jinja \
+        "$HOME/llms/Hermes4-14B.gguf" \
+        0 \
+        --temp 0.6 \
+        --top-p 0.95 \
+        --top-k 20 \
+        --cache-type-k q8_0 \
+        --cache-type-v q8_0
+end

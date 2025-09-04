@@ -84,8 +84,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1756839923,
-        "narHash": "sha256-1uVMqH6QVrOS/0iPuts1AV4WAycM6BVWK2Ufqxuoprw=",
+        "lastModified": 1756991926,
+        "narHash": "sha256-JhtpMKMCmuIBmGH51BA9+PcXgZnL7nimbm9h1i462MI=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -164,8 +164,8 @@
     },
     "nixpkgs-local": {
       "locked": {
-        "lastModified": 1756851432,
-        "narHash": "sha256-TBKgK/p2/73RedqJeC3nHWM1Pk9g4ex3GVFa2bGZvt8=",
+        "lastModified": 1756984814,
+        "narHash": "sha256-imEx+zHO5zQQXKT3iB1N1k8jGOt7RwlwcSSKlkqe5QQ=",
         "path": "/home/steelph0enix/nixpkgs",
         "type": "path"
       },
