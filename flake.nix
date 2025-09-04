@@ -12,6 +12,11 @@
     nix-index-database.url = "github:nix-community/nix-index-database";
     nix-index-database.inputs.nixpkgs.follows = "nixpkgs";
 
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
     ucodenix.url = "github:e-tho/ucodenix";
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
