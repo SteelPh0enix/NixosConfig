@@ -3,6 +3,7 @@
   pkgs,
   nixpkgs-unstable,
   llama-cpp,
+  rust-overlay,
   ...
 }:
 let
@@ -19,10 +20,22 @@ let
 in
 {
   nixpkgs.overlays = [
+    rust-overlay.overlays.default
     (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
   ];
 
   environment.systemPackages = with pkgs; [
+    (rust-bin.stable.latest.default.override {
+      extensions = [
+        "cargo"
+        "rust-analysis"
+        "rust-src"
+        "rust-std"
+        "rustc"
+        "rustfmt"
+      ];
+    })
+
     blueman
     btop-rocm
     ccache
