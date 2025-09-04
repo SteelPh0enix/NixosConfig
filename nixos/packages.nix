@@ -6,11 +6,11 @@
   ...
 }:
 let
-  llamaPkgs = import nixpkgs-unstable {
+  pkgsUnstable = import nixpkgs-unstable {
     overlays = [
       (llama-cpp.overlays.default)
       (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
-      (import ./overlays/llama-cpp.nix { llamaPkgs = llamaPkgs; })
+      (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
     ];
     system = pkgs.system;
     config.allowUnfree = true;
@@ -27,7 +27,6 @@ in
     btop-rocm
     ccache
     curl
-    linuxKernel.packages.linux_zen.cpupower
     dmidecode
     dnsutils
     docker
@@ -44,9 +43,9 @@ in
     flaresolverr
     fzf
     gawk
+    gh
     git
     git-lfs
-    gh
     gnugrep
     gnused
     gnutar
@@ -56,13 +55,12 @@ in
     jq
     lact
     linuxHeaders
-    llamaPkgs.llama-cpp
+    linuxKernel.packages.linux_zen.cpupower
     lm_sensors
     lsof
     ltrace
     neovim
     nil
-    nix-direnv
     nixd
     nixfmt-rfc-style
     nixpkgs-review
@@ -73,6 +71,7 @@ in
     p7zip
     parted
     pciutils
+    pkgsUnstable.llama-cpp
     psmisc
     ripgrep
     rsync
@@ -106,6 +105,11 @@ in
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
+    package = pkgsUnstable.direnv;
+    nix-direnv = {
+      enable = true;
+      package = pkgsUnstable.nix-direnv;
+    };
   };
   programs.evince.enable = true;
   programs.firefox.enable = true;
