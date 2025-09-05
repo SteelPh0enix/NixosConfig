@@ -1,19 +1,41 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  pkgsUnstable,
+  rust-overlay,
+  ...
+}:
 {
   nixpkgs.overlays = [
     (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
+    rust-overlay.overlays.default
   ];
 
   environment.systemPackages = with pkgs; [
+    (rust-bin.stable.latest.default.override {
+      extensions = [
+        "cargo"
+        "rust-analysis"
+        "rust-src"
+        "rust-std"
+        "rustc"
+        "rustfmt"
+      ];
+    })
+
+    bear
     btop
     ccache
-    dotnet-sdk_9
-    dotnet-runtime_9
+    clang
+    clang-tools
+    cmake
     curl
     dmidecode
     dnsutils
     docker
     docker-buildx
+    dotnet-runtime_9
+    dotnet-sdk_9
     exfat
     exfatprogs
     eza
@@ -24,6 +46,9 @@
     findutils
     fzf
     gawk
+    gcc
+    gdb
+    gh
     git
     git-lfs
     gnugrep
@@ -34,15 +59,18 @@
     icu
     jq
     linuxHeaders
+    lldb
     lm_sensors
     lsof
     ltrace
     neovim
     nil
-    nix-direnv
+    ninja
     nixd
     nixfmt-rfc-style
+    nixpkgs-review
     ntfs3g
+    openssh
     openssl
     p7zip
     parted
@@ -50,13 +78,15 @@
     psmisc
     ripgrep
     rsync
+    rust-analyzer
     socat
     strace
     sysstat
     tcpdump
     tree
-    tree
     usbutils
+    uv
+    valgrind
     wget
     which
     wireshark
@@ -64,10 +94,6 @@
     zip
     zstd
   ];
-
-  environment.sessionVariables = {
-    DOTNET_ROOT = "${pkgs.dotnet-sdk_9}/share/dotnet/";
-  };
 
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
@@ -80,6 +106,11 @@
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
+    package = pkgsUnstable.direnv;
+    nix-direnv = {
+      enable = true;
+      package = pkgsUnstable.nix-direnv;
+    };
   };
   programs.evince.enable = true;
   programs.firefox.enable = true;
@@ -107,7 +138,6 @@
   programs.tcpdump.enable = true;
   programs.thefuck.enable = true;
   programs.thefuck.alias = "fk";
-  programs.thunderbird.enable = true;
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;

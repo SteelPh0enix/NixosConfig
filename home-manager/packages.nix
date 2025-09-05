@@ -50,5 +50,18 @@
     };
   };
 
+  programs.lazygit.enable = true;
+  programs.ripgrep.enable = true;
+  programs.fd.enable = true;
+  programs.eza = {
+    enable = true;
+    enableFishIntegration = true;
+    icons = "always";
+    git = true;
+  };
+
+  programs.gh.enable = true;
+  programs.gh.gitCredentialHelper.enable = true;
+
   qt.enable = true;
 }
