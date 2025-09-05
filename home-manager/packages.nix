@@ -11,7 +11,6 @@ let
   };
 in
 {
-
   home.packages = with pkgs; [
     discord
     keepassxc
@@ -21,6 +20,7 @@ in
     qbittorrent-enhanced
     zenmap
     gimp
+    freecad
 
     localNixpkgs.stm32cubemx
 
