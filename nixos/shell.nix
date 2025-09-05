@@ -6,8 +6,9 @@
     lg = "lazygit";
     e = "$EDITOR";
     eh = "$EDITOR .";
-    pkgu = "cd ~/nixos-config && git checkout work-vm && git pull && nix flake update && sudo nixos-rebuild switch --flake .#steelph0enix-work-vm --upgrade-all";
-    pkgc = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
+    os-rebuild = "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#steelph0enix-work-vm --upgrade-all --print-build-logs --show-trace --refresh";
+    os-update = "cd ~/nixos-config && nix flake update && git add flake.lock && git commit -m 'os update' && os-rebuild";
+    os-clean = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";
     cfge = "code ~/nixos-config";
     docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
