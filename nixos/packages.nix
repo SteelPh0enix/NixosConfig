@@ -24,6 +24,7 @@
     })
 
     bear
+    black
     btop
     ccache
     clang
@@ -63,6 +64,7 @@
     lm_sensors
     lsof
     ltrace
+    mypy
     neovim
     nil
     ninja
@@ -78,6 +80,7 @@
     psmisc
     ripgrep
     rsync
+    ruff
     rust-analyzer
     socat
     strace
