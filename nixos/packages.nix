@@ -106,7 +106,6 @@ in
     tcpdump
     thermald
     tree
-    tree
     usbutils
     uv
     valgrind
