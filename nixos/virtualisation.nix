@@ -18,4 +18,6 @@
       addNetworkInterface = false;
     };
   };
+
+  networking.firewall.trustedInterfaces = [ "docker0" ];
 }

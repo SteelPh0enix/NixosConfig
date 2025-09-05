@@ -85,6 +85,7 @@ in
       };
     };
   };
+
   programs.lazygit.enable = true;
 
   programs.ripgrep.enable = true;
