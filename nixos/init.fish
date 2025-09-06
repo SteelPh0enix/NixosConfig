@@ -201,9 +201,7 @@ function serve-llm-hermes
         0 \
         --temp 0.6 \
         --top-p 0.95 \
-        --top-k 20 \
-        --cache-type-k q8_0 \
-        --cache-type-v q8_0
+        --top-k 20
 end
 
 function serve-llm-gemma
