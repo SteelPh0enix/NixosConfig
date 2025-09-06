@@ -205,3 +205,14 @@ function serve-llm-hermes
         --cache-type-k q8_0 \
         --cache-type-v q8_0
 end
+
+function serve-llm-gemma
+    serve-llm-jinja \
+        "$HOME/llms/gemma-3-12b-it-UD-Q5_K_XL.gguf" \
+        80000 \
+        --temp 1.0 \
+        --top-k 64 \
+        --top-p 0.95 \
+        --min-p 0.01 \
+        --repeat-penalty 1.0
+end
