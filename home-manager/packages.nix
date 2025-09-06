@@ -52,13 +52,44 @@ in
 
   programs.mpv = {
     enable = true;
-    package = pkgs.mpv-unwrapped;
+
+    package = (
+      pkgs.mpv-unwrapped.wrapper {
+        scripts = with pkgs.mpvScripts; [
+          sponsorblock
+          thumbnail
+          thumbfast
+          autosub
+          uosc
+        ];
+
+        mpv = pkgs.mpv-unwrapped.override {
+          waylandSupport = true;
+          jackaudioSupport = true;
+          ffmpeg = pkgs.ffmpeg-full;
+        };
+      }
+    );
+
+    config = {
+      osc = "no";
+      osd-bar = "no";
+      border = "no";
+      osd-on-seek = "no";
+      profile = "high-quality";
+      script-opts = "osc-visibility=never";
+      ytdl-format = "bestvideo+bestaudio";
+      video-sync = "display-resample";
+    };
+
     bindings = {
-      "n" = "playlist-next";
+      "tab" = "script-binding uosc/toggle-ui";
+      "n" = "script-binding uosc/next";
       "Shift+n" = "add chapter 1";
-      "p" = "playlist-prev";
+      "p" = "script-binding uosc/prev";
       "Shift+p" = "add chapter -1";
-      "s" = "playlist-shuffle";
+      "s" = "script-binding uosc/shuffle";
+      "Shift+S" = "script-binding uosc/subtitles";
     };
   };
 

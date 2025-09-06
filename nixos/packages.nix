@@ -22,7 +22,7 @@ in
   nixpkgs.overlays = [
     rust-overlay.overlays.default
     (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
-    (import ./overlays/freecad.nix )
+    (import ./overlays/freecad.nix)
   ];
 
   environment.systemPackages = with pkgs; [
@@ -57,7 +57,7 @@ in
     fail2ban
     fastfetch
     fd
-    ffmpeg
+    ffmpeg-full
     file
     findutils
     flaresolverr
