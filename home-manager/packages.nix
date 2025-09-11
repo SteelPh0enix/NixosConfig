@@ -117,6 +117,17 @@ in
     };
   };
 
+  programs.neovim = {
+    defaultEditor = true;
+    enable = true;
+    viAlias = true;
+    vimAlias = true;
+    vimdiffAlias = true;
+    withNodeJs = true;
+    withPython3 = true;
+    withRuby = true;
+  };
+
   programs.lazygit.enable = true;
 
   programs.ripgrep.enable = true;
