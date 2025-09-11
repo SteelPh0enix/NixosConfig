@@ -65,7 +65,6 @@
     lsof
     ltrace
     mypy
-    neovim
     nil
     ninja
     nixd
@@ -130,10 +129,7 @@
   programs.java.binfmt = true;
   programs.lazygit.enable = true;
   programs.less.enable = true;
-  programs.neovim.enable = true;
-  programs.neovim.defaultEditor = true;
   programs.nix-ld.enable = true;
-  programs.neovim.withPython3 = true;
   programs.npm.enable = true;
   programs.obs-studio.enable = true;
   programs.screen.enable = true;
