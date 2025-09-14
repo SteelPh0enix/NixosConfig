@@ -30,6 +30,7 @@
     clang
     clang-tools
     cmake
+    colordiff
     curl
     dmidecode
     dnsutils
@@ -64,6 +65,7 @@
     lm_sensors
     lsof
     ltrace
+    mc
     mypy
     nil
     ninja
