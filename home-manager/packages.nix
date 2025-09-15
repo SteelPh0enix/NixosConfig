@@ -1,4 +1,15 @@
-{ pkgs, nix-ai-tools, ... }:
+{
+  pkgs,
+  nix-ai-tools,
+  nixpkgs-unstable,
+  ...
+}:
+let
+  pkgsUnstable = import nixpkgs-unstable {
+    system = pkgs.system;
+    config.allowUnfree = true;
+  };
+in
 {
   home.packages = with pkgs; [
     keepassxc
@@ -8,6 +19,7 @@
   programs.vscode = {
     enable = true;
     mutableExtensionsDir = true;
+    package = pkgsUnstable.vscode;
   };
 
   programs.wezterm = {
