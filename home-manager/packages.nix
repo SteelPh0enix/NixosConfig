@@ -2,10 +2,16 @@
   pkgs,
   nix-ai-tools,
   nixpkgs-local,
+  nixpkgs-unstable,
   ...
 }:
 let
   localNixpkgs = import nixpkgs-local {
+    system = pkgs.system;
+    config.allowUnfree = true;
+  };
+
+  pkgsUnstable = import nixpkgs-unstable {
     system = pkgs.system;
     config.allowUnfree = true;
   };
@@ -36,6 +42,7 @@ in
   programs.vscode = {
     enable = true;
     mutableExtensionsDir = true;
+    package = pkgsUnstable.vscode;
   };
 
   programs.wezterm = {
