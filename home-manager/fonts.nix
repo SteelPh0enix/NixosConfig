@@ -2,10 +2,10 @@
   fonts = {
     fontconfig = {
       defaultFonts = {
-        serif = [ "Noto Serif" ];
+        serif = [ "Berkeley Mono" ];
         emoji = [ "Noto Color Emoji" ];
-        sansSerif = [ "Noto Sans" ];
-        monospace = [ "Monaspace Krypton NF" ];
+        sansSerif = [ "Berkeley Mono" ];
+        monospace = [ "Berkeley Mono" ];
       };
       enable = true;
     };

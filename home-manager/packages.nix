@@ -46,7 +46,7 @@ in
 
       config.color_scheme = 'Kanagawa (Gogh)'
       config.font_size = 10.5
-      config.font = wezterm.font 'MonaspiceKr NF'
+      config.font = wezterm.font 'Berkeley Mono'
       config.initial_cols = 120
       config.initial_rows = 30
       config.enable_wayland = false

@@ -54,7 +54,7 @@
               nix-index-database.nixosModules.nix-index
               home-manager.nixosModules.home-manager
               {
-                home-manager.backupFileExtension = ".hmgr.backup";
+                home-manager.backupFileExtension = "hmgr.backup";
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
                 home-manager.extraSpecialArgs = inputs // specialArgs;
