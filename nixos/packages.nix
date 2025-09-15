@@ -101,6 +101,7 @@ in
     rsync
     rust-analyzer
     socat
+    sqlite
     strace
     sysstat
     tcpdump
