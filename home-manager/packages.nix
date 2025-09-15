@@ -12,15 +12,21 @@ let
 in
 {
   home.packages = with pkgs; [
+    blender-hip
     discord
+    drawio
+    freecad
+    gimp
+    inkscape-with-extensions
     keepassxc
+    lbreakouthd
+    libreoffice-qt6-fresh
+    orca-slicer
     protonvpn-gui
+    qbittorrent-enhanced
     spotify
     teams-for-linux
-    qbittorrent-enhanced
     zenmap
-    gimp
-    freecad
 
     localNixpkgs.stm32cubemx
 
