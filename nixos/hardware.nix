@@ -37,6 +37,8 @@
     };
   };
 
+  hardware.pulseaudio.extraConfig = "unload-module module-suspend-on-idle";
+
   # force RADV
   environment.variables.AMD_VULKAN_ICD = "RADV";
   environment.variables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/radeon_icd.x86_64.json";

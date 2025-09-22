@@ -1,3 +1,4 @@
+{ pkgs, ... }:
 {
   environment.shellAliases = {
     ls = "eza --icons=always -gM --git";
@@ -38,6 +39,8 @@
     LLAMA_ARG_CONTEXT_SHIFT = 1;
     LLAMA_ARG_NO_CONTEXT_SHIFT = 0;
     UV_TORCH_BACKEND = "auto";
+
+    GST_PLUGIN_SYSTEM_PATH_1_0 = "${pkgs.gst_all_1.gstreamer.out}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-bad}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-ugly}/lib/gstreamer-1.0";
   };
 
   programs.fish.shellInit = builtins.readFile ./init.fish;
