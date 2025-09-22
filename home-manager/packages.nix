@@ -21,6 +21,7 @@ in
     blender-hip
     discord
     drawio
+    firefox
     freecad
     gimp
     inkscape-with-extensions
@@ -32,6 +33,8 @@ in
     qbittorrent-enhanced
     spotify
     teams-for-linux
+    ungoogled-chromium
+    quodlibet-xine-full
     zenmap
 
     localNixpkgs.stm32cubemx
