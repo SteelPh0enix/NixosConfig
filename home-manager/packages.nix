@@ -31,10 +31,10 @@ in
     orca-slicer
     protonvpn-gui
     qbittorrent-enhanced
+    quodlibet-xine-full
     spotify
     teams-for-linux
     ungoogled-chromium
-    quodlibet-xine-full
     zenmap
 
     localNixpkgs.stm32cubemx
