@@ -37,7 +37,7 @@
     };
   };
 
-  hardware.pulseaudio.extraConfig = "unload-module module-suspend-on-idle";
+  services.pulseaudio.extraConfig = "unload-module module-suspend-on-idle";
 
   # force RADV
   environment.variables.AMD_VULKAN_ICD = "RADV";
