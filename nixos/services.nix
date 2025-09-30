@@ -3,8 +3,12 @@
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-pc";
 
-  networking.firewall.allowedTCPPorts = [ ];
-  networking.firewall.allowedUDPPorts = [ ];
+  networking.firewall = {
+    enable = true;
+    allowPing = true;
+    allowedTCPPorts = [ ];
+    allowedUDPPorts = [ ];
+  };
 
   services.openssh = {
     enable = true;
