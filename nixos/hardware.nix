@@ -5,6 +5,10 @@
   boot.kernelParams = [
     "kvm.enable_virt_at_load=0"
     "microcode.amd_sha_check=off"
+    "amd_iommu=on"
+    "amdgpu.gttsize=114688"
+    "tmm.pages_limit=28000000"
+    "tmm.page_pool_size=28000000"
   ];
 
   hardware.enableRedistributableFirmware = true;
