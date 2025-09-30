@@ -103,7 +103,7 @@ in
     p7zip
     parted
     pciutils
-    pkgsUnstable.llama-cpp
+    # pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
     psmisc
     ripgrep
