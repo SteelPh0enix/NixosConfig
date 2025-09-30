@@ -14,6 +14,7 @@ in
   home.packages = with pkgs; [
     firefox
     keepassxc
+    protonvpn-gui
     quodlibet-xine-full
     ungoogled-chromium
     zenmap
