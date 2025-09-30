@@ -14,7 +14,7 @@ let
     ];
     system = pkgs.system;
     config.allowUnfree = true;
-    config.rocmSupport = true;
+    config.rocmSupport = false;
   };
 in
 {
@@ -100,6 +100,7 @@ in
     parted
     pciutils
     pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.llama-cpp
     psmisc
     ripgrep
     rsync
