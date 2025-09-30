@@ -7,8 +7,12 @@
     "8.8.8.8"
   ];
 
-  networking.firewall.allowedTCPPorts = [ ];
-  networking.firewall.allowedUDPPorts = [ ];
+  networking.firewall = {
+    enable = true;
+    allowPing = true;
+    allowedTCPPorts = [ ];
+    allowedUDPPorts = [ ];
+  };
 
   services.openssh = {
     enable = true;
