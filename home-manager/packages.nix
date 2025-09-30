@@ -1,16 +1,10 @@
 {
   pkgs,
   nix-ai-tools,
-  nixpkgs-local,
   nixpkgs-unstable,
   ...
 }:
 let
-  localNixpkgs = import nixpkgs-local {
-    system = pkgs.system;
-    config.allowUnfree = true;
-  };
-
   pkgsUnstable = import nixpkgs-unstable {
     system = pkgs.system;
     config.allowUnfree = true;
@@ -18,26 +12,11 @@ let
 in
 {
   home.packages = with pkgs; [
-    blender-hip
-    discord
-    drawio
     firefox
-    freecad
-    gimp
-    inkscape-with-extensions
     keepassxc
-    lbreakouthd
-    libreoffice-qt6-fresh
-    orca-slicer
-    protonvpn-gui
-    qbittorrent-enhanced
     quodlibet-xine-full
-    spotify
-    teams-for-linux
     ungoogled-chromium
     zenmap
-
-    localNixpkgs.stm32cubemx
 
     nix-ai-tools.packages.${pkgs.system}.crush
   ];

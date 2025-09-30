@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-local.url = "path:/home/steelph0enix/nixpkgs";
 
     home-manager.url = "github:nix-community/home-manager/release-25.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
@@ -37,7 +36,7 @@
     in
     {
       nixosConfigurations = {
-        steelph0enix-pc =
+        RX-78-FPC =
           let
             specialArgs = {
               inherit
