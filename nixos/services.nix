@@ -33,4 +33,6 @@
   services.flaresolverr.enable = true;
 
   services.thermald.enable = true;
+
+  services.gvfs.enable = true;
 }
