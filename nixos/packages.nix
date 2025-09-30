@@ -104,6 +104,7 @@ in
     parted
     pciutils
     pkgsUnstable.llama-cpp
+    pkgsUnstable.nerd-font-patcher
     psmisc
     ripgrep
     rsync
