@@ -8,8 +8,12 @@
   networking.networkmanager.enable = true;
   networking.hostName = "RX-78-FPC";
 
-  networking.firewall.allowedTCPPorts = [ ];
-  networking.firewall.allowedUDPPorts = [ ];
+  networking.firewall = {
+    enable = true;
+    allowPing = true;
+    allowedTCPPorts = [ ];
+    allowedUDPPorts = [ ];
+  };
 
   services.openssh = {
     enable = true;
