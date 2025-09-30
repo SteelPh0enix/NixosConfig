@@ -2,8 +2,10 @@
 (self: super: {
   llama-cpp = llamaPkgs.llamaPackages.llama-cpp.override {
     llamaVersion = "1.2.3";
-    buildAllCudaFaQuants = true;
+    useRocm = false;
     useMpi = true;
-    rocmGpuTargets = "gfx1151";
+    useVulkan = true;
+    useBlas = true;
+    enableUma = true;
   };
 })
