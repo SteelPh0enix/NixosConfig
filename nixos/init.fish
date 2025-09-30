@@ -163,13 +163,9 @@ function serve-llm-qwen-ext
 end
 
 function serve-llm-qwen-coder
-    set -gx OPENAI_MODEL Qwen3-Coder-30B-A3B-Instruct-UD-Q3_K_XL
-    serve-llm-jinja-ext "$HOME/llms/Qwen3-Coder-30B-A3B-Instruct-UD-Q3_K_XL.gguf" \
-        81920 \
-        "$HOME/llms/repos/Qwen3-Coder-30B-A3B-Instruct/chat-template.jinja" \
-        --n-cpu-moe 3 \
-        --cache-type-k q8_0 \
-        --cache-type-v q8_0 \
+    set -gx OPENAI_MODEL Qwen3-Coder-30B-A3B-Instruct-UD-Q6_K_XL
+    serve-llm-jinja "$HOME/LLMs/Qwen3-Coder-30B-A3B-Instruct-UD-Q6_K_XL.gguf" \
+        0 \
         --temp 0.7 \
         --top-p 0.8 \
         --top-k 20 \
@@ -177,40 +173,12 @@ function serve-llm-qwen-coder
 end
 
 function serve-llm-gpt-oss
+    set -gx OPENAI_MODEL GPT-OSS-120B
     serve-llm-jinja \
-        "$HOME/llms/gpt-oss-20b.auto.gguf" \
+        "$HOME/LLMs/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf" \
         0 \
         --temp 1.0 \
         --top-p 1.0 \
         --top-k 100 \
         --min-p 0.01
-end
-
-function serve-llm-mistral
-    serve-llm-jinja \
-        "$HOME/llms/Mistral-Small-3.2-24B-Instruct-2506-UD-Q4_K_XL.gguf" \
-        32768 \
-        --temp 0.15 \
-        --cache-type-k q8_0 \
-        --cache-type-v q8_0
-end
-
-function serve-llm-hermes
-    serve-llm-jinja \
-        "$HOME/llms/Hermes4-14B.gguf" \
-        0 \
-        --temp 0.6 \
-        --top-p 0.95 \
-        --top-k 20
-end
-
-function serve-llm-gemma
-    serve-llm-jinja \
-        "$HOME/llms/gemma-3-12b-it-UD-Q5_K_XL.gguf" \
-        80000 \
-        --temp 1.0 \
-        --top-k 64 \
-        --top-p 0.95 \
-        --min-p 0.01 \
-        --repeat-penalty 1.0
 end
