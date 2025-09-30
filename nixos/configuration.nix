@@ -15,6 +15,7 @@
     ./mounts.nix
     ./nix.nix
     ./packages.nix
+    ./samba.nix
     ./services.nix
     ./shell.nix
     ./users.nix

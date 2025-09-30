@@ -7,6 +7,7 @@
     docker = { };
     vboxusers = { };
     plugdev = { };
+    samba = { };
   };
 
   users.users.steelph0enix = {
@@ -24,6 +25,7 @@
       "docker"
       "vboxusers"
       "plugdev"
+      "samba"
     ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID7HEYiuWVQP3BcNDibe5cwVuL081u1Noos4OAuyWVBb FrameworkPC SSH"
