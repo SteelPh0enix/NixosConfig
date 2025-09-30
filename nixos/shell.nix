@@ -8,7 +8,7 @@
     e = "$EDITOR";
     eh = "$EDITOR .";
     cpr = "cp -r";
-    os-rebuild = "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh";
+    os-rebuild = "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#RX-78-FPC --upgrade-all --print-build-logs --show-trace --refresh";
     os-update = "cd ~/nixos-config && nix flake update && os-rebuild && git add flake.lock && git commit -m 'os update'";
     os-clean = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";

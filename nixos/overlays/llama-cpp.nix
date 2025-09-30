@@ -4,6 +4,6 @@
     llamaVersion = "1.2.3";
     buildAllCudaFaQuants = true;
     useMpi = true;
-    rocmGpuTargets = "gfx1100";
+    rocmGpuTargets = "gfx1151";
   };
 })

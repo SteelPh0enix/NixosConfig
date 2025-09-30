@@ -1,14 +1,14 @@
 { inputs, ... }:
 {
   networking.networkmanager.enable = true;
-  networking.hostName = "steelph0enix-pc";
+  networking.hostName = "RX-78-FPC";
 
   networking.firewall.allowedTCPPorts = [ ];
   networking.firewall.allowedUDPPorts = [ ];
 
   services.openssh = {
     enable = true;
-    ports = [ 33445 ];
+    ports = [ 22137 ];
     openFirewall = true;
     settings = {
       X11Forwarding = false;
@@ -26,7 +26,7 @@
   imports = [ inputs.ucodenix.nixosModules.default ];
   services.ucodenix = {
     enable = true;
-    cpuModelId = "00A20F10";
+    cpuModelId = "00B70F00";
   };
 
   services.jackett.enable = true;

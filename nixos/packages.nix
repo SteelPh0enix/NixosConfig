@@ -10,7 +10,6 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     overlays = [
       (llama-cpp.overlays.default)
-      (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
       (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
     ];
     system = pkgs.system;
@@ -21,7 +20,6 @@ in
 {
   nixpkgs.overlays = [
     rust-overlay.overlays.default
-    (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
     (import ./overlays/freecad.nix)
   ];
 
@@ -49,8 +47,6 @@ in
     dnsutils
     docker
     docker-buildx
-    dotnet-runtime_9
-    dotnet-sdk_9
     exfat
     exfatprogs
     eza
@@ -103,7 +99,6 @@ in
     p7zip
     parted
     pciutils
-    pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
     psmisc
     ripgrep
@@ -152,7 +147,7 @@ in
   programs.fish.enable = true;
   programs.fzf.fuzzyCompletion = true;
   programs.fzf.keybindings = true;
-  programs.gamemode.enable = true;
+
   programs.git.enable = true;
   programs.git.lfs.enable = true;
   programs.gnupg.agent = {
@@ -165,19 +160,12 @@ in
   programs.less.enable = true;
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
-  programs.obs-studio.enable = true;
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
-  programs.steam = {
-    enable = true;
-    localNetworkGameTransfers.openFirewall = true;
-    protontricks.enable = true;
-    remotePlay.openFirewall = true;
-  };
+
   programs.tcpdump.enable = true;
   programs.thefuck.enable = true;
   programs.thefuck.alias = "fk";
-  programs.thunderbird.enable = true;
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
