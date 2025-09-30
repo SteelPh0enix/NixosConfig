@@ -1,4 +1,9 @@
-{ inputs, ... }:
+{
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 {
   networking.networkmanager.enable = true;
   networking.hostName = "RX-78-FPC";
@@ -33,4 +38,9 @@
   services.flaresolverr.enable = true;
 
   services.thermald.enable = true;
+
+  services.gvfs = {
+    enable = true;
+    package = lib.mkForce pkgs.gnome.gvfs;
+  };
 }
