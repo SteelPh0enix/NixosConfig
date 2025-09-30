@@ -12,8 +12,8 @@
     os-clean = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";
     cfge = "code ~/nixos-config";
-    docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
-    docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    docker-here = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    docker-here-shell = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
   };
 
   environment.sessionVariables = {
