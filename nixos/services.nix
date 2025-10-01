@@ -18,7 +18,7 @@
   networking.firewall = {
     enable = true;
     allowPing = true;
-    allowedTCPPorts = [ 51536 ];
+    allowedTCPPorts = [ 51536 11434 ];
     allowedUDPPorts = [ ];
   };
 
@@ -44,5 +44,14 @@
   services.gvfs = {
     enable = true;
     package = lib.mkForce pkgs.gnome.gvfs;
+  };
+
+  services.ollama = {
+    enable = true;
+    rocmOverrideGfx = "11.5.1";
+    host = "0.0.0.0";
+    port = 11434;
+    user = "ollama";
+    acceleration = "rocm";
   };
 }
