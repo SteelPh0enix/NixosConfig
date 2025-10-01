@@ -121,6 +121,7 @@ in
     valgrind
     wget
     which
+    wireguard-tools
     wireshark
     xz
     zip
