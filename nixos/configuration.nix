@@ -15,10 +15,11 @@
     ./mounts.nix
     ./nix.nix
     ./packages.nix
+    ./services.nix
     ./services/samba.nix
     ./services/wireguard.nix
-    ./services.nix
     ./shell.nix
+    ./timers.nix
     ./users.nix
     ./virtualization.nix
   ];
