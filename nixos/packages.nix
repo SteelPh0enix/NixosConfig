@@ -129,6 +129,8 @@ in
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
+  services.ollama.package = pkgsUnstable.ollama-fpc;
+
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
 
