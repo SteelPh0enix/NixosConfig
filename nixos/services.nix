@@ -8,6 +8,7 @@
     allowPing = true;
     allowedTCPPorts = [ ];
     allowedUDPPorts = [ 16969 ];
+    checkReversePath = false;
   };
 
   services.fail2ban.enable = true;
@@ -37,22 +38,23 @@
     cpuModelId = "00A20F10";
   };
 
-  networking.wireguard.interfaces.wg0 = {
-    ips = [ "10.69.69.69/24" ];
-    listenPort = 16969;
-    privateKeyFile = "/home/steelph0enix/.ssh/wg-privkey";
+  networking.wg-quick.interfaces = {
+    wg0 = {
+      address = [ "10.69.69.1/24" ];
+      privateKeyFile = "/home/steelph0enix/.ssh/wg-private";
 
-    peers = [
-      {
-        publicKey = "k7UoJ41C6XaXbHAgfuDvA6ti0WQLM3miZfJKtgX7PFA=";
-        allowedIPs = [ "10.69.69.0/24" ];
+      peers = [
+        {
+          publicKey = "k7UoJ41C6XaXbHAgfuDvA6ti0WQLM3miZfJKtgX7PFA=";
+          presharedKeyFile = "/home/steelph0enix/.ssh/wg-preshared";
+          allowedIPs = [ "0.0.0.0/0" ];
 
-        # Set this to the server IP and port.
-        endpoint = "10.69.69.1:16969"; # ToDo: route to endpoint not automatically configured https://wiki.archlinux.org/index.php/WireGuard#Loop_routing https://discourse.nixos.org/t/solved-minimal-firewall-setup-for-wireguard-client/7577
+          endpoint = "192.168.0.185:16969";
 
-        # Send keepalives every 25 seconds. Important to keep NAT tables alive.
-        persistentKeepalive = 25;
-      }
-    ];
+          # Send keepalives every 25 seconds. Important to keep NAT tables alive.
+          persistentKeepalive = 25;
+        }
+      ];
+    };
   };
 }
