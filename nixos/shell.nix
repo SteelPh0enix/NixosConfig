@@ -22,7 +22,7 @@
     BROWSER = "firefox";
     TERMINAL = "wezterm";
 
-    LLAMA_ARG_HOST = "192.168.0.185";
+    LLAMA_ARG_HOST = "0.0.0.0";
     LLAMA_ARG_PORT = 51536;
     LLAMA_ARG_BATCH = 2048;
     LLAMA_ARG_UBATCH = 2048;
