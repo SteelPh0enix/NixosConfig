@@ -28,18 +28,27 @@
         "guest ok" = "yes";
         "create mask" = "0644";
         "directory mask" = "0755";
-        "force user" = "steelph0enix";
         "force group" = "users";
       };
 
       "Shared" = {
-        path = "/home/steelph0enix/Shared";
+        path = "/home/steelph0enix/HomeStorage";
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "no";
         "create mask" = "0644";
         "directory mask" = "0755";
         "force user" = "steelph0enix";
+        "force group" = "users";
+      };
+
+      "Data" = {
+        path = "/mnt/NAS";
+        browseable = "yes";
+        "read only" = "no";
+        "guest ok" = "yes";
+        "create mask" = "0644";
+        "directory mask" = "0755";
         "force group" = "users";
       };
     };
