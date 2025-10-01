@@ -22,7 +22,7 @@ in
         wireguardIp
       ];
       listenPort = wireguardPort;
-      privateKeyFile = "/etc/wireguard/wg-private";
+      privateKeyFile = "/root/wireguard/wg-private";
 
       postUp = ''
         ${pkgs.iptables}/bin/iptables -A FORWARD -i wg0 -j ACCEPT
@@ -37,7 +37,7 @@ in
       peers = [
         {
           publicKey = "QirNxLiqQQdWlsg3B354P7RsM1NmJtCgo8NbqBxeciM=";
-          presharedKeyFile = "/etc/wireguard/wg-preshared-mainpc";
+          presharedKeyFile = "/root/wireguard/wg-preshared-mainpc";
           allowedIPs = [
             "10.69.69.1/32"
           ];
