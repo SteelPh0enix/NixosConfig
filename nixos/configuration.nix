@@ -20,6 +20,6 @@
     ./services.nix
     ./shell.nix
     ./users.nix
-    ./virtualisation.nix
+    ./virtualization.nix
   ];
 }
