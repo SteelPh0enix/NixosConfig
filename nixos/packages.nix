@@ -11,6 +11,7 @@ let
     overlays = [
       (llama-cpp.overlays.default)
       (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
+      (import ./overlays/ollama.nix)
     ];
     system = pkgs.system;
     config.allowUnfree = true;
@@ -101,6 +102,7 @@ in
     pciutils
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.llama-cpp
+    pkgsUnstable.ollama-fpc
     psmisc
     ripgrep
     rsync
