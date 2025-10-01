@@ -11,7 +11,6 @@
     checkReversePath = false;
   };
 
-  services.fail2ban.enable = true;
   services.printing.enable = true;
   services.blueman.enable = true;
   services.jackett.enable = true;
@@ -21,7 +20,7 @@
 
   services.openssh = {
     enable = true;
-    ports = [ 33445 ];
+    ports = [ 22137 ];
     openFirewall = true;
     settings = {
       X11Forwarding = false;
