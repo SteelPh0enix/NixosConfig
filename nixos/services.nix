@@ -11,6 +11,11 @@
     checkReversePath = false;
   };
 
+  networking.nameservers = [
+    "10.69.69.69"
+    # "192.168.0.185"
+  ];
+
   services.printing.enable = true;
   services.blueman.enable = true;
   services.jackett.enable = true;
