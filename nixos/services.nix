@@ -31,11 +31,11 @@
     };
   };
 
-  imports = [ inputs.ucodenix.nixosModules.default ];
-  services.ucodenix = {
-    enable = true;
-    cpuModelId = "00A20F10";
-  };
+  # imports = [ inputs.ucodenix.nixosModules.default ];
+  # services.ucodenix = {
+  #   enable = true;
+  #   cpuModelId = "00A20F10";
+  # };
 
   networking.wg-quick.interfaces = {
     wg0 = {
