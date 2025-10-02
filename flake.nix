@@ -19,6 +19,9 @@
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
     ucodenix.url = "github:e-tho/ucodenix";
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
+
+    compose2nix.url = "github:aksiksi/compose2nix";
+    compose2nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =

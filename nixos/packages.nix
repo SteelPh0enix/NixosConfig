@@ -4,6 +4,7 @@
   nixpkgs-unstable,
   llama-cpp,
   rust-overlay,
+  inputs,
   ...
 }:
 let
@@ -124,6 +125,8 @@ in
     xz
     zip
     zstd
+
+    inputs.compose2nix.packages.x86_64-linux.default
   ];
 
   systemd.packages = with pkgs; [ lact ];
