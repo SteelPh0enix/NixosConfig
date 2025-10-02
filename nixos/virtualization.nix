@@ -9,6 +9,7 @@
       enableOnBoot = true;
       rootless.enable = true;
       rootless.setSocketVariable = true;
+      autoPrune.enable = true;
     };
     virtualbox.host = {
       enable = true;
@@ -17,6 +18,7 @@
       enableHardening = true;
       addNetworkInterface = false;
     };
+    oci-containers.backend = "docker";
   };
 
   networking.firewall.trustedInterfaces = [ "docker0" ];

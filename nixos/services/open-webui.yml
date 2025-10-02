@@ -1,0 +1,53 @@
+services:
+  tika:
+    image: apache/tika:latest-full
+    container_name: tika
+    pull_policy: always
+    ports:
+      - 9998:9998
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    pull_policy: always
+    volumes:
+      - /home/steelph0enix/.openwebui:/app/backend/data
+    depends_on:
+      - tika
+    ports:
+      - 55569:8080
+    environment:
+      # auth/permissions/misc
+      - ENABLE_SIGNUP=True
+      - ENABLE_LOGIN_FORM=True
+      - DEFAULT_USER_ROLE=user
+      - ENABLE_API_KEY_ENDPOINT_RESTRICTIONS=False
+      - WEBUI_AUTH=True
+      - THREAD_POOL_SIZE=32
+      - ENABLE_REALTIME_CHAT_SAVE=True
+      - ENABLE_EVALUATION_ARENA_MODELS=False
+      - ENABLE_COMMUNITY_SHARING=False
+      - ENABLE_MESSAGE_RATING=False
+      # inference engines
+      - ENABLE_OPENAI_API=True
+      - OPENAI_API_BASE_URL=http://192.168.0.185:51536/v1
+      - ENABLE_OLLAMA_API=True
+      - OLLAMA_BASE_URL=http://192.168.0.185:11434
+      # RAG
+      - CONTENT_EXTRACTION_ENGINE=tika
+      - TIKA_SERVER_URL=http://tika:9998
+      - RAG_EMBEDDING_ENGINE=ollama
+      - RAG_EMBEDDING_MODEL=hf.co/Qwen/Qwen3-Embedding-8B
+      - CHUNK_SIZE=2048
+      - CHUNK_OVERLAP=128
+      - ENABLE_RAG_LOCAL_WEB_FETCH=True
+      # web search
+      - ENABLE_WEB_SEARCH=True
+      - WEB_SEARCH_TRUST_ENV=True
+      - WEB_SEARCH_RESULT_COUNT=5
+      - WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=https://search.steelph0enix.dev/search?q=<query>
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
