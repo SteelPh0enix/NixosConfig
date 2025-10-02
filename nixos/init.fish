@@ -175,7 +175,7 @@ end
 function serve-llm-gpt-oss
     set -gx OPENAI_MODEL GPT-OSS-120B
     serve-llm-jinja \
-        "$HOME/LLMs/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf" \
+        "$HOME/LLMs/gpt-oss-120b-UD-Q6_K_XL.gguf" \
         0 \
         --temp 1.0 \
         --top-p 1.0 \
