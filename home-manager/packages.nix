@@ -14,6 +14,9 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     system = pkgs.system;
     config.allowUnfree = true;
+    overlays = [
+      (import ./overlays/bottles.nix)
+    ];
   };
 in
 {
@@ -36,6 +39,8 @@ in
     teams-for-linux
     ungoogled-chromium
     zenmap
+
+    pkgsUnstable.bottles-unwrapped
 
     localNixpkgs.stm32cubemx
 

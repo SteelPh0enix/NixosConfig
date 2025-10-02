@@ -37,6 +37,9 @@ in
       ];
     })
 
+    pkgsUnstable.nerd-font-patcher
+    # pkgsUnstable.llama-cpp
+
     bear
     blueman
     btop-rocm
@@ -84,6 +87,7 @@ in
     jackett
     jq
     lact
+    libunwind
     linuxHeaders
     linuxKernel.packages.linux_zen.cpupower
     lldb
@@ -102,8 +106,6 @@ in
     p7zip
     parted
     pciutils
-    # pkgsUnstable.llama-cpp
-    pkgsUnstable.nerd-font-patcher
     psmisc
     ripgrep
     rsync
