@@ -10,6 +10,7 @@
 let
   pkgsUnstable = import nixpkgs-unstable {
     overlays = [
+      (import ./overlays/rocm.nix)
       (llama-cpp.overlays.default)
       (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
       (import ./overlays/ollama.nix)
