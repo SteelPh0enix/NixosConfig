@@ -14,9 +14,6 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     system = pkgs.system;
     config.allowUnfree = true;
-    overlays = [
-      (import ./overlays/bottles.nix)
-    ];
   };
 in
 {
@@ -40,7 +37,10 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.bottles-unwrapped
+    pkgsUnstable.winePackages.stagingFull
+    pkgsUnstable.winetricks
+    pkgsUnstable.protonup-qt
+    pkgsUnstable.vkd3d
 
     localNixpkgs.stm32cubemx
 
