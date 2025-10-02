@@ -1,7 +1,9 @@
-{ torchPkg, ... }:
+{ overridePkgs, ... }:
 (self: super: {
-  vllm-fpc = super.vllm.override {
+  vllm = super.vllm.override {
     rocmSupport = true;
-    torch = torchPkg;
+    python = overridePkgs.python312;
+    torch = overridePkgs.python312Packages.torch;
+    rocmPackages = overridePkgs.rocmPackages;
   };
 })

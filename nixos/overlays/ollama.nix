@@ -1,5 +1,8 @@
+{ overridePkgs, ... }:
 (self: super: {
-  ollama-fpc = super.ollama-rocm.override {
+  ollama = super.ollama-rocm.override {
+    rocmPackages = overridePkgs.rocmPackages;
     rocmGpuTargets = [ "gfx1151" ];
+    acceleration = "rocm";
   };
 })
