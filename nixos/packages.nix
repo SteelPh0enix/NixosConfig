@@ -11,11 +11,11 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     overlays = [
       (import ./overlays/rocm.nix { overridePkgs = pkgsUnstable; })
-      (import ./overlays/torch.nix { overridePkgs = pkgsUnstable; })
+      # (import ./overlays/torch.nix { overridePkgs = pkgsUnstable; })
       (llama-cpp.overlays.default)
       (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
       (import ./overlays/ollama.nix { overridePkgs = pkgsUnstable; })
-      (import ./overlays/vllm.nix { overridePkgs = pkgsUnstable; })
+      # (import ./overlays/vllm.nix { overridePkgs = pkgsUnstable; })
     ];
     system = pkgs.system;
     config.allowUnfree = true;
@@ -107,7 +107,7 @@ in
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.llama-cpp
     pkgsUnstable.ollama
-    pkgsUnstable.vllm
+    # pkgsUnstable.vllm
     psmisc
     ripgrep
     rsync
