@@ -18,6 +18,7 @@
     ./services.nix
     ./services/samba.nix
     ./services/wireguard.nix
+    ./services/open-webui.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
