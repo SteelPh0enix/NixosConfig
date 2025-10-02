@@ -28,6 +28,8 @@
     allowedUDPPorts = [ 53 ];
   };
 
+  networking.nameservers = [ "127.0.0.1" ];
+
   services.openssh = {
     enable = true;
     ports = [ 22137 ];
@@ -63,7 +65,7 @@
       HIP_VISIBLE_DEVICES = "0";
       ROCR_VISIBLE_DEVICES = "0";
       OLLAMA_FLASH_ATTENTION = "1";
-      
+
     };
   };
 }
