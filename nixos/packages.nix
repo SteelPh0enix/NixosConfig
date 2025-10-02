@@ -11,10 +11,11 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     overlays = [
       (import ./overlays/rocm.nix)
+      (import ./overlays/torch.nix)
       (llama-cpp.overlays.default)
       (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
       (import ./overlays/ollama.nix)
-      (import ./overlays/vllm.nix)
+      (import ./overlays/vllm.nix { torchPkg = pkgsUnstable.python312Packages.torch; })
     ];
     system = pkgs.system;
     config.allowUnfree = true;
