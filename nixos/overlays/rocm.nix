@@ -1,3 +1,4 @@
+{ overridePkgs, ... }:
 (self: super: {
   rocmPackages = super.rocmPackages // rec {
     clr =

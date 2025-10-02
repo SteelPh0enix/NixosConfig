@@ -10,12 +10,12 @@
 let
   pkgsUnstable = import nixpkgs-unstable {
     overlays = [
-      (import ./overlays/rocm.nix)
-      (import ./overlays/torch.nix)
+      (import ./overlays/rocm.nix { overridePkgs = pkgsUnstable; })
+      (import ./overlays/torch.nix { overridePkgs = pkgsUnstable; })
       (llama-cpp.overlays.default)
-      (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
-      (import ./overlays/ollama.nix)
-      (import ./overlays/vllm.nix { torchPkg = pkgsUnstable.python312Packages.torch; })
+      (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
+      (import ./overlays/ollama.nix { overridePkgs = pkgsUnstable; })
+      (import ./overlays/vllm.nix { overridePkgs = pkgsUnstable; })
     ];
     system = pkgs.system;
     config.allowUnfree = true;
@@ -106,8 +106,8 @@ in
     pciutils
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.llama-cpp
-    pkgsUnstable.ollama-fpc
-    pkgsUnstable.vllm-fpc
+    pkgsUnstable.ollama
+    pkgsUnstable.vllm
     psmisc
     ripgrep
     rsync
@@ -136,7 +136,7 @@ in
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
-  services.ollama.package = pkgsUnstable.ollama-fpc;
+  services.ollama.package = pkgsUnstable.ollama;
 
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
