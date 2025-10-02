@@ -14,6 +14,7 @@
       };
 
       wantedBy = [ "multi-user.target" ];
+      after = [ "pihole.service" ];
     };
   };
 }
