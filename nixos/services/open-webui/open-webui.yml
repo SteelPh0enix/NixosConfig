@@ -2,7 +2,7 @@ services:
   tika:
     image: apache/tika:latest-full
     container_name: tika
-    pull_policy: always
+    pull_policy: daily
     ports:
       - 9998:9998
     restart: on-failure
@@ -10,7 +10,7 @@ services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
-    pull_policy: always
+    pull_policy: daily
     volumes:
       - /home/openwebui:/app/backend/data
     depends_on:
