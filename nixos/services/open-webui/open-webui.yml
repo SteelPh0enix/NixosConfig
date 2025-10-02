@@ -12,7 +12,7 @@ services:
     container_name: open-webui
     pull_policy: always
     volumes:
-      - /home/steelph0enix/.openwebui:/app/backend/data
+      - /home/openwebui:/app/backend/data
     depends_on:
       - tika
     ports:
