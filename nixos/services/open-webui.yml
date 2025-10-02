@@ -5,7 +5,7 @@ services:
     pull_policy: always
     ports:
       - 9998:9998
-    restart: unless-stopped
+    restart: on-failure
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -50,4 +50,4 @@ services:
       - SEARXNG_QUERY_URL=https://search.steelph0enix.dev/search?q=<query>
     extra_hosts:
       - host.docker.internal:host-gateway
-    restart: unless-stopped
+    restart: on-failure

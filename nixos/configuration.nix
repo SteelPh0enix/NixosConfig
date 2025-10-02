@@ -16,9 +16,10 @@
     ./nix.nix
     ./packages.nix
     ./services.nix
+    ./services/open-webui.nix
+    ./services/pi-hole.nix
     ./services/samba.nix
     ./services/wireguard.nix
-    ./services/open-webui.nix
     ./shell.nix
     ./timers.nix
     ./users.nix

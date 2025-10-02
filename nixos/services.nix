@@ -1,5 +1,4 @@
 {
-  inputs,
   lib,
   pkgs,
   ...
@@ -19,12 +18,14 @@
     enable = true;
     allowPing = true;
     allowedTCPPorts = [
-      51536
+      53
+      443
+      8123
       11434
-      8080
+      51536
       55569
     ];
-    allowedUDPPorts = [ ];
+    allowedUDPPorts = [ 53 ];
   };
 
   services.openssh = {
