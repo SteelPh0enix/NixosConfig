@@ -18,7 +18,12 @@
   networking.firewall = {
     enable = true;
     allowPing = true;
-    allowedTCPPorts = [ 51536 11434 ];
+    allowedTCPPorts = [
+      51536
+      11434
+      8080
+      55569
+    ];
     allowedUDPPorts = [ ];
   };
 
@@ -53,5 +58,11 @@
     port = 11434;
     user = "ollama";
     acceleration = "rocm";
+    environmentVariables = {
+      HIP_VISIBLE_DEVICES = "0";
+      ROCR_VISIBLE_DEVICES = "0";
+      OLLAMA_FLASH_ATTENTION = "1";
+      
+    };
   };
 }
