@@ -130,7 +130,6 @@
   };
   programs.java.enable = true;
   programs.java.binfmt = true;
-  programs.lazygit.enable = true;
   programs.less.enable = true;
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
