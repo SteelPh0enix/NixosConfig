@@ -14,6 +14,8 @@
     cfge = "code ~/nixos-config";
     docker-here = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     docker-here-shell = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    rcp = "rsync --archive --recursive --mkpath --verbose --progress --human-readable";
+    rcpc = "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable";
   };
 
   environment.sessionVariables = {
