@@ -3,7 +3,7 @@ services:
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
-    pull_policy: daily
+    pull_policy: never
     restart: on-failure
 
     ports:
