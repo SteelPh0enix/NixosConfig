@@ -94,6 +94,7 @@ in
     lm_sensors
     lsof
     ltrace
+    ncdu
     nil
     ninja
     nixd
