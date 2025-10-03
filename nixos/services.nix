@@ -65,7 +65,6 @@
       HIP_VISIBLE_DEVICES = "0";
       ROCR_VISIBLE_DEVICES = "0";
       OLLAMA_FLASH_ATTENTION = "1";
-
     };
   };
 }
