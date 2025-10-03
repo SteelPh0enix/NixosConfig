@@ -138,6 +138,19 @@ in
     };
   };
 
+  programs.lazygit = {
+    enable = true;
+    settings = {
+      gui = {
+        language = "en";
+      };
+      git = {
+        parseEmoji = true;
+        overrideGpg = true;
+      };
+    };
+  };
+
   programs.neovim = {
     defaultEditor = true;
     enable = true;
@@ -148,8 +161,6 @@ in
     withPython3 = true;
     withRuby = true;
   };
-
-  programs.lazygit.enable = true;
 
   programs.ripgrep.enable = true;
   programs.fd.enable = true;
