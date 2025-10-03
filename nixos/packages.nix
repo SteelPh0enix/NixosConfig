@@ -67,6 +67,7 @@
     ltrace
     mc
     mypy
+    ncdu
     nil
     ninja
     nixd
