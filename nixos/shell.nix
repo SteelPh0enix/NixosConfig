@@ -15,6 +15,8 @@
     cfge = "code ~/nixos-config";
     docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    docker-here-rocm = "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm";
+    docker-here-shell-rocm = "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm -it";
   };
 
   environment.sessionVariables = {
