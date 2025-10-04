@@ -20,4 +20,18 @@
       "x-gvfs-show"
     ];
   };
+
+  fileSystems."/mnt/SSD" = {
+    device = "/dev/disk/by-uuid/b715f1b9-ead5-4178-9c13-63bac891f202";
+    fsType = "ext4";
+    options = [
+      "defaults"
+      "noauto"
+      "nofail"
+      "nosuid"
+      "rw"
+      "user"
+      "x-gvfs-show"
+    ];
+  };
 }
