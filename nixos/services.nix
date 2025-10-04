@@ -54,17 +54,17 @@
     package = lib.mkForce pkgs.gnome.gvfs;
   };
 
-  services.ollama = {
-    enable = true;
-    rocmOverrideGfx = "11.5.1";
-    host = "0.0.0.0";
-    port = 11434;
-    user = "ollama";
-    acceleration = "rocm";
-    environmentVariables = {
-      HIP_VISIBLE_DEVICES = "0";
-      ROCR_VISIBLE_DEVICES = "0";
-      OLLAMA_FLASH_ATTENTION = "1";
-    };
-  };
+  # services.ollama = {
+  #   enable = true;
+  #   rocmOverrideGfx = "11.5.1";
+  #   host = "0.0.0.0";
+  #   port = 11434;
+  #   user = "ollama";
+  #   acceleration = "rocm";
+  #   environmentVariables = {
+  #     HIP_VISIBLE_DEVICES = "0";
+  #     ROCR_VISIBLE_DEVICES = "0";
+  #     OLLAMA_FLASH_ATTENTION = "1";
+  #   };
+  # };
 }

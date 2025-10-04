@@ -107,8 +107,6 @@ in
     pciutils
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.llama-cpp
-    pkgsUnstable.ollama
-    # pkgsUnstable.vllm
     psmisc
     ripgrep
     rsync
@@ -136,8 +134,6 @@ in
 
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
-
-  services.ollama.package = pkgsUnstable.ollama;
 
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
