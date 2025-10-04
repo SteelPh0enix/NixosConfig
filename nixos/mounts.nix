@@ -12,12 +12,13 @@
     fsType = "ext4";
     options = [
       "defaults"
-      "noauto"
+      "noatime"
+      "barrier=1"
+      "data=ordered"
+      "errors=remount-ro"
+      "commit=300"
       "nofail"
-      "nosuid"
-      "rw"
       "user"
-      "x-gvfs-show"
     ];
   };
 
@@ -26,12 +27,12 @@
     fsType = "ext4";
     options = [
       "defaults"
-      "noauto"
+      "noatime"
+      "barrier=1"
+      "errors=remount-ro"
+      "commit=60"
       "nofail"
-      "nosuid"
-      "rw"
       "user"
-      "x-gvfs-show"
     ];
   };
 }
