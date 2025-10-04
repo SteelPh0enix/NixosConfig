@@ -31,7 +31,7 @@
         "force group" = "users";
       };
 
-      "Shared" = {
+      "HomeStorage" = {
         path = "/home/steelph0enix/HomeStorage";
         browseable = "yes";
         "read only" = "no";
@@ -42,8 +42,18 @@
         "force group" = "users";
       };
 
-      "Data" = {
+      "NAS_HDD" = {
         path = "/mnt/NAS";
+        browseable = "yes";
+        "read only" = "no";
+        "guest ok" = "yes";
+        "create mask" = "0644";
+        "directory mask" = "0755";
+        "force group" = "users";
+      };
+
+      "NAS_SSD" = {
+        path = "/mnt/SSD";
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "yes";
