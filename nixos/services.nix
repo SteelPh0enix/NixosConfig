@@ -67,4 +67,13 @@
   #     OLLAMA_FLASH_ATTENTION = "1";
   #   };
   # };
+  
+  services.tuned = {
+    enable = true;
+    settings = {
+      daemon = true;
+      dynamic_tuning = true;
+      recommend_command = true;
+    };
+  };
 }
