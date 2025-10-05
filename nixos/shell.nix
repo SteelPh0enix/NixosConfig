@@ -15,8 +15,8 @@
     cfge = "code ~/nixos-config";
     docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
-    docker-here-rocm = "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm";
-    docker-here-shell-rocm = "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm -it";
+    docker-here-rocm = "docker run --privileged --network=host --device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host --shm-size 24G -v $PWD:$PWD -w $PWD --rm";
+    docker-here-rocm-shell = "docker run --privileged --network=host --device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host --shm-size 24G -v $PWD:$PWD -w $PWD --rm -it";
     rcp = "rsync --archive --recursive --mkpath --verbose --progress --human-readable";
     rcpc = "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable";
   };
