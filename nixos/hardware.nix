@@ -5,11 +5,15 @@
   boot.kernelParams = [
     "kvm.enable_virt_at_load=0"
     "microcode.amd_sha_check=off"
-    "amd_iommu=on"
-    "amdgpu.gttsize=114688"
-    "tmm.pages_limit=28000000"
-    "tmm.page_pool_size=28000000"
+    "amd_iommu=off"
   ];
+  
+  boot.extraModprobeConfig = ''
+    options amdgpu gttsize=122800
+    options amdgpu vm_fragment_size=8
+    options ttm pages_limit=31457280
+    options ttm page_pool_size=15728640
+  '';
 
   hardware.enableRedistributableFirmware = true;
   hardware.graphics.enable = true;
