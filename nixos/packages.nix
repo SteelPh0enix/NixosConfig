@@ -40,6 +40,7 @@ in
       ];
     })
 
+    amdvlk
     bear
     blueman
     btop-rocm
@@ -105,8 +106,8 @@ in
     p7zip
     parted
     pciutils
-    pkgsUnstable.nerd-font-patcher
     pkgsUnstable.llama-cpp
+    pkgsUnstable.nerd-font-patcher
     psmisc
     ripgrep
     rsync
@@ -121,6 +122,18 @@ in
     usbutils
     uv
     valgrind
+    vk-bootstrap
+    vkd3d
+    vkdisplayinfo
+    vkmark
+    vulkan-caps-viewer
+    vulkan-extension-layer
+    vulkan-helper
+    vulkan-loader
+    vulkan-memory-allocator
+    vulkan-tools
+    vulkan-utility-libraries
+    vulkan-volk
     wget
     which
     wireguard-tools
