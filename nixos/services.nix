@@ -27,4 +27,13 @@
   };
 
   security.pam.services.gdm.enableGnomeKeyring = true;
+
+  services.tuned = {
+    enable = true;
+    settings = {
+      daemon = true;
+      dynamic_tuning = true;
+      recommend_command = true;
+    };
+  };
 }
