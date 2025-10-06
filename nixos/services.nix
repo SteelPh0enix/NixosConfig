@@ -43,7 +43,10 @@
       X11Forwarding = false;
       PermitRootLogin = "no";
       PasswordAuthentication = false;
-      AllowUsers = [ "steelph0enix" ];
+      AllowUsers = [
+        "steelph0enix"
+        "quake"
+      ];
       LogLevel = "VERBOSE";
     };
   };
