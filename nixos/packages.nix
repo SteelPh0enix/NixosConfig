@@ -44,6 +44,7 @@ in
     blueman
     btop-rocm
     ccache
+    cifs-utils
     clang
     clang-tools
     cmake
