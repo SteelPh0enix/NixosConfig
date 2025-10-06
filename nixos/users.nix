@@ -15,7 +15,6 @@
       home = "/home/steelph0enix";
       isNormalUser = true;
       extraGroups = [
-        "steelph0enix"
         "users"
         "wheel"
         "video"
@@ -37,7 +36,6 @@
       home = "/home/quake";
       isNormalUser = true;
       extraGroups = [
-        "steelph0enix"
         "users"
         "wheel"
         "video"
@@ -56,6 +54,7 @@
   };
 
   users.defaultUserShell = pkgs.fish;
+  security.sudo.execWheelOnly = true;
   nix.settings.trusted-users = [ "steelph0enix" ];
 
   security.pam.loginLimits = [
