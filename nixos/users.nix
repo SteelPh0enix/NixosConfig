@@ -44,7 +44,6 @@
       extraGroups = [
         "quake"
         "users"
-        "wheel"
         "video"
         "networkmanager"
         "render"
