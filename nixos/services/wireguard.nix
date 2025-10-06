@@ -49,6 +49,14 @@ in
             "10.69.69.5/32"
           ];
         }
+
+        {
+          publicKey = "xhSLM03wpnzAbKm5EZ2DRSgU4HaEMj99RsibalZelBY=";
+          presharedKeyFile = "/root/wireguard/wg-preshared-quake";
+          allowedIPs = [
+            "10.69.69.10/32"
+          ];
+        }
       ];
     };
   };
