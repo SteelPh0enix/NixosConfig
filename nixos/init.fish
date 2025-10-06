@@ -8,17 +8,17 @@ function remote-cp --description "Compresses, sends, and decompresses a director
     end
     if not command -v scp >/dev/null
         echo "Error: scp is not installed." >&2
-        return 1
+        return 2
     end
     if not command -v ssh >/dev/null
         echo "Error: ssh is not installed." >&2
-        return 1
+        return 3
     end
 
     # --- Argument validation ---
     if test (count $argv) -ne 2
         echo "Usage: remote-cp <local_directory> <user@host:remote_path>" >&2
-        return 1
+        return 4
     end
 
     set local_path $argv[1]
@@ -26,14 +26,14 @@ function remote-cp --description "Compresses, sends, and decompresses a director
 
     if not test -d $local_path
         echo "Error: Local path '$local_path' is not a directory." >&2
-        return 1
+        return 5
     end
 
     # --- Parse remote target ---
     set remote_parts (string split ":" -- $remote_target)
     if test (count $remote_parts) -ne 2
         echo "Error: Invalid remote target format. Expected <user@host:remote_path>." >&2
-        return 1
+        return 6
     end
 
     set remote_host $remote_parts[1]
@@ -49,7 +49,7 @@ function remote-cp --description "Compresses, sends, and decompresses a director
     if test $status -ne 0
         echo "Error: Compression failed." >&2
         rm -f "$archive_name"
-        return 1
+        return 7
     end
 
     # --- Secure Copy ---
@@ -58,7 +58,7 @@ function remote-cp --description "Compresses, sends, and decompresses a director
     if test $status -ne 0
         echo "Error: scp failed." >&2
         rm -f "$archive_name"
-        return 1
+        return 8
     end
 
     # --- Remote Deletion and Decompression ---
@@ -67,7 +67,7 @@ function remote-cp --description "Compresses, sends, and decompresses a director
     if test $status -ne 0
         echo "Error: Remote command execution failed." >&2
         rm -f "$archive_name"
-        return 1
+        return 9
     end
 
     # --- Cleanup ---
@@ -83,7 +83,7 @@ function serve-llm
 
     if test -z "$model_gguf_path"
         echo "Error: Model path not provided" >&2
-        echo "Usage: serve-llm <path-to-model.gguf> <context-length> [additional arguments for llama-server]" >&2
+        echo "Usage: serve-llm <path-to-model.gguf> <context-length (optional, 0 for maximum)> [additional arguments for llama-server]" >&2
         return 1
     end
 
@@ -92,16 +92,11 @@ function serve-llm
         return 2
     end
 
-    set context_length $argv[2]
-
-    if test -z "$context_length"
-        echo "Error: Context length not provided" >&2
-        return 3
-    end
+    set context_length (or $argv[2] 0)
 
     if test "$context_length" -lt 0
         echo "Error: Context length must be >= 0" >&2
-        return 4
+        return 3
     end
 
     if test "$context_length" -gt 0
@@ -118,26 +113,32 @@ function serve-llm
 end
 
 function serve-llm-jinja
+    if test (count $argv) -lt 1
+        echo "Error: Model path not provided" >&2
+        echo "Usage: serve-llm-jinja <path-to-model.gguf> <context-length (optional, 0 for maximum)> [additional arguments for llama-server]" >&2
+        return 4
+    end
+
     serve-llm $argv[1] $argv[2] \
         --jinja \
         $argv[3..-1]
 end
 
 function serve-llm-jinja-ext
-    set template_path $argv[3]
+    set template_path $argv[2]
 
     if test -z "$template_path"
-        echo "Error: Chat template path not provided" >&2
-        echo "Usage: serve-llm-jinja-ext <path-to-model.gguf> <context-length> <chat-template.jinja> [additional arguments for llama-server]" >&2
-        return 1
+        echo "Error: Model path or chat template path not provided" >&2
+        echo "Usage: serve-llm-jinja-ext <path-to-model.gguf> <chat-template.jinja> <context-length (optional, 0 for maximum)> [additional arguments for llama-server]" >&2
+        return 5
     end
 
     if not test -f "$template_path"
         echo "Error: Chat template file not found at: $template_path" >&2
-        return 10
+        return 6
     end
 
-    serve-llm-jinja $argv[1] $argv[2] \
+    serve-llm-jinja $argv[1] $argv[3] \
         --chat-template-file $template_path \
         $argv[4..-1]
 end
