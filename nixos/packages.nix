@@ -106,9 +106,8 @@ in
     p7zip
     parted
     pciutils
-    pkgsUnstable.llama-cpp
-    pkgsUnstable.nerd-font-patcher
     psmisc
+    python3Full
     ripgrep
     rsync
     rust-analyzer
@@ -141,6 +140,9 @@ in
     xz
     zip
     zstd
+
+    pkgsUnstable.llama-cpp
+    pkgsUnstable.nerd-font-patcher
 
     inputs.compose2nix.packages.x86_64-linux.default
   ];
