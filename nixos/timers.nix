@@ -2,7 +2,7 @@
   systemd.timers."refresh-dns" = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnBootSec = "5m";
+      OnBootSec = "1m";
       OnCalendar = "daily";
       Persistent = true;
       Unit = "refresh-dns.service";
