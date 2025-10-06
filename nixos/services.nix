@@ -54,7 +54,7 @@
     enable = true;
     package = lib.mkForce pkgs.gnome.gvfs;
   };
-  
+
   services.tuned = {
     enable = true;
     settings = {
