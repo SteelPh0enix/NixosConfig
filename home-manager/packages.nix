@@ -19,7 +19,41 @@ in
   programs.vscode = {
     enable = true;
     mutableExtensionsDir = true;
-    package = pkgsUnstable.vscode;
+    package = pkgsUnstable.vscode.fhsWithPackages (
+      ps: with ps; [
+        automake
+        cmake
+        curl
+        eslint
+        gcc15
+        gdb
+        git-lfs
+        gitFull
+        gnumake
+        lldb
+        llvmPackages_21.clang-tools
+        llvmPackages_21.clang-unwrapped
+        llvmPackages_21.openmp
+        lua
+        luajit
+        ninja
+        nixd
+        nixfmt-rfc-style
+        nixpkgs-review
+        nodejs
+        npm-check
+        openssl.dev
+        pkg-config
+        ruff
+        rustup
+        sqlite
+        uv
+        uv-sort
+        wget
+        yarn
+        zlib
+      ]
+    );
   };
 
   programs.wezterm = {
