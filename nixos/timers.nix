@@ -1,4 +1,4 @@
-{pkgs, ...}: {
+{
   systemd.timers."refresh-dns" = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
