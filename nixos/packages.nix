@@ -23,12 +23,11 @@
       ];
     })
 
+    automake
     bear
     black
     btop
     ccache
-    clang
-    clang-tools
     cmake
     colordiff
     curl
@@ -38,6 +37,7 @@
     docker-buildx
     dotnet-runtime_9
     dotnet-sdk_9
+    eslint
     exfat
     exfatprogs
     eza
@@ -48,12 +48,13 @@
     findutils
     fzf
     gawk
-    gcc
+    gcc15
     gdb
     gh
-    git
     git-lfs
+    gitFull
     gnugrep
+    gnumake
     gnused
     gnutar
     gparted
@@ -62,9 +63,14 @@
     jq
     linuxHeaders
     lldb
+    llvmPackages_21.clang-tools
+    llvmPackages_21.clang-unwrapped
+    llvmPackages_21.openmp
     lm_sensors
     lsof
     ltrace
+    lua
+    luajit
     mc
     mypy
     ncdu
@@ -73,30 +79,39 @@
     nixd
     nixfmt-rfc-style
     nixpkgs-review
+    nodejs
+    npm-check
     ntfs3g
     openssh
     openssl
+    openssl.dev
     p7zip
     parted
     pciutils
+    pkg-config
     psmisc
     ripgrep
     rsync
     ruff
     rust-analyzer
+    rustup
     socat
+    sqlite
     strace
     sysstat
     tcpdump
     tree
     usbutils
     uv
+    uv-sort
     valgrind
     wget
     which
     wireshark
     xz
+    yarn
     zip
+    zlib
     zstd
   ];
 
