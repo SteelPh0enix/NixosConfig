@@ -21,6 +21,30 @@ let
     config.allowUnfree = true;
     config.rocmSupport = false;
   };
+
+  motdConfig = pkgs.writeText "rust-motd.kdl" ''
+    global {
+        version "1.0"
+    }
+    components {
+        weather url="https://wttr.in/Fajslawice?1" timeout=30
+        service-status {
+            service display-name="Accounts" unit="accounts-daemon"
+            service display-name="PiHole" unit="pihole"
+            service display-name="Open WebUI" unit="open-webui"
+        }
+        uptime prefix="Uptime"
+        filesystems {
+            filesystem name="root" mount-point="/"
+            filesystem name="home" mount-point="/home"
+            filesystem name="NAS HDD" mount-point="/mnt/NAS"
+            filesystem name="NAS SSD" mount-point="/mnt/SSD"
+        }
+        memory swap-pos="beside"
+        load-avg format="Load (1, 5, 15 min.): {one:.02}, {five:.02}, {fifteen:.02}"
+        last-run
+    }
+  '';
 in
 {
   nixpkgs.overlays = [
@@ -29,17 +53,6 @@ in
   ];
 
   environment.systemPackages = with pkgs; [
-    (rust-bin.stable.latest.default.override {
-      extensions = [
-        "cargo"
-        "rust-analysis"
-        "rust-src"
-        "rust-std"
-        "rustc"
-        "rustfmt"
-      ];
-    })
-
     amdvlk
     bear
     blueman
@@ -59,6 +72,7 @@ in
     fastfetch
     fd
     ffmpeg-full
+    figlet
     file
     findutils
     flac
@@ -142,9 +156,31 @@ in
 
     pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.rust-motd
 
     inputs.compose2nix.packages.x86_64-linux.default
+
+    (rust-bin.stable.latest.default.override {
+      extensions = [
+        "cargo"
+        "rust-analysis"
+        "rust-src"
+        "rust-std"
+        "rustc"
+        "rustfmt"
+      ];
+    })
   ];
+
+  # must be here, because uses rust-motd package
+  systemd.services."rust-motd" = {
+    script = "${pkgsUnstable.rust-motd}/bin/rust-motd ${motdConfig} > /etc/motd";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+    };
+  };
+  users.motdFile = "/etc/motd";
 
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
@@ -192,36 +228,6 @@ in
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
-
-  programs.rust-motd = {
-    enable = true;
-    enableMotdInSSHD = true;
-    order = [
-      "weather"
-      "service_status"
-      "uptime"
-      "last_run"
-      "filesystems"
-      "memory"
-      "load_avg"
-      "fail2ban"
-    ];
-    settings = {
-      weather.loc = "Fajsławice";
-      service_status.Accounts = "accounts-daemon";
-      uptime.prefix = "Uptime";
-      filesystems = {
-        root = "/";
-        home = "/home";
-        "NAS_SSD" = "/mnt/SSD";
-        "NAS_HDD" = "/mnt/HDD";
-      };
-      memory.swap-pos = "beside";
-      fail2ban.jail = "sshd";
-      last_run = true;
-      load_avg = true;
-    };
-  };
 
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
