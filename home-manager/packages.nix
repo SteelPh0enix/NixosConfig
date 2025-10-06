@@ -36,10 +36,12 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.winePackages.stagingFull
-    pkgsUnstable.winetricks
+    pkgsUnstable.libvlc
     pkgsUnstable.protonup-qt
     pkgsUnstable.vkd3d
+    pkgsUnstable.vlc
+    pkgsUnstable.winePackages.stagingFull
+    pkgsUnstable.winetricks
 
     localNixpkgs.stm32cubemx
 
