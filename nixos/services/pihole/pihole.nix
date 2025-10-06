@@ -9,8 +9,8 @@
 
       serviceConfig = {
         WorkingDirectory = "/etc/nixos/nixos/services/pihole";
-        ExecStart = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/pihole.yml up --build --remove-orphans --yes";
-        ExecStop = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/pihole.yml down";
+        ExecStart = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/docker-compose.yml up --build --remove-orphans --yes";
+        ExecStop = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/docker-compose.yml down";
       };
 
       wantedBy = [ "multi-user.target" ];
