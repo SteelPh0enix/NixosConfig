@@ -7,8 +7,6 @@
 
     LLAMA_ARG_HOST = "0.0.0.0";
     LLAMA_ARG_PORT = 51536;
-    # LLAMA_ARG_BATCH = 2048;
-    # LLAMA_ARG_UBATCH = 2048;
     LLAMA_ARG_FLASH_ATTN = "on";
     LLAMA_ARG_MLOCK = 1;
     LLAMA_ARG_NO_MMAP = 1;
@@ -26,4 +24,6 @@
   programs.nix-index.enable = true;
   programs.nix-index.enableFishIntegration = true;
   programs.nix-index-database.comma.enable = true;
+
+  users.motd = "hi $USER";
 }
