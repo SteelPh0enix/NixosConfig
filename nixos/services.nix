@@ -47,6 +47,7 @@
         "quake"
       ];
       LogLevel = "VERBOSE";
+      MaxAuthTries = 10;
     };
   };
 
