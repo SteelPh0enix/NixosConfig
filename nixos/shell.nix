@@ -1,26 +1,5 @@
 { pkgs, ... }:
 {
-  environment.shellAliases = {
-    ls = "eza --icons=always -gM --git";
-    l = "ls -lh";
-    la = "ls -alh";
-    lg = "lazygit";
-    e = "$EDITOR";
-    eh = "$EDITOR .";
-    cpr = "cp -r";
-    os-rebuild = "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#RX-78-FPC --upgrade-all --print-build-logs --show-trace --refresh";
-    os-update = "cd ~/nixos-config && nix flake update && os-rebuild && git add flake.lock && git commit -m 'os update'";
-    os-clean = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
-    rbt = "sudo systemctl reboot";
-    cfge = "code ~/nixos-config";
-    docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
-    docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
-    docker-here-rocm = "docker run --privileged --network=host --device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host --shm-size 24G -v $PWD:$PWD -w $PWD --rm";
-    docker-here-rocm-shell = "docker run --privileged --network=host --device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host --shm-size 24G -v $PWD:$PWD -w $PWD --rm -it";
-    rcp = "rsync --archive --recursive --mkpath --verbose --progress --human-readable";
-    rcpc = "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable";
-  };
-
   environment.sessionVariables = {
     EDITOR = "nvim";
     BROWSER = "firefox";
