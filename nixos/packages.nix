@@ -193,6 +193,36 @@ in
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
 
+  programs.rust-motd = {
+    enable = true;
+    enableMotdInSSHD = true;
+    order = [
+      "weather"
+      "service_status"
+      "uptime"
+      "last_run"
+      "filesystems"
+      "memory"
+      "load_avg"
+      "fail2ban"
+    ];
+    settings = {
+      weather.loc = "Fajsławice";
+      service_status.Accounts = "accounts-daemon";
+      uptime.prefix = "Uptime";
+      filesystems = {
+        root = "/";
+        home = "/home";
+        "NAS_SSD" = "/mnt/SSD";
+        "NAS_HDD" = "/mnt/HDD";
+      };
+      memory.swap-pos = "beside";
+      fail2ban.jail = "sshd";
+      last_run = true;
+      load_avg = true;
+    };
+  };
+
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
   qt.enable = true;

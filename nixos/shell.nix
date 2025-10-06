@@ -24,6 +24,4 @@
   programs.nix-index.enable = true;
   programs.nix-index.enableFishIntegration = true;
   programs.nix-index-database.comma.enable = true;
-
-  users.motd = "hi $USER";
 }
