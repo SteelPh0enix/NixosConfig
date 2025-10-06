@@ -70,4 +70,13 @@
       recommend_command = true;
     };
   };
+
+  services.watchdogd = {
+    enable = true;
+    settings = {
+      meminfo.enabled = true;
+      filenr.enabled = true;
+      loadavg.enabled = true;
+    };
+  };
 }
