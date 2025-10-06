@@ -14,7 +14,7 @@
 
   networking.nameservers = [
     "10.69.69.69"
-    # "192.168.0.185"
+    "192.168.0.185"
   ];
 
   services.printing.enable = true;
