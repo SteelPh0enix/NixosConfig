@@ -8,7 +8,6 @@
   networking.networkmanager.enable = true;
   networking.hostName = "RX-78-FPC";
 
-  services.fail2ban.enable = true;
   services.printing.enable = true;
   services.blueman.enable = true;
   services.jackett.enable = true;

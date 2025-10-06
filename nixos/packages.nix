@@ -56,7 +56,6 @@ in
     exfat
     exfatprogs
     eza
-    fail2ban
     fastfetch
     fd
     ffmpeg-full
