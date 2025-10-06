@@ -1,13 +1,18 @@
 { pkgs, ... }:
 {
   users.groups = {
-    steelph0enix = { };
+    wheel = { };
+    video = { };
+    networkmanager = { };
+    render = { };
     pcap = { };
     wireshark = { };
     docker = { };
     vboxusers = { };
     plugdev = { };
     samba = { };
+    steelph0enix = { };
+    quake = { };
   };
 
   users.users = {
@@ -15,6 +20,7 @@
       home = "/home/steelph0enix";
       isNormalUser = true;
       extraGroups = [
+        "steelph0enix"
         "users"
         "wheel"
         "video"
@@ -36,6 +42,7 @@
       home = "/home/quake";
       isNormalUser = true;
       extraGroups = [
+        "quake"
         "users"
         "wheel"
         "video"
