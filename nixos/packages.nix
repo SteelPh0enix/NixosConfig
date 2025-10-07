@@ -174,7 +174,7 @@ in
 
   # must be here, because uses rust-motd package
   systemd.services."rust-motd" = {
-    script = "${pkgsUnstable.rust-motd}/bin/rust-motd ${motdConfig} > /etc/motd";
+    script = "${pkgsUnstable.rust-motd}/bin/rust-motd ${motdConfig} > /tmp/motd && cp /tmp/motd /etc/motd";
     serviceConfig = {
       Type = "oneshot";
       User = "root";
