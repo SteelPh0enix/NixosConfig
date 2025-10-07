@@ -92,7 +92,11 @@ function serve-llm
         return 2
     end
 
-    set context_length (or $argv[2] 0)
+    if set -q argv[2]
+        set context_length $argv[2]
+    else
+        set context_length 0
+    end
 
     if test "$context_length" -lt 0
         echo "Error: Context length must be >= 0" >&2
