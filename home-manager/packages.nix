@@ -36,6 +36,7 @@ in
     ungoogled-chromium
     zenmap
 
+    pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
     pkgsUnstable.vkd3d
     pkgsUnstable.vlc
