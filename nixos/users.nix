@@ -62,6 +62,11 @@
     jellyfin = {
       isNormalUser = false;
     };
+
+    qbittorrent = {
+      isNormalUser = false;
+      group = "users";
+    };
   };
 
   users.defaultUserShell = pkgs.fish;

@@ -132,4 +132,21 @@ in
     package = pkgsUnstable.jellyfin;
     openFirewall = true;
   };
+
+  services.qbittorrent = {
+    enable = true;
+    package = pkgsUnstable.qbittorrent-enhanced-nox;
+    user = "qbittorrent";
+    group = "users";
+    openFirewall = true;
+    webuiPort = 8888;
+    extraArgs = [
+      "--confirm-legal-notice"
+      "--sequential"
+      "--first-and-last"
+      "--save-path=/mnt/NAS/Torrents"
+      "--add-stopped=false"
+      "--skip-dialog=false"
+    ];
+  };
 }
