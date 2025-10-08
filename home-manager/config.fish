@@ -13,7 +13,7 @@ alias os-rebuild "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#RX-78
 alias os-update "cd ~/nixos-config && nix flake update && os-rebuild && git add flake.lock && git commit -m 'os update'"
 alias os-clean "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d"
 alias rbt "sudo systemctl reboot"
-alias cfge "code ~/nixos-config"
+alias cfge "$EDITOR ~/nixos-config"
 alias docker-here "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)"
 alias docker-here-shell "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)"
 alias docker-here-rocm "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm"
