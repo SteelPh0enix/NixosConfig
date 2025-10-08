@@ -106,6 +106,7 @@ in
     tcpdump
     thermald
     tree
+    unzip
     usbutils
     uv
     valgrind
