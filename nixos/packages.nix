@@ -96,6 +96,7 @@ in
     pciutils
     psmisc
     python3Full
+    radeontop
     ripgrep
     rsync
     rust-analyzer
@@ -131,6 +132,7 @@ in
     zstd
 
     pkgsUnstable.ffmpeg-full
+    pkgsUnstable.jellyfin-ffmpeg
     pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.rust-motd
