@@ -21,30 +21,6 @@ let
     config.allowUnfree = true;
     config.rocmSupport = false;
   };
-
-  motdConfig = pkgs.writeText "rust-motd.kdl" ''
-    global {
-        version "1.0"
-    }
-    components {
-        weather url="https://wttr.in/Fajslawice?1" timeout=30
-        service-status {
-            service display-name="Accounts" unit="accounts-daemon"
-            service display-name="PiHole" unit="pihole"
-            service display-name="Open WebUI" unit="open-webui"
-        }
-        uptime prefix="Uptime"
-        filesystems {
-            filesystem name="root" mount-point="/"
-            filesystem name="home" mount-point="/home"
-            filesystem name="NAS HDD" mount-point="/mnt/NAS"
-            filesystem name="NAS SSD" mount-point="/mnt/SSD"
-        }
-        memory swap-pos="beside"
-        load-avg format="Load (1, 5, 15 min.): {one:.02}, {five:.02}, {fifteen:.02}"
-        last-run
-    }
-  '';
 in
 {
   nixpkgs.overlays = [
@@ -71,7 +47,6 @@ in
     eza
     fastfetch
     fd
-    ffmpeg-full
     figlet
     file
     findutils
@@ -154,6 +129,7 @@ in
     zip
     zstd
 
+    pkgsUnstable.ffmpeg-full
     pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.rust-motd
@@ -171,16 +147,6 @@ in
       ];
     })
   ];
-
-  # must be here, because uses rust-motd package
-  systemd.services."rust-motd" = {
-    script = "${pkgsUnstable.rust-motd}/bin/rust-motd ${motdConfig} > /tmp/motd && cp /tmp/motd /etc/motd";
-    serviceConfig = {
-      Type = "oneshot";
-      User = "root";
-    };
-  };
-  users.motdFile = "/etc/motd";
 
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
