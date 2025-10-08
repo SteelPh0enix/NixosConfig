@@ -120,8 +120,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1759821330,
-        "narHash": "sha256-XutWUx9opSy0AwVBFqA2uyZ8gaS0Fy3vjSp4kvLbpNA=",
+        "lastModified": 1759957278,
+        "narHash": "sha256-wlBKAgasxp8CznsCu0UjHBxpkJAgUDgov1zWWLEczzs=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -365,11 +365,11 @@
         "cpu-microcodes": "cpu-microcodes"
       },
       "locked": {
-        "lastModified": 1759757733,
-        "narHash": "sha256-RBVrkD/QApr9tMko3kHVPLC0B1aJ/fIA0rvyreu5+dw=",
+        "lastModified": 1759935526,
+        "narHash": "sha256-ul9G+RlFA1OdfNY2s/qD2ANOagXktbvKpjtWaH8SiVk=",
         "owner": "e-tho",
         "repo": "ucodenix",
-        "rev": "4d93b4ca90906db637756cb2ccb2670f6b4f2eed",
+        "rev": "ae546711cdd5dbbd284fe9a47bd4f6ae9bbc7449",
         "type": "github"
       },
       "original": {
