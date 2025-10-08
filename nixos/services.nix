@@ -41,7 +41,6 @@ in
 
   services.printing.enable = true;
   services.blueman.enable = true;
-  services.jackett.enable = true;
   services.flaresolverr.enable = true;
   services.thermald.enable = true;
 
@@ -148,5 +147,12 @@ in
       "--add-stopped=false"
       "--skip-dialog=false"
     ];
+  };
+
+  services.jackett = {
+    enable = true;
+    package = pkgsUnstable.jackett;
+    openFirewall = true;
+    port = 8889;
   };
 }
