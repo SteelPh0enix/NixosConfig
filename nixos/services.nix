@@ -41,7 +41,6 @@ in
 
   services.printing.enable = true;
   services.blueman.enable = true;
-  services.flaresolverr.enable = true;
   services.thermald.enable = true;
 
   networking.firewall = {
@@ -154,5 +153,12 @@ in
     package = pkgsUnstable.jackett;
     openFirewall = true;
     port = 8889;
+  };
+
+  services.flaresolverr = {
+    enable = true;
+    package = pkgsUnstable.flaresolverr;
+    openFirewall = true;
+    port = 8890;
   };
 }
