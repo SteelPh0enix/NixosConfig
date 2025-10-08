@@ -129,6 +129,8 @@ in
     enable = true;
     package = pkgsUnstable.jellyfin;
     openFirewall = true;
+    user = "jellyfin";
+    group = "users";
   };
 
   services.qbittorrent = {
