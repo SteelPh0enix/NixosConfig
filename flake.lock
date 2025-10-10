@@ -120,8 +120,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1759957278,
-        "narHash": "sha256-wlBKAgasxp8CznsCu0UjHBxpkJAgUDgov1zWWLEczzs=",
+        "lastModified": 1760105810,
+        "narHash": "sha256-vR9nuiFwJ9tgxrs1/dc11kkk+c2M9X9x1yEr1tLNFJg=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -255,11 +255,11 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1759735786,
-        "narHash": "sha256-a0+h02lyP2KwSNrZz4wLJTu9ikujNsTWIC874Bv7IJ0=",
+        "lastModified": 1759994382,
+        "narHash": "sha256-wSK+3UkalDZRVHGCRikZ//CyZUJWDJkBDTQX1+G77Ow=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "20c4598c84a671783f741e02bf05cbfaf4907cff",
+        "rev": "5da4a26309e796daa7ffca72df93dbe53b8164c7",
         "type": "github"
       },
       "original": {
