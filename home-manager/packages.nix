@@ -37,6 +37,7 @@ in
     ungoogled-chromium
     zenmap
 
+    pkgsUnstable.graalvmPackages.graalvm-ce
     pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
     pkgsUnstable.vkd3d
