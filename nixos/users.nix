@@ -61,6 +61,11 @@
 
     jellyfin = {
       isNormalUser = false;
+      group = "users";
+      extraGroups = [
+        "render"
+        "video"
+      ];
     };
 
     qbittorrent = {
