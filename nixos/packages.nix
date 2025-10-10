@@ -75,6 +75,7 @@ in
     jackett
     jq
     lact
+    libva-utils
     linuxHeaders
     linuxKernel.packages.linux_zen.cpupower
     lldb
@@ -132,7 +133,6 @@ in
     zstd
 
     pkgsUnstable.ffmpeg-full
-    pkgsUnstable.jellyfin-ffmpeg
     pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.rust-motd
