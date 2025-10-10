@@ -26,6 +26,7 @@ in
     gimp
     inkscape-with-extensions
     keepassxc
+    krename
     libreoffice-qt6-fresh
     orca-slicer
     protonvpn-gui
@@ -46,6 +47,7 @@ in
     localNixpkgs.stm32cubemx
 
     nix-ai-tools.packages.${pkgs.system}.crush
+    nix-ai-tools.packages.${pkgs.system}.qwen-code
   ];
 
   programs.vscode = {
