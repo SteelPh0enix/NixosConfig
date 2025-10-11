@@ -63,6 +63,11 @@
     };
   };
 
+  networking.defaultGateway = {
+    address = "10.69.69.69";
+    interface = "wg0";
+  };
+
   services.tuned = {
     enable = true;
     settings = {
