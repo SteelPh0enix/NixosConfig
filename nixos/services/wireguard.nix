@@ -1,15 +1,18 @@
 { pkgs, ... }:
 let
-  internetIface = "enp191s0";
+  protonIface = "wg-proton";
+  wireguardIface = "wg-steelph0enix";
   wireguardPort = 16969;
-  wireguardIp = "10.69.69.69/24";
+  protonPort = 16970;
+  wireguardIp = "10.69.69.69";
+  wireguardIpMasked = "${wireguardIp}/24";
 in
 {
   networking.nat = {
     enable = true;
     enableIPv6 = true;
-    externalInterface = internetIface;
-    internalInterfaces = [ "wg0" ];
+    externalInterface = protonIface;
+    internalInterfaces = [ wireguardIface ];
   };
 
   networking.firewall.allowedUDPPorts = [
@@ -17,21 +20,21 @@ in
   ];
 
   networking.wg-quick.interfaces = {
-    wg0 = {
-      address = [
-        wireguardIp
-      ];
+    ${wireguardIface} = {
+      autostart = true;
+      dns = [ wireguardIp ];
+      address = [ wireguardIpMasked ];
       listenPort = wireguardPort;
       privateKeyFile = "/root/wireguard/wg-private";
 
       postUp = ''
-        ${pkgs.iptables}/bin/iptables -A FORWARD -i wg0 -j ACCEPT
-        ${pkgs.iptables}/bin/iptables -t nat -A POSTROUTING -s ${wireguardIp} -o ${internetIface} -j MASQUERADE
+        ${pkgs.iptables}/bin/iptables -A FORWARD -i ${wireguardIface} -j ACCEPT
+        ${pkgs.iptables}/bin/iptables -t nat -A POSTROUTING -s ${wireguardIpMasked} -o ${protonIface} -j MASQUERADE
       '';
 
       postDown = ''
-        ${pkgs.iptables}/bin/iptables -D FORWARD -i wg0 -j ACCEPT
-        ${pkgs.iptables}/bin/iptables -t nat -D POSTROUTING -s ${wireguardIp} -o ${internetIface} -j MASQUERADE
+        ${pkgs.iptables}/bin/iptables -D FORWARD -i ${wireguardIface} -j ACCEPT
+        ${pkgs.iptables}/bin/iptables -t nat -D POSTROUTING -s ${wireguardIpMasked} -o ${protonIface} -j MASQUERADE
       '';
 
       peers = [
@@ -55,6 +58,25 @@ in
           allowedIPs = [
             "10.69.69.10/32"
           ];
+        }
+      ];
+    };
+
+    ${protonIface} = {
+      autostart = true;
+      dns = [ wireguardIp ];
+      privateKeyFile = "/root/wireguard/wg-proton-private";
+      address = [ "10.2.0.2/32" ];
+      listenPort = protonPort;
+
+      peers = [
+        {
+          publicKey = "HHSEAw01hRxWiesolxYPU8n86ZmbsKSM+zmCk2OPc24=";
+          allowedIPs = [
+            "0.0.0.0/0"
+            "::/0"
+          ];
+          endpoint = "79.127.186.165:51820";
         }
       ];
     };
