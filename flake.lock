@@ -30,11 +30,11 @@
         "onchg": "onchg"
       },
       "locked": {
-        "lastModified": 1759115402,
-        "narHash": "sha256-2u1tvGpgxr7yvv0z9ywugA6ntMuHGTf+GtyDSbxyT9E=",
+        "lastModified": 1760203234,
+        "narHash": "sha256-6Tl0UlOEoepG05eImGzV3X3r6vex78JaWKLREqRrX6A=",
         "owner": "aksiksi",
         "repo": "compose2nix",
-        "rev": "59abcb3d1c319f5088249ecd2c6185619d28c476",
+        "rev": "022d650038421462b164bfbfb33c4e1ee506e386",
         "type": "github"
       },
       "original": {
