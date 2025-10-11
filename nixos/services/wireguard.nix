@@ -6,6 +6,8 @@ let
   protonPort = 16970;
   wireguardIp = "10.69.69.69";
   wireguardIpMasked = "${wireguardIp}/24";
+  protonIp = "10.2.0.2";
+  protonIpMasked = "${protonIp}/32";
 in
 {
   networking.nat = {
@@ -18,6 +20,11 @@ in
   networking.firewall.allowedUDPPorts = [
     wireguardPort
   ];
+
+  networking.defaultGateway = {
+    address = protonIp;
+    interface = protonIface;
+  };
 
   networking.wg-quick.interfaces = {
     ${wireguardIface} = {
@@ -66,7 +73,7 @@ in
       autostart = true;
       dns = [ wireguardIp ];
       privateKeyFile = "/root/wireguard/wg-proton-private";
-      address = [ "10.2.0.2/32" ];
+      address = [ protonIpMasked ];
       listenPort = protonPort;
 
       peers = [
