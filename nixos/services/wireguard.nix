@@ -2,7 +2,8 @@
 let
   protonIface = "wg-proton";
   wireguardIface = "wg-steelph0enix";
-  internetIface = "enp191s0";
+  # internetIface = "enp191s0";
+  internetIface = protonIface;
   wireguardPort = 16969;
   protonPort = 16970;
   wireguardIp = "10.69.69.69";
@@ -17,7 +18,7 @@ in
     externalInterface = internetIface;
     internalInterfaces = [
       wireguardIface
-      protonIface
+      # protonIface
     ];
   };
 
@@ -74,7 +75,7 @@ in
     };
 
     ${protonIface} = {
-      autostart = false;
+      autostart = true;
       dns = [ wireguardIp ];
       privateKeyFile = "/root/wireguard/wg-proton-private";
       address = [ protonIpMasked ];
