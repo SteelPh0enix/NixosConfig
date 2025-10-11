@@ -1,4 +1,3 @@
-{ inputs, ... }:
 {
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-pc";
@@ -14,7 +13,6 @@
 
   networking.nameservers = [
     "10.69.69.69"
-    "192.168.0.185"
   ];
 
   services.printing.enable = true;
@@ -45,14 +43,17 @@
 
   networking.wg-quick.interfaces = {
     wg0 = {
-      address = [ "10.69.69.1/24" ];
+      address = [ "10.69.69.1/32" ];
       privateKeyFile = "/home/steelph0enix/.ssh/wg-private";
 
       peers = [
         {
           publicKey = "k7UoJ41C6XaXbHAgfuDvA6ti0WQLM3miZfJKtgX7PFA=";
           presharedKeyFile = "/home/steelph0enix/.ssh/wg-preshared";
-          allowedIPs = [ "0.0.0.0/0" ];
+          allowedIPs = [
+            "0.0.0.0/0"
+            "::/0"
+          ];
 
           endpoint = "192.168.0.185:16969";
 
@@ -64,7 +65,7 @@
   };
 
   networking.defaultGateway = {
-    address = "10.69.69.69";
+    address = "10.69.69.1";
     interface = "wg0";
   };
 
