@@ -2,6 +2,7 @@
 let
   protonIface = "wg-proton";
   wireguardIface = "wg-steelph0enix";
+  internetIface = "enp191s0";
   wireguardPort = 16969;
   protonPort = 16970;
   wireguardIp = "10.69.69.69";
@@ -13,8 +14,11 @@ in
   networking.nat = {
     enable = true;
     enableIPv6 = true;
-    externalInterface = protonIface;
-    internalInterfaces = [ wireguardIface ];
+    externalInterface = internetIface;
+    internalInterfaces = [
+      wireguardIface
+      protonIface
+    ];
   };
 
   networking.firewall.allowedUDPPorts = [
@@ -36,12 +40,12 @@ in
 
       postUp = ''
         ${pkgs.iptables}/bin/iptables -A FORWARD -i ${wireguardIface} -j ACCEPT
-        ${pkgs.iptables}/bin/iptables -t nat -A POSTROUTING -s ${wireguardIpMasked} -o ${protonIface} -j MASQUERADE
+        ${pkgs.iptables}/bin/iptables -t nat -A POSTROUTING -s ${wireguardIpMasked} -o ${internetIface} -j MASQUERADE
       '';
 
       postDown = ''
         ${pkgs.iptables}/bin/iptables -D FORWARD -i ${wireguardIface} -j ACCEPT
-        ${pkgs.iptables}/bin/iptables -t nat -D POSTROUTING -s ${wireguardIpMasked} -o ${protonIface} -j MASQUERADE
+        ${pkgs.iptables}/bin/iptables -t nat -D POSTROUTING -s ${wireguardIpMasked} -o ${internetIface} -j MASQUERADE
       '';
 
       peers = [
@@ -70,7 +74,7 @@ in
     };
 
     ${protonIface} = {
-      autostart = true;
+      autostart = false;
       dns = [ wireguardIp ];
       privateKeyFile = "/root/wireguard/wg-proton-private";
       address = [ protonIpMasked ];
@@ -78,12 +82,12 @@ in
 
       peers = [
         {
-          publicKey = "HHSEAw01hRxWiesolxYPU8n86ZmbsKSM+zmCk2OPc24=";
+          publicKey = "SfUu22F4oN8aDNaZ/O7pNvAorDTREV2Xrx8vT1engn4=";
           allowedIPs = [
             "0.0.0.0/0"
             "::/0"
           ];
-          endpoint = "79.127.186.165:51820";
+          endpoint = "79.127.186.164:51820";
         }
       ];
     };
