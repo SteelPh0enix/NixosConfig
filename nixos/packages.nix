@@ -76,6 +76,7 @@ in
     jackett
     jq
     lact
+    libnatpmp
     libva-utils
     linuxHeaders
     linuxKernel.packages.linux_zen.cpupower
