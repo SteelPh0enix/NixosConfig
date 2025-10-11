@@ -85,6 +85,7 @@ in
     gst_all_1.gstreamer
     hdparm
     icu
+    inetutils
     jackett
     jq
     lact
@@ -118,6 +119,7 @@ in
     sysstat
     tcpdump
     thermald
+    traceroute
     tree
     usbutils
     uv
