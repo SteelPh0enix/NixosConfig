@@ -21,6 +21,8 @@ let
             service display-name="Accounts" unit="accounts-daemon"
             service display-name="PiHole" unit="pihole"
             service display-name="Open WebUI" unit="open-webui"
+            service display-name="LanCache" unit="lancache"
+            service display-name="Jellyfin" unit="jellyfin"
         }
         uptime prefix="Uptime"
         filesystems {
