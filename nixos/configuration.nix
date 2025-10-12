@@ -13,6 +13,7 @@
     ./hardware.nix
     ./locale.nix
     ./mounts.nix
+    ./networking.nix
     ./nix.nix
     ./packages.nix
     ./services.nix
