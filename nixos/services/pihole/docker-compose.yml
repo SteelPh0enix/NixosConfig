@@ -8,8 +8,12 @@ services:
 
     ports:
       # DNS Ports
-      - "53:53/tcp"
-      - "53:53/udp"
+      - "192.168.0.185:53:53/tcp"
+      - "192.168.0.185:53:53/udp"
+      - "10.69.69.69:53:53/tcp"
+      - "10.69.69.69:53:53/udp"
+      - "127.0.0.1:53:53/tcp"
+      - "127.0.0.1:53:53/udp"
       # Default HTTP Port
       - "8123:80/tcp"
       # Default HTTPs Port. FTL will generate a self-signed certificate
