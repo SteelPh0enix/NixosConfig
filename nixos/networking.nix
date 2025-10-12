@@ -28,17 +28,4 @@
   };
 
   networking.nameservers = [ "192.168.0.185" ];
-
-  networking.interfaces.enp191s0 = {
-    ipv4.addresses = [
-      {
-        address = "192.168.0.185";
-        prefixLength = 24;
-      }
-      {
-        address = "192.168.0.222";
-        prefixLength = 24;
-      }
-    ];
-  };
 }

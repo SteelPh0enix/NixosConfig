@@ -34,7 +34,6 @@ in
   networking.wg-quick.interfaces = {
     ${wireguardIface} = {
       autostart = true;
-      dns = [ wireguardIp ];
       address = [ wireguardIpMasked ];
       listenPort = wireguardPort;
       privateKeyFile = "/root/wireguard/wg-private";
@@ -76,7 +75,6 @@ in
 
     ${protonIface} = {
       autostart = true;
-      dns = [ wireguardIp ];
       privateKeyFile = "/root/wireguard/wg-proton-private";
       address = [ protonIpMasked ];
       listenPort = protonPort;
