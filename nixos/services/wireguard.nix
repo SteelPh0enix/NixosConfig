@@ -37,6 +37,7 @@ in
       address = [ wireguardIpMasked ];
       listenPort = wireguardPort;
       privateKeyFile = "/root/wireguard/wg-private";
+      dns = [ "192.168.0.185" ];
 
       postUp = ''
         ${pkgs.iptables}/bin/iptables -A FORWARD -i ${wireguardIface} -j ACCEPT
@@ -78,6 +79,7 @@ in
       privateKeyFile = "/root/wireguard/wg-proton-private";
       address = [ protonIpMasked ];
       listenPort = protonPort;
+      dns = [ "192.168.0.185" ];
 
       peers = [
         {
