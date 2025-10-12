@@ -57,7 +57,7 @@ in
     gcc
     gdb
     gh
-    git
+    gitFull
     git-lfs
     gnugrep
     gnused
