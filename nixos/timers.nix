@@ -16,6 +16,7 @@
       Type = "oneshot";
       User = "root";
     };
+    path = [ pkgs.curl ];
   };
 
   systemd.timers."open-proton-ports" = {
