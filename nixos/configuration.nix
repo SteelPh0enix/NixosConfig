@@ -18,6 +18,7 @@
     ./services.nix
     ./services/open-webui/open-webui.nix
     ./services/pihole/pihole.nix
+    ./services/lancache.nix
     ./services/samba.nix
     ./services/wireguard.nix
     ./shell.nix
