@@ -113,7 +113,6 @@ in
     tree
     unzip
     usbutils
-    uv
     valgrind
     vk-bootstrap
     vkd3d
@@ -139,6 +138,7 @@ in
     pkgsUnstable.llama-cpp
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.rust-motd
+    pkgsUnstable.uv
 
     inputs.compose2nix.packages.x86_64-linux.default
 
