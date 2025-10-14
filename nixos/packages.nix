@@ -35,8 +35,8 @@
     dnsutils
     docker
     docker-buildx
-    dotnet-runtime_9
-    dotnet-sdk_9
+    dotnetCorePackages.runtime_9_0-bin
+    dotnetCorePackages.sdk_9_0-bin
     eslint
     exfat
     exfatprogs
