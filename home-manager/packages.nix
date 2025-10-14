@@ -24,6 +24,8 @@ in
         automake
         cmake
         curl
+        dotnetCorePackages.runtime_9_0-bin
+        dotnetCorePackages.sdk_9_0-bin
         eslint
         gcc15
         gdb

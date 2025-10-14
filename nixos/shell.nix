@@ -11,7 +11,8 @@
     os-update = "cd ~/nixos-config && nix flake update && os-rebuild && git add flake.lock && git commit -m 'os update'";
     os-clean = "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d";
     rbt = "sudo systemctl reboot";
-    cfge = "code ~/nixos-config";
+    cfge = "$EDITOR ~/nixos-config";
+    cfgevis = "$EDITOR ~/nixos-config";
     docker-here = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     docker-here-shell = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     rcp = "rsync --archive --recursive --mkpath --verbose --progress --human-readable";
