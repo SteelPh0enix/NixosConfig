@@ -33,10 +33,6 @@
     ];
   };
 
-  swapDevices = [
-    { device = "/dev/disk/by-uuid/3ebf5f1c-4cbe-4cfd-be9c-18c42f50ef00"; }
-  ];
-
   networking.useDHCP = lib.mkDefault true;
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   # virtualisation.virtualbox.guest.enable = true;
