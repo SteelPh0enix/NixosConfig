@@ -85,6 +85,7 @@ in
     lm_sensors
     lsof
     ltrace
+    mc
     ncdu
     nil
     ninja
