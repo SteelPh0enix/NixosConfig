@@ -31,6 +31,7 @@ in
   environment.systemPackages = with pkgs; [
     amdvlk
     bear
+    bindfs
     blueman
     btop-rocm
     ccache
