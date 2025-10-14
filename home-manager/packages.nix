@@ -39,6 +39,7 @@ in
         git-lfs
         gitFull
         gnumake
+        icu
         lldb
         llvmPackages_21.clang-tools
         llvmPackages_21.clang-unwrapped
