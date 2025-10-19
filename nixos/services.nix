@@ -28,8 +28,6 @@ let
         filesystems {
             filesystem name="root" mount-point="/"
             filesystem name="home" mount-point="/home"
-            filesystem name="NAS HDD" mount-point="/mnt/NAS"
-            filesystem name="NAS SSD" mount-point="/mnt/SSD"
         }
         memory swap-pos="beside"
         load-avg format="Load (1, 5, 15 min.): {one:.02}, {five:.02}, {fifteen:.02}"
