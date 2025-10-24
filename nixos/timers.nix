@@ -4,7 +4,7 @@
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "1m";
-      OnCalendar = "daily";
+      OnCalendar = "hourly";
       Persistent = true;
       Unit = "refresh-dns.service";
     };
