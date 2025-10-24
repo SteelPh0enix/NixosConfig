@@ -10,6 +10,7 @@ let
   wireguardIpMasked = "${wireguardIp}/24";
   protonIp = "10.2.0.2";
   protonIpMasked = "${protonIp}/32";
+  localIp = "192.168.0.185";
 in
 {
   networking.nat = {
@@ -19,6 +20,13 @@ in
     internalInterfaces = [
       wireguardIface
       # protonIface
+    ];
+    forwardPorts = [
+      {
+        destination = "${localIp}:16969";
+        proto = "udp";
+        sourcePort = 16969;
+      }
     ];
   };
 
@@ -37,7 +45,7 @@ in
       address = [ wireguardIpMasked ];
       listenPort = wireguardPort;
       privateKeyFile = "/root/wireguard/wg-private";
-      dns = [ "192.168.0.185" ];
+      dns = [ localIp ];
 
       postUp = ''
         ${pkgs.iptables}/bin/iptables -A FORWARD -i ${wireguardIface} -j ACCEPT
@@ -86,7 +94,7 @@ in
       privateKeyFile = "/root/wireguard/wg-proton-private";
       address = [ protonIpMasked ];
       listenPort = protonPort;
-      dns = [ "192.168.0.185" ];
+      dns = [ localIp ];
 
       peers = [
         {
