@@ -2,7 +2,6 @@
 let
   protonIface = "wg-proton";
   wireguardIface = "wg-steelph0enix";
-  # internetIface = "enp191s0";
   internetIface = protonIface;
   wireguardPort = 16969;
   protonPort = 16970;
@@ -19,7 +18,6 @@ in
     externalInterface = internetIface;
     internalInterfaces = [
       wireguardIface
-      # protonIface
     ];
     forwardPorts = [
       {
