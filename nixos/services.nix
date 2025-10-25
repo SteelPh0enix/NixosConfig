@@ -2,7 +2,7 @@
   lib,
   pkgs,
   nixpkgs-unstable,
-  # inputs,
+  inputs,
   ...
 }:
 let
@@ -57,11 +57,11 @@ in
     };
   };
 
-  # imports = [ inputs.ucodenix.nixosModules.default ];
-  # services.ucodenix = {
-  #   enable = true;
-  #   cpuModelId = "00B70F00";
-  # };
+  imports = [ inputs.ucodenix.nixosModules.default ];
+  services.ucodenix = {
+    enable = true;
+    cpuModelId = "00B70F00";
+  };
 
   services.gvfs = {
     enable = true;
