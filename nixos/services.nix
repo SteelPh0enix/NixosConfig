@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-pc";
@@ -35,11 +36,11 @@
     };
   };
 
-  # imports = [ inputs.ucodenix.nixosModules.default ];
-  # services.ucodenix = {
-  #   enable = true;
-  #   cpuModelId = "00A20F10";
-  # };
+  imports = [ inputs.ucodenix.nixosModules.default ];
+  services.ucodenix = {
+    enable = true;
+    cpuModelId = "00A20F10";
+  };
 
   networking.wg-quick.interfaces = {
     wg0 = {
