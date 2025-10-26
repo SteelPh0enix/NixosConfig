@@ -13,8 +13,9 @@
     rbt = "sudo systemctl reboot";
     cfge = "$EDITOR ~/nixos-config";
     cfgevis = "$EDITOR ~/nixos-config";
-    docker-here = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
-    docker-here-shell = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    docker-here = "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
+    docket-here-dotnet = "docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g) -e DOTNET_CLI_HOME=/tmp";
+    docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     rcp = "rsync --archive --recursive --mkpath --verbose --progress --human-readable";
     rcpc = "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable";
   };
