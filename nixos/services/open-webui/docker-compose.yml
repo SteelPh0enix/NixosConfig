@@ -32,8 +32,8 @@ services:
       # inference engines
       - ENABLE_OPENAI_API=True
       - OPENAI_API_BASE_URL=http://192.168.0.185:51536/v1
-      - ENABLE_OLLAMA_API=True
-      - OLLAMA_BASE_URL=http://192.168.0.185:11434
+      - ENABLE_OLLAMA_API=False
+      # - OLLAMA_BASE_URL=http://192.168.0.185:11434
       # RAG
       - CONTENT_EXTRACTION_ENGINE=tika
       - TIKA_SERVER_URL=http://tika:9998
