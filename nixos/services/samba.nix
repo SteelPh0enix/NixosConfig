@@ -42,7 +42,7 @@
         "force group" = "users";
       };
 
-      "NAS_HDD" = {
+      "NAS" = {
         path = "/mnt/NAS";
         browseable = "yes";
         "read only" = "no";
@@ -52,8 +52,8 @@
         "force group" = "users";
       };
 
-      "NAS_SSD" = {
-        path = "/mnt/SSD";
+      "NAS2" = {
+        path = "/mnt/NAS2";
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "yes";

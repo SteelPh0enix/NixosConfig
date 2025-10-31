@@ -7,9 +7,9 @@
       enableStrictShellChecks = true;
 
       serviceConfig = {
-        WorkingDirectory = "/mnt/SSD/lancache";
-        ExecStart = "${pkgs.fish}/bin/fish /mnt/SSD/lancache/start-lancache.fish";
-        ExecStop = "${pkgs.fish}/bin/fish /mnt/SSD/lancache/stop-lancache.fish";
+        WorkingDirectory = "/mnt/NAS2/lancache";
+        ExecStart = "${pkgs.fish}/bin/fish /mnt/NAS2/lancache/start-lancache.fish";
+        ExecStop = "${pkgs.fish}/bin/fish /mnt/NAS2/lancache/stop-lancache.fish";
       };
 
       path = [
