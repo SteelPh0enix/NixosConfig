@@ -22,15 +22,16 @@
     ];
   };
 
-  fileSystems."/mnt/SSD" = {
-    device = "/dev/disk/by-uuid/b715f1b9-ead5-4178-9c13-63bac891f202";
+  fileSystems."/mnt/NAS2" = {
+    device = "/dev/disk/by-uuid/a6133d4a-cca8-42df-aaf6-429fbe2fd2d9";
     fsType = "ext4";
     options = [
       "defaults"
       "noatime"
       "barrier=1"
+      "data=ordered"
       "errors=remount-ro"
-      "commit=60"
+      "commit=300"
       "nofail"
       "user"
     ];
