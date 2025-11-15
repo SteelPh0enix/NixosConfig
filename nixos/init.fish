@@ -146,3 +146,17 @@ function serve-llm-jinja-ext
         --chat-template-file $template_path \
         $argv[4..-1]
 end
+
+function update-services
+    cd ~/nixos-config/nixos/services/open-webui
+    sudo docker compose pull --policy always
+    sudo systemctl restart open-webui
+
+    cd /mnt/NAS2/lancache
+    sudo docker compose pull --policy always
+    sudo systemctl restart lancache
+
+    cd ~/nixos-config/nixos/services/pihole
+    sudo docker compose pull --policy always
+    sudo systemctl restart pihole
+end
