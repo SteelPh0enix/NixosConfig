@@ -9,7 +9,7 @@ alias lg lazygit
 alias e "$EDITOR"
 alias eh "$EDITOR ."
 alias cpr "cp -r"
-alias os-rebuild "cd ~/nixos-config && sudo nixos-rebuild switch --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh"
+alias os-rebuild "cd ~/nixos-config && sudo nixos-rebuild boot --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh"
 alias os-update "cd ~/nixos-config && nix flake update && os-rebuild && git add flake.lock && git commit -m 'os update'"
 alias os-clean "sudo nix-store --gc && sudo nix-store --optimise && sudo nix-collect-garbage -d && nix-collect-garbage -d"
 alias rbt "sudo systemctl reboot"
