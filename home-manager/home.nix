@@ -7,6 +7,8 @@
 
   programs.home-manager.enable = true;
 
+  xdg.configFile."crush/crush.json".source = ./crush.json;
+
   imports = [
     ./shell.nix
     ./packages.nix
