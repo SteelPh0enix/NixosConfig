@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, pkgs, ... }:
 {
   networking.networkmanager.enable = true;
   networking.hostName = "steelph0enix-pc";
@@ -16,7 +16,6 @@
     "10.69.69.69"
   ];
 
-  services.printing.enable = true;
   services.blueman.enable = true;
   services.jackett.enable = true;
   services.flaresolverr.enable = true;
@@ -77,5 +76,18 @@
       dynamic_tuning = true;
       recommend_command = true;
     };
+  };
+
+  services.avahi.enable = true;
+  services.system-config-printer.enable = true;
+  services.printing = {
+    enable = true;
+    drivers = with pkgs; [
+      gutenprint
+      hplip
+      splix
+    ];
+    browsed.enable = true;
+    cups-pdf.enable = true;
   };
 }
