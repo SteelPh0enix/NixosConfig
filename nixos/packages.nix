@@ -97,6 +97,7 @@
     rustup
     socat
     sqlite
+    sshpass
     strace
     sysstat
     tcpdump
