@@ -27,9 +27,6 @@ function llama-cpp-update
 
     echo (set_color blue)"Rebasing 'fwpc' onto master..."(set_color normal)
     git switch fwpc && git rebase master; or return 1
-
-    echo (set_color blue)"Pushing changes..."(set_color normal)
-    git push
 end
 
 function os-rebuild
