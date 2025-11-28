@@ -44,17 +44,25 @@ function os-update
     # 1. Update llama.cpp
     llama-cpp-update; or return 1
 
-    # 2. Update Flake inputs
+    # 2. Update external services
+    echo (set_color blue)"Updating services..."(set_color normal)
+    update-services; or return 1
+
+    # grace period for DNS restart
+    echo (set_color -d blue)"Waiting for DNS restart..."(set_color normal)
+    sleep 5
+
+    # 3. Update Flake inputs
     echo (set_color green)"Directory: ~/nixos-config"(set_color normal)
     cd ~/nixos-config; or return 1
 
     echo (set_color blue)"Updating flake inputs..."(set_color normal)
     nix flake update; or return 1
 
-    # 3. Rebuild System
+    # 4. Rebuild System
     os-rebuild; or return 1
 
-    # 4. Commit changes
+    # 5. Commit changes
     echo (set_color blue)"Committing flake.lock..."(set_color normal)
     git add flake.lock && git commit -m 'os update'
 
