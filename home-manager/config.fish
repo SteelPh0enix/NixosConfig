@@ -48,9 +48,6 @@ function os-update
     echo (set_color blue)"Updating services..."(set_color normal)
     update-services; or return 1
 
-    # grace period for DNS restart
-    echo (set_color -d blue)"Waiting for DNS restart..."(set_color normal)
-    sleep 5
 
     # 3. Update Flake inputs
     echo (set_color green)"Directory: ~/nixos-config"(set_color normal)
