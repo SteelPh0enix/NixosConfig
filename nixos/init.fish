@@ -148,15 +148,25 @@ function serve-llm-jinja-ext
 end
 
 function update-services
+    echo (set_color green)"Updating OpenWebUI..."(set_color normal)
     cd ~/nixos-config/nixos/services/open-webui
     sudo docker compose pull --policy always
     sudo systemctl restart open-webui
 
+    echo (set_color green)"Updating Lancache"(set_color normal)
     cd /mnt/NAS2/lancache
     sudo docker compose pull --policy always
     sudo systemctl restart lancache
 
+    echo (set_color green)"Updating PiHole"(set_color normal)
     cd ~/nixos-config/nixos/services/pihole
     sudo docker compose pull --policy always
     sudo systemctl restart pihole
+
+
+    # grace period for DNS restart
+    echo (set_color -d blue)"Waiting for PiHole restart..."(set_color normal)
+    sleep 5
+    echo (set_color green)"Updating PiHole lists"(set_color normal)
+    sudo docker exec pihole pihole -g
 end
