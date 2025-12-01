@@ -158,15 +158,12 @@ in
   programs.git = {
     enable = true;
     lfs.enable = true;
-    userName = "SteelPh0enix";
-    userEmail = "wojciech_olech@hotmail.com";
-    signing = {
-      format = "openpgp";
-      key = "141DE12C7B2F574B";
-      signByDefault = true;
-    };
-
-    extraConfig = {
+    settings = {
+      user = {
+        name = "SteelPh0enix";
+        email = [ "wojciech_olech@hotmail.com" ];
+        signingkey = "141DE12C7B2F574B";
+      };
       core.editor = "nvim";
       merge.ff = true;
       rerere.enabled = true;
@@ -176,7 +173,10 @@ in
         autoSetupRemote = true;
         default = "simple";
       };
+      commit.gpgsign = true;
+      gpg.format = "openpgp";
     };
+
   };
 
   programs.lazygit = {

@@ -22,7 +22,6 @@ in
   nixpkgs.overlays = [
     rust-overlay.overlays.default
     (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
-    (import ./overlays/freecad.nix)
   ];
 
   environment.systemPackages = with pkgs; [
@@ -180,8 +179,6 @@ in
     remotePlay.openFirewall = true;
   };
   programs.tcpdump.enable = true;
-  programs.thefuck.enable = true;
-  programs.thefuck.alias = "fk";
   programs.thunderbird.enable = true;
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
