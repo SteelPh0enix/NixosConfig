@@ -74,8 +74,10 @@
     mc
     mypy
     ncdu
+    ncurses5
     nil
     ninja
+    nix-ld
     nixd
     nixfmt-rfc-style
     nixpkgs-review

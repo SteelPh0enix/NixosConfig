@@ -1,3 +1,4 @@
+{ pkgs, ...}:
 {
   environment.shellAliases = {
     ls = "eza --icons=always -gM --git";
@@ -21,6 +22,7 @@
     EDITOR = "nvim";
     BROWSER = "firefox";
     TERMINAL = "wezterm";
+    LD_LIBRARY_PATH = "${pkgs.ncurses5}/lib";
   };
 
   programs.fish.shellInit = builtins.readFile ./init.fish;
