@@ -153,8 +153,6 @@
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
   programs.tcpdump.enable = true;
-  programs.thefuck.enable = true;
-  programs.thefuck.alias = "fk";
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
