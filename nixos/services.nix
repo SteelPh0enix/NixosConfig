@@ -133,4 +133,36 @@ in
     openFirewall = true;
     port = 8890;
   };
+
+  services.gitea = {
+    enable = true;
+    package = pkgsUnstable.gitea;
+    lfs.enable = true;
+    appName = "RX-78-GITEA";
+    settings = {
+      server = {
+        PROTOCOL = "http";
+        HTTP_PORT = 6969;
+        SSH_PORT = 22137;
+        DOMAIN = "steelph0enix.framework";
+        PUBLIC_URL_DETECTION = "auto";
+        OFFLINE_MODE = true;
+        ENABLE_GZIP = true;
+      };
+      repository.signing = "pubkey";
+    };
+  };
+
+  services.gitea-actions-runner = {
+    package = pkgsUnstable.gitea-actions-runner;
+    instances."RX-78" = {
+      name = "RX-78";
+      enable = true;
+      url = "http://steelph0enix.framework:6969/";
+      tokenFile = "/root/gitea/runner";
+      labels = [
+        "native:host"
+      ];
+    };
+  };
 }
