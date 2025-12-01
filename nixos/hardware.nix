@@ -19,17 +19,9 @@
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
   hardware.amdgpu = {
-    amdvlk.enable = true;
-    amdvlk.support32Bit.enable = true;
     opencl.enable = true;
     overdrive.enable = true;
   };
-  hardware.graphics.extraPackages = with pkgs; [
-    amdvlk
-  ];
-  hardware.graphics.extraPackages32 = with pkgs; [
-    driversi686Linux.amdvlk
-  ];
 
   hardware.bluetooth = {
     enable = true;

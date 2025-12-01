@@ -29,7 +29,6 @@ in
   ];
 
   environment.systemPackages = with pkgs; [
-    amdvlk
     bear
     bindfs
     blueman
@@ -100,7 +99,7 @@ in
     parted
     pciutils
     psmisc
-    python3Full
+    python315
     radeontop
     ripgrep
     rsync
@@ -197,8 +196,6 @@ in
   programs.ssh.startAgent = true;
 
   programs.tcpdump.enable = true;
-  programs.thefuck.enable = true;
-  programs.thefuck.alias = "fk";
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
