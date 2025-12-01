@@ -8,8 +8,7 @@
       font-awesome
       noto-fonts
       noto-fonts-cjk-sans
-      noto-fonts-emoji
-      ubuntu_font_family
+      noto-fonts-color-emoji
       liberation_ttf
 
       nerd-fonts.symbols-only

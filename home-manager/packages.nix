@@ -78,15 +78,12 @@ in
   programs.git = {
     enable = true;
     lfs.enable = true;
-    userName = "Wojciech Olech";
-    userEmail = "wojciech.olech@n7space.com";
-    signing = {
-      format = "openpgp";
-      key = "9435CB0C320EFC33";
-      signByDefault = true;
-    };
-
-    extraConfig = {
+    settings = {
+      user = {
+        name = "Wojciech Olech";
+        email = [ "wojciech.olech@n7space.com" ];
+        signingKey = "9435CB0C320EFC33";
+      };
       core.editor = "nvim";
       merge.ff = true;
       rerere.enabled = true;
@@ -96,6 +93,8 @@ in
         autoSetupRemote = true;
         default = "simple";
       };
+      commit.gpgsign = true;
+      gpg.format = "openpgp";
     };
   };
 
