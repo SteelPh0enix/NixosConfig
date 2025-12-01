@@ -8,12 +8,12 @@
       enable = true;
       enableOnBoot = true;
     };
-    # virtualbox.guest = {
-    #   enable = true;
-    #   seamless = true;
-    #   dragAndDrop = true;
-    #   clipboard = true;
-    # };
+    virtualbox.guest = {
+      enable = true;
+      seamless = true;
+      dragAndDrop = true;
+      clipboard = true;
+    };
   };
 
   networking.firewall.trustedInterfaces = [ "docker0" ];
