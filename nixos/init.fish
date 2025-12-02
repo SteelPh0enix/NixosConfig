@@ -119,3 +119,23 @@ function os-clean
     
     echo (set_color green)"System Clean Complete."(set_color normal)
 end
+
+function decode-id
+    set -l int_val $argv[1]
+
+    # Extract bytes using bitwise operations
+    # Byte 3 (Most Significant Byte)
+    set -l b3 (math "bitand($int_val >> 24, 0xFF)")
+    # Byte 2
+    set -l b2 (math "bitand($int_val >> 16, 0xFF)")
+    # Byte 1
+    set -l b1 (math "bitand($int_val >> 8, 0xFF)")
+    # Byte 0 (Least Significant Byte - the number at the end)
+    set -l b0 (math "bitand($int_val, 0xFF)")
+
+    # Construct a string of Hex escapes (e.g., \x4d\x45\x4d)
+    set -l ascii_str (printf "\\x%x\\x%x\\x%x" $b3 $b2 $b1)
+
+    # Print the result, interpreting the hex escapes as characters
+    printf "$ascii_str-$b0\n"
+end
