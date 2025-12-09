@@ -64,6 +64,7 @@ in
         gdb
         git-lfs
         gitFull
+        glibc
         gnumake
         icu
         lldb
