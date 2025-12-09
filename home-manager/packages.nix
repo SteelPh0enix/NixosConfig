@@ -1,16 +1,10 @@
 {
   pkgs,
   nix-ai-tools,
-  nixpkgs-local,
   nixpkgs-unstable,
   ...
 }:
 let
-  localNixpkgs = import nixpkgs-local {
-    system = pkgs.system;
-    config.allowUnfree = true;
-  };
-
   pkgsUnstable = import nixpkgs-unstable {
     system = pkgs.system;
     config.allowUnfree = true;
@@ -25,6 +19,7 @@ in
     freecad
     gimp
     inkscape-with-extensions
+    jellyfin-media-player
     keepassxc
     krename
     libreoffice-qt6-fresh
@@ -40,12 +35,11 @@ in
     pkgsUnstable.graalvmPackages.graalvm-ce
     pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
+    pkgsUnstable.stm32cubemx
     pkgsUnstable.vkd3d
     pkgsUnstable.vlc
     pkgsUnstable.winePackages.stagingFull
     pkgsUnstable.winetricks
-
-    localNixpkgs.stm32cubemx
 
     nix-ai-tools.packages.${pkgs.system}.crush
     nix-ai-tools.packages.${pkgs.system}.qwen-code
