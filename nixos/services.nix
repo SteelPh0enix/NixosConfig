@@ -90,4 +90,8 @@
     browsed.enable = true;
     cups-pdf.enable = true;
   };
+
+  services.udev.extraRules = ''
+    SUBSYSTEM=="usb", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0666"
+  '';
 }
