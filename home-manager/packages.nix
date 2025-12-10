@@ -19,7 +19,7 @@ in
     freecad
     gimp
     inkscape-with-extensions
-    jellyfin-media-player
+    # jellyfin-media-player
     keepassxc
     krename
     libreoffice-qt6-fresh
