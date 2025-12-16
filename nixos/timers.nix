@@ -31,7 +31,7 @@
   };
 
   systemd.services."open-proton-ports" = {
-    script = "/root/open-wg-port.fish";
+    script = "/root/open-proton-ports.fish";
     serviceConfig = {
       Type = "oneshot";
       User = "root";
