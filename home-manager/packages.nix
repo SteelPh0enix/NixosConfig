@@ -22,7 +22,6 @@ in
     pkgsUnstable.graalvmPackages.graalvm-ce
 
     nix-ai-tools.packages.${pkgs.system}.crush
-    nix-ai-tools.packages.${pkgs.system}.qwen-code
   ];
 
   programs.vscode = {
