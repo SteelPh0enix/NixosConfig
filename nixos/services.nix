@@ -114,7 +114,7 @@ in
       "--confirm-legal-notice"
       "--sequential"
       "--first-and-last"
-      "--save-path=/mnt/NAS/Torrents"
+      "--save-path=/mnt/NAS2/Torrents"
       "--add-stopped=false"
       "--skip-dialog=false"
     ];
