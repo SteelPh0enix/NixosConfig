@@ -15,6 +15,7 @@
     LLAMA_ARG_ENDPOINT_SLOTS = 1;
     LLAMA_ARG_ENDPOINT_PROPS = 1;
     LLAMA_ARG_CONTEXT_SHIFT = 1;
+    LLAMA_ARG_FIT = "off";
     UV_TORCH_BACKEND = "auto";
 
     OPENAI_API_KEY="llamacpp";
