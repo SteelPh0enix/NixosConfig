@@ -106,6 +106,8 @@ in
     rust-analyzer
     socat
     sqlite
+    steam-tui
+    steamcmd
     strace
     sysstat
     tcpdump
@@ -199,6 +201,17 @@ in
   programs.wireshark.enable = true;
   programs.wireshark.dumpcap.enable = true;
   programs.wireshark.usbmon.enable = true;
+
+  programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    protontricks.enable = true;
+    localNetworkGameTransfers.openFirewall = true;
+    extest.enable = true;
+    dedicatedServer.openFirewall = true;
+    gamescopeSession.enable = true;
+    extraPackages = with pkgs; [ gamescope jdk ];
+  };
 
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
