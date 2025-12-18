@@ -71,6 +71,13 @@ in
           ];
         }
         {
+          publicKey = "B+2fQ7jmbk5RM+NN3/tMEpAvt26hpmThm+Gqaa6+6D8=";
+          presharedKeyFile = "/root/wireguard/wg-preshared-rog";
+          allowedIPs = [
+            "10.69.69.3/32"
+          ];
+        }
+        {
           publicKey = "O1U98c6rt2U7ZmO7PPXj26dtW1TXaMRnCD+U/p6bBhs=";
           presharedKeyFile = "/root/wireguard/wg-preshared-flip";
           allowedIPs = [
