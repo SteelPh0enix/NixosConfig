@@ -148,8 +148,18 @@ in
         PUBLIC_URL_DETECTION = "auto";
         OFFLINE_MODE = true;
         ENABLE_GZIP = true;
+        LFS_START_SERVER = true;
       };
-      repository.signing = "pubkey";
+      "repository.signing" = {
+          SIGNING_KEY = "/home/gitea/gitea-signing-key.pub";
+          SIGNING_EMAIL = "phoenixpl@hotmail.com";
+          SIGNING_NAME = "Gitea";
+          SIGNING_FORMAT = "ssh";
+          INITIAL_COMMIT = "always";
+          CRUD_ACTIONS = "pubkey, twofa, parentsigned";
+          WIKI = "pubkey, twofa";
+          MERGES = "pubkey, twofa, basesigned, commitssigned";
+      };
     };
   };
 
