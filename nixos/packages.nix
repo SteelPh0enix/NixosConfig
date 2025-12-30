@@ -17,7 +17,7 @@ let
       (import ./overlays/ollama.nix { overridePkgs = pkgsUnstable; })
       # (import ./overlays/vllm.nix { overridePkgs = pkgsUnstable; })
     ];
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
     config.rocmSupport = false;
   };

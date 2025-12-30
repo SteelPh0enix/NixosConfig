@@ -6,7 +6,7 @@
 }:
 let
   pkgsUnstable = import nixpkgs-unstable {
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
   };
 in
@@ -21,7 +21,8 @@ in
 
     pkgsUnstable.graalvmPackages.graalvm-ce
 
-    nix-ai-tools.packages.${pkgs.system}.crush
+    nix-ai-tools.packages.${system}.crush
+    nix-ai-tools.packages.${system}.opencode
   ];
 
   programs.vscode = {
