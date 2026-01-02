@@ -42,7 +42,7 @@ in
     pkgsUnstable.winetricks
 
     nix-ai-tools.packages.${pkgs.system}.crush
-    nix-ai-tools.packages.${pkgs.system}.qwen-code
+    nix-ai-tools.packages.${pkgs.system}.opencode
   ];
 
   programs.vscode = {
