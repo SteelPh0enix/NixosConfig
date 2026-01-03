@@ -27,9 +27,6 @@ function llama-cpp-update
 
     echo (set_color blue)"Switching to master and pulling updates..."(set_color normal)
     git switch master && git pull; or return 1
-
-    echo (set_color blue)"Rebasing 'fwpc' onto master..."(set_color normal)
-    git switch fwpc && git rebase master; or return 1
 end
 
 function llama-cpp-venv-create
