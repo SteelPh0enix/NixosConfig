@@ -133,8 +133,8 @@ in
     settings = {
       user = {
         name = "SteelPh0enix";
-        email = [ "wojciech_olech@hotmail.com" ];
-        signingkey = "141DE12C7B2F574B";
+        email = [ "phoenixpl@hotmail.com" ];
+        signingkey = "/home/steelph0enix/.ssh/gitea.pub";
       };
       core.editor = "nvim";
       merge.ff = true;
@@ -146,7 +146,7 @@ in
         default = "simple";
       };
       commit.gpgsign = true;
-      gpg.format = "openpgp";
+      gpg.format = "ssh";
     };
   };
 
