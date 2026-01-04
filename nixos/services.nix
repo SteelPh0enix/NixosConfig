@@ -156,9 +156,9 @@ in
           SIGNING_NAME = "Gitea";
           SIGNING_FORMAT = "ssh";
           INITIAL_COMMIT = "always";
-          CRUD_ACTIONS = "pubkey, twofa, parentsigned";
-          WIKI = "pubkey, twofa";
-          MERGES = "pubkey, twofa, basesigned, commitssigned";
+          CRUD_ACTIONS = "pubkey, parentsigned";
+          WIKI = "pubkey";
+          MERGES = "pubkey, basesigned, commitssigned";
       };
     };
   };
