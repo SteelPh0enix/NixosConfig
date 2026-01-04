@@ -51,6 +51,7 @@ in
       AllowUsers = [
         "steelph0enix"
         "quake"
+        "gitea"
       ];
       LogLevel = "VERBOSE";
       MaxAuthTries = 10;
@@ -139,6 +140,7 @@ in
     package = pkgsUnstable.gitea;
     lfs.enable = true;
     appName = "RX-78-GITEA";
+    user = "gitea";
     settings = {
       server = {
         PROTOCOL = "http";
@@ -151,7 +153,7 @@ in
         LFS_START_SERVER = true;
       };
       "repository.signing" = {
-          SIGNING_KEY = "/home/gitea/gitea-signing-key.pub";
+          SIGNING_KEY = "/var/lib/gitea/.ssh/gitea-signing-key.pub";
           SIGNING_EMAIL = "phoenixpl@hotmail.com";
           SIGNING_NAME = "Gitea";
           SIGNING_FORMAT = "ssh";
