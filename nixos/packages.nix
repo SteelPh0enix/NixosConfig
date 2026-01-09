@@ -99,7 +99,7 @@ in
     nil
     ninja
     nixd
-    nixfmt-rfc-style
+    nixfmt
     nixpkgs-review
     nmap
     ntfs3g

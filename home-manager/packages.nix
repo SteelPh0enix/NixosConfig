@@ -69,7 +69,7 @@ in
         luajit
         ninja
         nixd
-        nixfmt-rfc-style
+        nixfmt
         nixpkgs-review
         nodejs
         npm-check
