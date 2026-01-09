@@ -19,7 +19,6 @@ in
     freecad
     gimp
     inkscape-with-extensions
-    # jellyfin-media-player
     keepassxc
     krename
     libreoffice-qt6-fresh
@@ -33,6 +32,7 @@ in
     zenmap
 
     pkgsUnstable.graalvmPackages.graalvm-ce
+    pkgsUnstable.jellyfin-media-player
     pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
     pkgsUnstable.stm32cubemx
