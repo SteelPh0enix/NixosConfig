@@ -73,7 +73,6 @@ in
     hdparm
     icu
     inetutils
-    jackett
     jq
     lact
     libnatpmp
