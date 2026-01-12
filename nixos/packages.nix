@@ -79,7 +79,7 @@
     ninja
     nix-ld
     nixd
-    nixfmt-rfc-style
+    nixfmt
     nixpkgs-review
     nodejs
     npm-check
