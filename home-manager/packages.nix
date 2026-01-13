@@ -25,12 +25,6 @@ in
         diff_style = "auto";
       };
 
-      server = {
-        port = 46969;
-        hostname = "0.0.0.0";
-        mdns = false;
-      };
-
       tools = {
         bash = true;
         edit = true;
@@ -73,6 +67,13 @@ in
             limit = {
               context = 131072;
               output = 65536;
+            };
+          };
+          "Devstral-2" = {
+            name = "Devstral-2 (local)";
+            limit = {
+              context = 262144;
+              output = 131072;
             };
           };
         };
