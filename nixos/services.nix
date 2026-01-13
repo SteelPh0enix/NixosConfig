@@ -17,8 +17,6 @@
   ];
 
   services.blueman.enable = true;
-  services.jackett.enable = true;
-  services.flaresolverr.enable = true;
   services.thermald.enable = true;
   services.gvfs.enable = true;
 

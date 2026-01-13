@@ -63,7 +63,6 @@ in
     file
     findutils
     flac
-    flaresolverr
     fzf
     gawk
     gcc
@@ -85,7 +84,6 @@ in
     hdparm
     icu
     inetutils
-    jackett
     jq
     lact
     libunwind
