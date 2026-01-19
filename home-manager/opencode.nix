@@ -37,28 +37,35 @@
         options.baseURL = "http://192.168.0.185:51536/v1";
         models = {
           "MiniMax-M2.1" = {
-            name = "MiniMax-M2.1 (local)";
+            name = "MiniMax-M2.1";
             limit = {
               context = 81920;
               output = 65536;
             };
           };
           "GLM-4.5-Air" = {
-            name = "GLM-4.5-Air (local)";
+            name = "GLM-4.5-Air";
             limit = {
               context = 131072;
               output = 65536;
             };
           };
           "Qwen-Coder-30B" = {
-            name = "Qwen-Coder-30B (local)";
+            name = "Qwen-Coder-30B";
             limit = {
               context = 131072;
               output = 65536;
             };
           };
+          "Qwen3-Next" = {
+            name = "Qwen3-Next";
+            limit = {
+              context = 262144;
+              output = 65536;
+            };
+          };
           "Devstral-2" = {
-            name = "Devstral-2 (local)";
+            name = "Devstral-2";
             limit = {
               context = 262144;
               output = 131072;
