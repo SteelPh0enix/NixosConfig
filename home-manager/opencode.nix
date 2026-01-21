@@ -50,6 +50,13 @@
               output = 65536;
             };
           };
+          "GLM-4.7-Flash" = {
+            name = "GLM-4.7-Flash";
+            limit = {
+              context = 202752;
+              output = 65536;
+            };
+          };
           "Qwen-Coder-30B" = {
             name = "Qwen-Coder-30B";
             limit = {
