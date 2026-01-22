@@ -113,6 +113,22 @@ function serve-llm
         --ctx-size $context_length \
         --model $model_gguf_path \
         --alias $model_name \
+        --mlock \
+        --fit on \
+        --log-colors on \
+        --offline \
+        --warmup \
+        --host 0.0.0.0 \
+        --port 51536 \
+        --webui \
+        --metrics \
+        --props \
+        --slots \
+        --models-max 1 \
+        --parallel 1 \
+        --flash-attn on \
+        --gpu-layers all \
+        --direct-io \
         $argv[3..-1]
 end
 
