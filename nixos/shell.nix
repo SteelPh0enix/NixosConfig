@@ -4,19 +4,6 @@
     EDITOR = "nvim";
     BROWSER = "firefox";
     TERMINAL = "wezterm";
-
-    LLAMA_ARG_HOST = "0.0.0.0";
-    LLAMA_ARG_PORT = 51536;
-    LLAMA_ARG_FLASH_ATTN = "on";
-    LLAMA_ARG_MLOCK = 1;
-    LLAMA_ARG_N_GPU_LAYERS = 999;
-    LLAMA_OFFLINE = 0;
-    LLAMA_ARG_ENDPOINT_SLOTS = 1;
-    LLAMA_ARG_ENDPOINT_PROPS = 1;
-    LLAMA_ARG_CONTEXT_SHIFT = 1;
-    LLAMA_ARG_FIT = "off";
-    UV_TORCH_BACKEND = "auto";
-
     OPENAI_API_KEY="llamacpp";
     OPENAI_BASE_URL="http://127.0.0.1:51536/v1";
 
