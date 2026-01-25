@@ -20,8 +20,14 @@
       51537
       51538
       51539
+      51540
+      51541
       55569
       56969
+
+      18791
+      18792
+      9222
     ];
     allowedUDPPorts = [ 53 ];
     extraCommands = ''iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns'';
