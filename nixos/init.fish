@@ -98,6 +98,12 @@ function serve-llm
         set context_length 0
     end
 
+    if set -q argv[3]
+        set llama_port $argv[3]
+    else
+        set llama_port 51536
+    end
+
     if test "$context_length" -lt 0
         echo "Error: Context length must be >= 0" >&2
         return 3
@@ -119,7 +125,7 @@ function serve-llm
         --offline \
         --warmup \
         --host 0.0.0.0 \
-        --port 51536 \
+        --port $llama_port \
         --webui \
         --metrics \
         --props \
