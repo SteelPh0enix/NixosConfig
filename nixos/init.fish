@@ -78,46 +78,51 @@ end
 # LLM functions
 
 function serve-llm
-    set model_gguf_path $argv[1]
-    set model_name (basename $argv[1] .gguf)
+    set -l llama_port 51536
+    set -l context_length 0
+    argparse h/help 'm/model=' 'p/port=' 'c/context=' -- $argv
+    or return 1
 
-    if test -z "$model_gguf_path"
-        echo "Error: Model path not provided" >&2
-        echo "Usage: serve-llm <path-to-model.gguf> <context-length (optional, 0 for maximum)> [additional arguments for llama-server]" >&2
-        return 1
-    end
-
-    if not test -f "$model_gguf_path"
-        echo "Error: Model file not found at: $model_gguf_path" >&2
+    if set -q _flag_help
+        echo "Usage: serve-llm -m/--model=<path to GGUF file> -p/--port=<port, optional, $llama_port by default> -c/--context=<context length, optional, 0 (max context) by default>"
         return 2
     end
 
-    if set -q argv[2]
-        set context_length $argv[2]
-    else
-        set context_length 0
-    end
-
-    if set -q argv[3]
-        set llama_port $argv[3]
-    else
-        set llama_port 51536
-    end
-
-    if test "$context_length" -lt 0
-        echo "Error: Context length must be >= 0" >&2
+    if not set -q _flag_model
+        echo "Error: model path is required!" >&2
         return 3
     end
 
+    set -l model_path $_flag_model
+    set -l model_name (basename $model_path .gguf)
+
+    if not test -e "$model_path"
+        echo "Error: Model $model_path does not exist!" >&2
+        return 4
+    end
+
+    if set -q _flag_port
+        set llama_port $_flag_port
+    end
+
+    if set -q _flag_context
+        set context_length $_flag_context
+    end
+
+    if test "$context_length" -lt 0
+        echo "Error: context length must be >= 0!" >&2
+        return 5
+    end
+
     if test "$context_length" -gt 0
-        echo "Serving $model_name with $context_length tokens context, additional flags: $argv[3..-1]"
+        echo "Serving $model_name with $context_length tokens of context on port $llama_port, additional flags: $argv"
     else
-        echo "Serving $model_name with maximum available context, additional flags: $argv[3..-1]"
+        echo "Serving $model_name with maximum available context on port $llama_port, additional flags: $argv"
     end
 
     llama-server \
         --ctx-size $context_length \
-        --model $model_gguf_path \
+        --model $model_path \
         --alias $model_name \
         --mlock \
         --fit on \
@@ -135,7 +140,7 @@ function serve-llm
         --flash-attn on \
         --gpu-layers all \
         --direct-io \
-        $argv[3..-1]
+        $argv
 end
 
 function serve-llm-jinja
@@ -184,7 +189,6 @@ function update-services
     cd ~/nixos-config/nixos/services/pihole
     sudo docker compose pull --policy always
     sudo systemctl restart pihole
-
 
     # grace period for DNS restart
     echo (set_color -d blue)"Waiting for PiHole restart..."(set_color normal)
