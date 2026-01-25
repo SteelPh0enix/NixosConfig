@@ -177,4 +177,16 @@ in
       ];
     };
   };
+
+  services.xrdp = {
+    package = pkgsUnstable.xrdp;
+    enable = true;
+    openFirewall = true;
+    port = 3389;
+    audio = {
+        package = pkgsUnstable.pulseaudio-module-xrdp;
+        enable = true;
+    };
+    defaultWindowManager = "xfce4-session";
+  };
 }
