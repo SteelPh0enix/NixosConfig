@@ -143,37 +143,6 @@ function serve-llm
         $argv
 end
 
-function serve-llm-jinja
-    if test (count $argv) -lt 1
-        echo "Error: Model path not provided" >&2
-        echo "Usage: serve-llm-jinja <path-to-model.gguf> <context-length (optional, 0 for maximum)> [additional arguments for llama-server]" >&2
-        return 4
-    end
-
-    serve-llm $argv[1] $argv[2] \
-        --jinja \
-        $argv[3..-1]
-end
-
-function serve-llm-jinja-ext
-    set template_path $argv[2]
-
-    if test -z "$template_path"
-        echo "Error: Model path or chat template path not provided" >&2
-        echo "Usage: serve-llm-jinja-ext <path-to-model.gguf> <chat-template.jinja> <context-length (optional, 0 for maximum)> [additional arguments for llama-server]" >&2
-        return 5
-    end
-
-    if not test -f "$template_path"
-        echo "Error: Chat template file not found at: $template_path" >&2
-        return 6
-    end
-
-    serve-llm-jinja $argv[1] $argv[3] \
-        --chat-template-file $template_path \
-        $argv[4..-1]
-end
-
 function update-services
     echo (set_color green)"Updating OpenWebUI..."(set_color normal)
     cd ~/nixos-config/nixos/services/open-webui
