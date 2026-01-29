@@ -171,9 +171,15 @@ in
       name = "RX-78";
       enable = true;
       url = "http://steelph0enix.framework:6969/";
-      tokenFile = "/root/gitea/runner";
+      tokenFile = "/home/gitea/runner-token";
       labels = [
         "native:host"
+        "ubuntu-latest:docker://node:20-bullseye"
+        "ubuntu-22.04:docker://node:20-bullseye"
+        "ubuntu-20.04:docker://node:18-bullseye"
+        "node:20:docker://node:20-bullseye"
+        "node:18:docker://node:18-bullseye"
+        "docker:docker://docker:24-dind"
       ];
     };
   };
