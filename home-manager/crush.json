@@ -1,4 +1,3 @@
-
 {
 	"$schema": "https://charm.land/crush.json",
 	"lsp": {
@@ -77,6 +76,11 @@
 			},
 			"compact_mode": true,
 			"diff_mode": "unified"
+		},
+		"initialize_as": "AGENTS.md",
+		"attribution": {
+			"trailer_style": "assisted-by",
+			"generated_with": true
 		}
 	},
 	"tools": {
@@ -132,38 +136,6 @@
 					}
 				},
 				{
-					"name": "Magistral Small",
-					"id": "magistral-small",
-					"context_window": 131072,
-					"default_max_tokens": 65536,
-					"can_reason": true,
-					"supports_attachments": true,
-					"cost_per_1m_in": 0,
-					"cost_per_1m_in_cached": 0,
-					"cost_per_1m_out": 0,
-					"cost_per_1m_out_cached": 0,
-					"options": {
-						"temperature": 0.7,
-						"top_p": 0.95
-					}
-				},
-				{
-					"name": "Devstral Small",
-					"id": "devstral-24b",
-					"context_window": 131072,
-					"default_max_tokens": 65536,
-					"can_reason": false,
-					"supports_attachments": false,
-					"cost_per_1m_in": 0,
-					"cost_per_1m_in_cached": 0,
-					"cost_per_1m_out": 0,
-					"cost_per_1m_out_cached": 0,
-					"options": {
-						"temperature": 0.7,
-						"top_k": 30
-					}
-				},
-				{
 					"name": "GLM 4.5 Air",
 					"id": "GLM-4.5-Air",
 					"context_window": 131072,
@@ -177,6 +149,26 @@
 					"options": {
 						"temperature": 0.6,
 						"top_p": 1.0
+					}
+				},
+				{
+					"name": "GLM 4.7 Flash",
+					"id": "GLM-4.7-Flash",
+					"context_window": 202752,
+					"default_max_tokens": 65536,
+					"can_reason": true,
+					"supports_attachments": false,
+					"cost_per_1m_in": 0,
+					"cost_per_1m_in_cached": 0,
+					"cost_per_1m_out": 0,
+					"cost_per_1m_out_cached": 0,
+					"options": {
+						"temperature": 0.7,
+						"top_p": 1.0,
+						"provider_options": {
+							"min_p": 0.01,
+							"repeat_penalty": 1.0
+						}
 					}
 				},
 				{
@@ -197,6 +189,31 @@
 						"provider_options": {
 							"min_p": 0
 						}
+					}
+				}
+			]
+		},
+		"moonshot": {
+			"type": "openai-compat",
+			"base_url": "https://api.moonshot.ai/v1",
+			"api_key": "$MOONSHOT_API_KEY",
+			"models": [
+				{
+					"id": "kimi-k2.5",
+					"name": "Kimi K2.5",
+					"context_window": 262144,
+					"can_reason": true,
+					"supports_attachments": true,
+					"cost_per_1m_in": 0.6,
+					"cost_per_1m_in_cached": 0.1,
+					"cost_per_1m_out": 3,
+					"cost_per_1m_out_cached": 3,
+					"default_max_tokens": 32768,
+					"options": {
+						"temperature": 1.0,
+						"top_p": 0.95,
+						"presence_penalty": 0,
+						"frequency_penalty": 0
 					}
 				}
 			]
