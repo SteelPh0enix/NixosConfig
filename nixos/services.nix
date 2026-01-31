@@ -153,14 +153,14 @@ in
         LFS_START_SERVER = true;
       };
       "repository.signing" = {
-          SIGNING_KEY = "/var/lib/gitea/.ssh/gitea-signing-key.pub";
-          SIGNING_EMAIL = "phoenixpl@hotmail.com";
-          SIGNING_NAME = "Gitea";
-          SIGNING_FORMAT = "ssh";
-          INITIAL_COMMIT = "always";
-          CRUD_ACTIONS = "pubkey, parentsigned";
-          WIKI = "pubkey";
-          MERGES = "pubkey, basesigned, commitssigned";
+        SIGNING_KEY = "/var/lib/gitea/.ssh/gitea-signing-key.pub";
+        SIGNING_EMAIL = "phoenixpl@hotmail.com";
+        SIGNING_NAME = "Gitea";
+        SIGNING_FORMAT = "ssh";
+        INITIAL_COMMIT = "always";
+        CRUD_ACTIONS = "pubkey, parentsigned";
+        WIKI = "pubkey";
+        MERGES = "pubkey, basesigned, commitssigned";
       };
     };
   };
@@ -170,17 +170,23 @@ in
     instances."RX-78" = {
       name = "RX-78";
       enable = true;
-      url = "http://steelph0enix.framework:6969/";
+      url = "http://127.0.0.1:6969/";
       tokenFile = "/home/gitea/runner-token";
       labels = [
         "native:host"
-        "ubuntu-latest:docker://node:20-bullseye"
-        "ubuntu-22.04:docker://node:20-bullseye"
-        "ubuntu-20.04:docker://node:18-bullseye"
-        "node:20:docker://node:20-bullseye"
-        "node:18:docker://node:18-bullseye"
+        "ubuntu-latest:host"
         "docker:docker://docker:24-dind"
       ];
+    };
+  };
+
+  systemd.services."gitea-runner-RX-78" = {
+    serviceConfig = {
+      # Disable DynamicUser to allow adding the user to the 'docker' group
+      DynamicUser = lib.mkForce false;
+      User = "gitea-runner";
+      Group = "gitea-runner";
+      SupplementaryGroups = [ "docker" ];
     };
   };
 
@@ -190,8 +196,8 @@ in
     openFirewall = true;
     port = 3389;
     audio = {
-        package = pkgsUnstable.pulseaudio-module-xrdp;
-        enable = true;
+      package = pkgsUnstable.pulseaudio-module-xrdp;
+      enable = true;
     };
     defaultWindowManager = "xfce4-session";
   };
