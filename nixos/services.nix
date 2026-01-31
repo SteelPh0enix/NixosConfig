@@ -173,12 +173,7 @@ in
       url = "http://127.0.0.1:6969/";
       tokenFile = "/home/gitea/runner-token";
       labels = [
-        "native:host"
-        "ubuntu-latest:host"
-        "ubuntu:25.04:host"
-        "ubuntu:24.04:host"
-        "ubuntu:22.04:host"
-        "docker:docker://docker:24-dind"
+        "framework"
       ];
     };
   };
