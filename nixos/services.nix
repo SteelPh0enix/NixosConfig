@@ -179,8 +179,17 @@ in
       url = "http://127.0.0.1:6969/";
       tokenFile = "/home/gitea/runner-token";
       labels = [
-        "framework:docker"
+        "framework:docker://framework-runner-base:latest"
       ];
+      settings = {
+        container = {
+          # MOUNT THE HOST DOCKER SOCKET
+          # This allows the 'docker' command inside the container
+          # to talk to the actual Docker daemon on NixOS.
+          valid_volumes = [ "/var/run/docker.sock" ];
+          docker_host = "-";
+        };
+      };
     };
   };
 
