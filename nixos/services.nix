@@ -142,6 +142,12 @@ in
     appName = "RX-78-GITEA";
     user = "gitea";
     settings = {
+      packages = {
+        ENABLED = true;
+      };
+      "packages.container" = {
+        ENABLED = true;
+      };
       server = {
         PROTOCOL = "http";
         HTTP_PORT = 6969;
@@ -173,7 +179,7 @@ in
       url = "http://127.0.0.1:6969/";
       tokenFile = "/home/gitea/runner-token";
       labels = [
-        "framework"
+        "framework:docker"
       ];
     };
   };
