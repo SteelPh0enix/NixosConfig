@@ -175,6 +175,9 @@ in
       labels = [
         "native:host"
         "ubuntu-latest:host"
+        "ubuntu:25.04:host"
+        "ubuntu:24.04:host"
+        "ubuntu:22.04:host"
         "docker:docker://docker:24-dind"
       ];
     };
