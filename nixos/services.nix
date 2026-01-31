@@ -188,6 +188,8 @@ in
           # to talk to the actual Docker daemon on NixOS.
           valid_volumes = [ "/var/run/docker.sock" ];
           docker_host = "-";
+          # to prevent pulling the image if it exists locally
+          pull_policy = "if-not-present";
         };
       };
     };
