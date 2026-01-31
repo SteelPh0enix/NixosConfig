@@ -176,10 +176,11 @@ in
     instances."RX-78" = {
       name = "RX-78";
       enable = true;
-      url = "http://127.0.0.1:6969/";
+      url = "http://steelph0enix.framework:6969/";
       tokenFile = "/home/gitea/runner-token";
       labels = [
-        "framework:docker://framework-runner-base:latest"
+        "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
+        "ubuntu-latest:docker://node:latest"
       ];
       settings = {
         container = {
@@ -188,8 +189,6 @@ in
           # to talk to the actual Docker daemon on NixOS.
           valid_volumes = [ "/var/run/docker.sock" ];
           docker_host = "-";
-          # to prevent pulling the image if it exists locally
-          pull_policy = "if-not-present";
         };
       };
     };
