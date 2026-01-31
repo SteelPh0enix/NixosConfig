@@ -29,7 +29,10 @@
         webfetch = true;
       };
 
-      enabled_providers = [ "llama.cpp" ];
+      enabled_providers = [
+        "llama.cpp"
+        "moonshot.ai"
+      ];
 
       provider."llama.cpp" = {
         npm = "@ai-sdk/openai-compatible";
