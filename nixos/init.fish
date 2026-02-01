@@ -143,6 +143,26 @@ function serve-llm
         $argv
 end
 
+function llm-router
+    llama-server \
+        --models-dir /home/LLMs/llama-models/ \
+        --models-preset /home/LLMs/llama-models.ini \
+        --mlock \
+        --direct-io \
+        --fit on \
+        --log-colors on \
+        --offline \
+        --warmup \
+        --host 0.0.0.0 \
+        --port 51536 \
+        --webui \
+        --metrics \
+        --props \
+        --slots \
+        --flash-attn on \
+        --gpu-layers all
+end
+
 function update-services
     echo (set_color green)"Updating OpenWebUI..."(set_color normal)
     cd ~/nixos-config/nixos/services/open-webui
