@@ -44,6 +44,27 @@
 				"configure.ac",
 				".git"
 			]
+		},
+		"typescript": {
+			"command": "typescript-language-server",
+			"args": [
+				"--stdio"
+			],
+			"filetypes": [
+				"ts"
+			],
+			"root_markers": [
+				"tsconfig.json"
+			]
+		},
+		"nix": {
+			"command": "nil",
+			"filetypes": [
+				"nix"
+			],
+			"root_markers": [
+				"flake.nix"
+			]
 		}
 	},
 	"mcp": {
