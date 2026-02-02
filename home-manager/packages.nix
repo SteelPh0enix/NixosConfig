@@ -88,6 +88,7 @@ in
 
   programs.wezterm = {
     enable = true;
+    package = pkgsUnstable.wezterm;
     extraConfig = ''
       local wezterm = require('wezterm')
       local config = wezterm.config_builder()
@@ -102,7 +103,10 @@ in
       return config'';
   };
 
-  programs.yt-dlp.enable = true;
+  programs.yt-dlp = {
+    enable = true;
+    package = pkgsUnstable.yt-dlp;
+  };
 
   programs.mpv = {
     enable = true;
@@ -173,6 +177,7 @@ in
 
   programs.lazygit = {
     enable = true;
+    package = pkgsUnstable.lazygit;
     settings = {
       gui = {
         language = "en";
@@ -195,9 +200,18 @@ in
     withRuby = true;
   };
 
-  programs.ripgrep.enable = true;
-  programs.fd.enable = true;
+  programs.ripgrep = {
+    enable = true;
+    package = pkgsUnstable.ripgrep;
+  };
+
+  programs.fd = {
+    enable = true;
+    package = pkgsUnstable.fd;
+  };
+
   programs.eza = {
+    package = pkgsUnstable.eza;
     enable = true;
     enableFishIntegration = true;
     icons = "always";
