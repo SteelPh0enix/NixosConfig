@@ -81,7 +81,10 @@ in
       return config'';
   };
 
-  programs.yt-dlp.enable = true;
+  programs.yt-dlp = {
+      enable = true;
+      package = pkgsUnstable.yt-dlp;
+  };
 
   programs.mpv = {
     enable = true;
@@ -151,6 +154,7 @@ in
 
   programs.lazygit = {
     enable = true;
+    package = pkgsUnstable.lazygit;
     settings = {
       gui = {
         language = "en";
@@ -173,10 +177,19 @@ in
     withRuby = true;
   };
 
-  programs.ripgrep.enable = true;
-  programs.fd.enable = true;
+  programs.ripgrep = {
+      enable = true;
+      package = pkgsUnstable.ripgrep;
+  };
+
+  programs.fd = {
+      enable = true;
+      package = pkgsUnstable.fd;
+  };
+
   programs.eza = {
     enable = true;
+    package = pkgsUnstable.eza;
     enableFishIntegration = true;
     icons = "always";
     git = true;
