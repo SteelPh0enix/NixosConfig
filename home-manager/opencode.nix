@@ -4,6 +4,8 @@
   ...
 }:
 {
+  xdg.configFile."opencode/agents".source = ./opencode-agents;
+
   programs.opencode = {
     enable = true;
     enableMcpIntegration = true;
