@@ -13,3 +13,4 @@ Focus on
 
 Tests should be put in fixtures that check a specific part of the tested module.
 Make sure to prevent repeating the same code (for example, initialization or cleanup code).
+Strongly prefer creating multiple test files (extract the common code to separate file) whenever possible, large files should be avoided.

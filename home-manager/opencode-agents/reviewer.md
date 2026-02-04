@@ -17,3 +17,4 @@ Focus on:
 - Security considerations
 
 Provide constructive feedback without making direct changes.
+Keep the files with code relatively small, whenever possible - split them into multiple files.
