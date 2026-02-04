@@ -37,6 +37,18 @@
         question = true;
       };
 
+      permission = {
+        "*" = "ask";
+        bash = {
+          "*" = "ask";
+          "grep *" = "allow";
+          "rg *" = "allow";
+          "git commit *" = "ask";
+          "git push *" = "deny";
+          "git status *" = "allow";
+        };
+      };
+
       default_agent = "plan";
       share = "disabled";
       autoupdate = false;
