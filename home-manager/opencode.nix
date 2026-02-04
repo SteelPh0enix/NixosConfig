@@ -38,7 +38,6 @@
       };
 
       permission = {
-        "*" = "ask";
         bash = {
           "*" = "ask";
           "grep *" = "allow";
@@ -46,6 +45,24 @@
           "git commit *" = "ask";
           "git push *" = "deny";
           "git status *" = "allow";
+        };
+        read = {
+          "*.md" = "allow";
+          "*.ts" = "allow";
+          "*.js" = "allow";
+          "*.mjs" = "allow";
+          "*.c" = "allow";
+          "*.cpp" = "allow";
+          "*.h" = "allow";
+          "*.hpp" = "allow";
+          "CMakeLists.txt" = "allow";
+          "SCons*" = "allow";
+          "*.py" = "allow";
+          "Jenkinsfile" = "allow";
+          "*.yml" = "allow";
+        };
+        list = {
+          "*" = "allow";
         };
       };
 
