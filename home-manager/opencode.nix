@@ -61,6 +61,9 @@
           "Jenkinsfile" = "allow";
           "*.yml" = "allow";
         };
+        grep = {
+          "*" = "allow";
+        };
         list = {
           "*" = "allow";
         };
