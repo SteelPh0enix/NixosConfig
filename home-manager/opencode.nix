@@ -42,9 +42,13 @@
           "*" = "ask";
           "grep *" = "allow";
           "rg *" = "allow";
+          "ls *" = "allow";
           "git commit *" = "ask";
           "git push *" = "deny";
           "git status *" = "allow";
+          "yarn build *" = "allow";
+          "yarn test *" = "allow";
+          "yarn lint *" = "allow";
         };
         read = {
           "*.md" = "allow";
@@ -105,36 +109,15 @@
         name = "llama-server (local)";
         options.baseURL = "http://steelph0enix.framework:51536/v1";
         models = {
-          "MiniMax-M2.1" = {
-            name = "MiniMax-M2.1";
-            limit = {
-              context = 81920;
-              output = 65536;
-            };
-          };
-          "GLM-4.5-Air" = {
-            name = "GLM-4.5-Air";
-            limit = {
-              context = 131072;
-              output = 65536;
-            };
-          };
-          "GLM-4.7-Flash" = {
-            name = "GLM-4.7-Flash";
+          "glm-flash" = {
+            name = "GLM Flash";
             limit = {
               context = 202752;
               output = 65536;
             };
           };
-          "Qwen-Coder-30B" = {
-            name = "Qwen-Coder-30B";
-            limit = {
-              context = 131072;
-              output = 65536;
-            };
-          };
-          "Qwen3-Next" = {
-            name = "Qwen3-Next";
+          "qwen-coder" = {
+            name = "Qwen Coder";
             limit = {
               context = 262144;
               output = 65536;
