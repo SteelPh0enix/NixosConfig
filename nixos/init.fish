@@ -117,7 +117,15 @@ function os-clean
     echo (set_color yellow)"Deleting old generations (User)..."(set_color normal)
     nix-collect-garbage -d
     
-    echo (set_color green)"System Clean Complete."(set_color normal)
+    echo (set_color green)"System Clean Complete!"(set_color normal)
+end
+
+function os-check
+    echo (set_color yellow)"Running NixOS store check/fix..."(set_color normal)
+
+    sudo nix-store --verify --check-contents --repair
+
+    echo (set_color green)"NixOS store check/fix complete!"(set_color normal)
 end
 
 function decode-id
