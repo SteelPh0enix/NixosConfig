@@ -25,34 +25,23 @@
 
     automake
     bear
-    black
     btop
-    ccache
-    cmake
     colordiff
-    curl
     dmidecode
     dnsutils
     docker
     docker-buildx
     dotnetCorePackages.runtime_9_0-bin
     dotnetCorePackages.sdk_9_0-bin
-    eslint
     exfat
     exfatprogs
-    eza
     fastfetch
-    fd
-    ffmpeg
     file
     findutils
-    fzf
     gawk
     gcc15
     gdb
     gh
-    git-lfs
-    gitFull
     gnugrep
     gnumake
     gnused
@@ -60,7 +49,6 @@
     gparted
     hdparm
     icu
-    jq
     linuxHeaders
     lldb
     llvmPackages_21.clang-tools
@@ -76,8 +64,6 @@
     ncdu
     ncurses5
     nil
-    ninja
-    nix-ld
     nixd
     nixfmt
     nixpkgs-review
@@ -87,14 +73,26 @@
     openssh
     openssl
     openssl.dev
-    p7zip
     parted
     pciutils
     pkg-config
+    pkgsUnstable.black
+    pkgsUnstable.cmake
+    pkgsUnstable.curl
+    pkgsUnstable.eslint
+    pkgsUnstable.eza
+    pkgsUnstable.fd
+    pkgsUnstable.ffmpeg
+    pkgsUnstable.fzf
+    pkgsUnstable.jq
+    pkgsUnstable.ninja
+    pkgsUnstable.p7zip
+    pkgsUnstable.ripgrep
+    pkgsUnstable.ruff
+    pkgsUnstable.uv
+    pkgsUnstable.uv-sort
     psmisc
-    ripgrep
     rsync
-    ruff
     rust-analyzer
     rustup
     socat
@@ -102,15 +100,11 @@
     sshpass
     strace
     sysstat
-    tcpdump
     tree
     usbutils
-    uv
-    uv-sort
     valgrind
     wget
     which
-    wireshark
     xz
     yarn
     zip
@@ -121,11 +115,16 @@
   programs.appimage.enable = true;
   programs.appimage.binfmt = true;
 
-  programs.bat.enable = true;
+  programs.bat = {
+    enable = true;
+    package = pkgsUnstable.bat;
+  };
+
   programs.ccache.enable = true;
   programs.ccache.cacheDir = "/var/cache/ccache";
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
+
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
@@ -135,29 +134,53 @@
       package = pkgsUnstable.nix-direnv;
     };
   };
+
   programs.evince.enable = true;
   programs.firefox.enable = true;
-  programs.fish.enable = true;
-  programs.fzf.fuzzyCompletion = true;
-  programs.fzf.keybindings = true;
-  programs.git.enable = true;
-  programs.git.lfs.enable = true;
+
+  programs.fish = {
+    package = pkgsUnstable.fish;
+    enable = true;
+  };
+
+  programs.fzf = {
+    fuzzyCompletion = true;
+    keybindings = true;
+  };
+
+  programs.git = {
+    enable = true;
+    lfs.enable = true;
+    package = pkgsUnstable.gitFull;
+  };
+
   programs.gnupg.agent = {
     enable = true;
     enableBrowserSocket = true;
   };
-  programs.java.enable = true;
-  programs.java.binfmt = true;
-  programs.less.enable = true;
+
+  programs.java = {
+    enable = true;
+    binfmt = true;
+  };
+
+  programs.less = {
+    enable = true;
+    package = pkgsUnstable.less;
+  };
+
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
   programs.obs-studio.enable = true;
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
   programs.tcpdump.enable = true;
-  programs.wireshark.enable = true;
-  programs.wireshark.dumpcap.enable = true;
-  programs.wireshark.usbmon.enable = true;
+
+  programs.wireshark = {
+    enable = true;
+    dumpcap.enable = true;
+    usbmon.enable = true;
+  };
 
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
