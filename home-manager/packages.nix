@@ -29,8 +29,6 @@ in
         eslint
         gcc15
         gdb
-        git-lfs
-        gitFull
         glibc
         gnumake
         icu
@@ -40,7 +38,6 @@ in
         llvmPackages_21.openmp
         lua
         luajit
-        ninja
         nixd
         nixfmt
         nixpkgs-review
@@ -48,13 +45,16 @@ in
         npm-check
         openssl.dev
         pkg-config
+        pkgsUnstable.git-lfs
+        pkgsUnstable.gitFull
+        pkgsUnstable.ninja
+        pkgsUnstable.uv
+        pkgsUnstable.uv-sort
+        pkgsUnstable.yarn
         ruff
         rustup
         sqlite
-        uv
-        uv-sort
         wget
-        yarn
         zlib
       ]
     );
@@ -78,6 +78,7 @@ in
 
   programs.git = {
     enable = true;
+    package = pkgsUnstable.gitFull;
     lfs.enable = true;
     settings = {
       user = {
@@ -101,6 +102,7 @@ in
 
   programs.lazygit = {
     enable = true;
+    package = pkgsUnstable.lazygit;
     settings = {
       gui = {
         language = "en";
@@ -123,10 +125,19 @@ in
     withRuby = true;
   };
 
-  programs.ripgrep.enable = true;
-  programs.fd.enable = true;
+  programs.ripgrep = {
+    enable = true;
+    package = pkgsUnstable.ripgrep;
+  };
+
+  programs.fd = {
+    enable = true;
+    package = pkgsUnstable.fd;
+  };
+
   programs.eza = {
     enable = true;
+    package = pkgsUnstable.eza;
     enableFishIntegration = true;
     icons = "always";
     git = true;
