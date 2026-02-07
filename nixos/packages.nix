@@ -201,6 +201,7 @@ in
   };
 
   programs.java = {
+    package = pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25;
     enable = true;
     binfmt = true;
   };
@@ -230,7 +231,7 @@ in
     gamescopeSession.enable = true;
     extraPackages = with pkgs; [
       gamescope
-      jdk
+      pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     ];
   };
 
