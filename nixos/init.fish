@@ -78,139 +78,87 @@ end
 # LLM functions
 
 function serve-llm
-    set model_gguf_path $argv[1]
-    set model_name (basename $argv[1] .gguf)
+    set -l llama_port 51536
+    set -l context_length 0
+    argparse h/help 'm/model=' 'p/port=' 'c/context=' -- $argv
+    or return 1
 
-    if test -z "$model_gguf_path"
-        echo "Error: Model path not provided" >&2
-        echo "Usage: serve-llm <path-to-model.gguf> <context-length> [additional arguments for llama-server]" >&2
-        return 1
-    end
-
-    if not test -f "$model_gguf_path"
-        echo "Error: Model file not found at: $model_gguf_path" >&2
+    if set -q _flag_help
+        echo "Usage: serve-llm -m/--model=<path to GGUF file> -p/--port=<port, optional, $llama_port by default> -c/--context=<context length, optional, 0 (max context) by default>"
         return 2
     end
 
-    set context_length $argv[2]
-
-    if test -z "$context_length"
-        echo "Error: Context length not provided" >&2
+    if not set -q _flag_model
+        echo "Error: model path is required!" >&2
         return 3
     end
 
-    if test "$context_length" -lt 0
-        echo "Error: Context length must be >= 0" >&2
+    set -l model_path $_flag_model
+    set -l model_name (basename $model_path .gguf)
+
+    if not test -e "$model_path"
+        echo "Error: Model $model_path does not exist!" >&2
         return 4
     end
 
+    if set -q _flag_port
+        set llama_port $_flag_port
+    end
+
+    if set -q _flag_context
+        set context_length $_flag_context
+    end
+
+    if test "$context_length" -lt 0
+        echo "Error: context length must be >= 0!" >&2
+        return 5
+    end
+
     if test "$context_length" -gt 0
-        echo "Serving $model_name with $context_length tokens context, additional flags: $argv[3..-1]"
+        echo "Serving $model_name with $context_length tokens of context on port $llama_port, additional flags: $argv"
     else
-        echo "Serving $model_name with maximum available context, additional flags: $argv[3..-1]"
+        echo "Serving $model_name with maximum available context on port $llama_port, additional flags: $argv"
     end
 
     llama-server \
         --ctx-size $context_length \
-        --model $model_gguf_path \
+        --model $model_path \
         --alias $model_name \
-        $argv[3..-1]
+        --mlock \
+        --fit on \
+        --log-colors on \
+        --offline \
+        --warmup \
+        --host 0.0.0.0 \
+        --port $llama_port \
+        --webui \
+        --metrics \
+        --props \
+        --slots \
+        --models-max 1 \
+        --parallel 1 \
+        --flash-attn on \
+        --gpu-layers all \
+        --direct-io \
+        $argv
 end
 
-function serve-llm-jinja
-    serve-llm $argv[1] $argv[2] \
-        --jinja \
-        $argv[3..-1]
-end
-
-function serve-llm-jinja-ext
-    set template_path $argv[3]
-
-    if test -z "$template_path"
-        echo "Error: Chat template path not provided" >&2
-        echo "Usage: serve-llm-jinja-ext <path-to-model.gguf> <context-length> <chat-template.jinja> [additional arguments for llama-server]" >&2
-        return 1
-    end
-
-    if not test -f "$template_path"
-        echo "Error: Chat template file not found at: $template_path" >&2
-        return 10
-    end
-
-    serve-llm-jinja $argv[1] $argv[2] \
-        --chat-template-file $template_path \
-        $argv[4..-1]
-end
-
-function serve-llm-qwen
-    serve-llm-jinja $argv[1] $argv[2] \
-        --temp 0.6 \
-        --top-p 0.95 \
-        --top-k 20 \
-        --min-p 0 \
-        --presence-penalty 1.5 \
-        $argv[3..-1]
-end
-
-function serve-llm-qwen-ext
-    serve-llm-jinja-ext $argv[1] $argv[2] $argv[3] \
-        --temp 0.6 \
-        --top-p 0.95 \
-        --top-k 20 \
-        --min-p 0 \
-        --presence-penalty 1.5 \
-        $argv[4..-1]
-end
-
-function serve-llm-qwen-coder
-    set -gx OPENAI_MODEL Qwen3-Coder-30B-A3B-Instruct-UD-Q3_K_XL
-    serve-llm-jinja-ext "$HOME/llms/Qwen3-Coder-30B-A3B-Instruct-UD-Q3_K_XL.gguf" \
-        81920 \
-        "$HOME/llms/repos/Qwen3-Coder-30B-A3B-Instruct/chat-template.jinja" \
-        --n-cpu-moe 3 \
-        --cache-type-k q8_0 \
-        --cache-type-v q8_0 \
-        --temp 0.7 \
-        --top-p 0.8 \
-        --top-k 20 \
-        --repeat-penalty 1.05
-end
-
-function serve-llm-gpt-oss
-    serve-llm-jinja \
-        "$HOME/llms/gpt-oss-20b.auto.gguf" \
-        0 \
-        --temp 1.0 \
-        --top-p 1.0 \
-        --top-k 100 \
-        --min-p 0.01
-end
-
-function serve-llm-mistral
-    serve-llm-jinja \
-        "$HOME/llms/Mistral-Small-3.2-24B-Instruct-2506-UD-Q4_K_XL.gguf" \
-        32768 \
-        --temp 0.15 \
-        --cache-type-k q8_0 \
-        --cache-type-v q8_0
-end
-
-function serve-llm-hermes
-    serve-llm-jinja \
-        "$HOME/llms/Hermes4-14B.gguf" \
-        0 \
-        --temp 0.6 \
-        --top-p 0.95 \
-        --top-k 20
-end
-
-function serve-llm-gemma
-    serve-llm-jinja \
-        "$HOME/llms/gemma-3-12b-it-UD-Q5_K_XL.gguf" \
-        80000 \
-        --temp 1.0 \
-        --top-k 64 \
-        --top-p 0.95 \
-        --min-p 0.01 \
-        --repeat-penalty 1.0
+function llm-router
+    llama-server \
+        --models-dir /home/LLMs/llama-models/ \
+        --models-preset /home/LLMs/llama-models.ini \
+        --mlock \
+        --direct-io \
+        --fit on \
+        --log-colors on \
+        --offline \
+        --warmup \
+        --host 0.0.0.0 \
+        --port 51536 \
+        --webui \
+        --metrics \
+        --props \
+        --slots \
+        --flash-attn on \
+        --gpu-layers all
 end
