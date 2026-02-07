@@ -55,8 +55,6 @@ in
         eslint
         gcc15
         gdb
-        git-lfs
-        gitFull
         glibc
         gnumake
         icu
@@ -66,7 +64,6 @@ in
         llvmPackages_21.openmp
         lua
         luajit
-        ninja
         nixd
         nixfmt
         nixpkgs-review
@@ -74,11 +71,14 @@ in
         npm-check
         openssl.dev
         pkg-config
-        ruff
+        pkgsUnstable.git-lfs
+        pkgsUnstable.gitFull
+        pkgsUnstable.ninja
+        pkgsUnstable.ruff
+        pkgsUnstable.uv
+        pkgsUnstable.uv-sort
         rustup
         sqlite
-        uv
-        uv-sort
         wget
         yarn
         zlib
@@ -153,7 +153,11 @@ in
 
   programs.git = {
     enable = true;
-    lfs.enable = true;
+    lfs = {
+      enable = true;
+      package = pkgsUnstable.git-lfs;
+    };
+    package = pkgsUnstable.gitFull;
     settings = {
       user = {
         name = "SteelPh0enix";
