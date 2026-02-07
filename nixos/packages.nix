@@ -29,14 +29,13 @@ in
   ];
 
   environment.systemPackages = with pkgs; [
+
     bear
     bindfs
     blueman
-    btop-rocm
     ccache
     clang
     clang-tools
-    cmake
     curl
     dmidecode
     dnsutils
@@ -44,21 +43,14 @@ in
     docker-buildx
     exfat
     exfatprogs
-    eza
-    fastfetch
-    fd
     figlet
     file
     findutils
     flac
-    flaresolverr
-    fzf
     gawk
     gcc
     gdb
     gh
-    gitFull
-    git-lfs
     gnugrep
     gnused
     gnutar
@@ -73,7 +65,6 @@ in
     hdparm
     icu
     inetutils
-    jq
     lact
     libnatpmp
     libva-utils
@@ -83,10 +74,7 @@ in
     lm_sensors
     lsof
     ltrace
-    mc
-    ncdu
     nil
-    ninja
     nixd
     nixfmt
     nixpkgs-review
@@ -97,16 +85,32 @@ in
     p7zip
     parted
     pciutils
+    pkgsUnstable.btop-rocm
+    pkgsUnstable.cmake
+    pkgsUnstable.eza
+    pkgsUnstable.fastfetch
+    pkgsUnstable.fd
+    pkgsUnstable.ffmpeg-full
+    pkgsUnstable.flaresolverr
+    pkgsUnstable.fzf
+    pkgsUnstable.jq
+    pkgsUnstable.llama-cpp
+    pkgsUnstable.mc
+    pkgsUnstable.ncdu
+    pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.ninja
+    pkgsUnstable.radeontop
+    pkgsUnstable.ripgrep
+    pkgsUnstable.rust-motd
+    pkgsUnstable.steam-tui
+    pkgsUnstable.steamcmd
+    pkgsUnstable.uv
+    pkgsUnstable.valgrind
     psmisc
     python315
-    radeontop
-    ripgrep
     rsync
-    rust-analyzer
     socat
     sqlite
-    steam-tui
-    steamcmd
     strace
     sysstat
     tcpdump
@@ -115,32 +119,16 @@ in
     tree
     unzip
     usbutils
-    valgrind
     vk-bootstrap
     vkd3d
     vkdisplayinfo
     vkmark
-    vulkan-caps-viewer
-    vulkan-extension-layer
-    vulkan-helper
-    vulkan-loader
-    vulkan-memory-allocator
-    vulkan-tools
-    vulkan-utility-libraries
-    vulkan-volk
     wget
     which
     wireguard-tools
-    wireshark
     xz
     zip
     zstd
-
-    pkgsUnstable.ffmpeg-full
-    pkgsUnstable.llama-cpp
-    pkgsUnstable.nerd-font-patcher
-    pkgsUnstable.rust-motd
-    pkgsUnstable.uv
 
     inputs.compose2nix.packages.x86_64-linux.default
 
@@ -159,14 +147,21 @@ in
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
-  programs.appimage.enable = true;
-  programs.appimage.binfmt = true;
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
+  };
 
-  programs.bat.enable = true;
+  programs.bat = {
+    enable = true;
+    package = pkgsUnstable.bat;
+  };
+
   programs.ccache.enable = true;
   programs.ccache.cacheDir = "/var/cache/ccache";
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
+
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
@@ -176,20 +171,40 @@ in
       package = pkgsUnstable.nix-direnv;
     };
   };
+
   programs.evince.enable = true;
   programs.firefox.enable = true;
-  programs.fish.enable = true;
-  programs.fzf.fuzzyCompletion = true;
-  programs.fzf.keybindings = true;
 
-  programs.git.enable = true;
-  programs.git.lfs.enable = true;
+  programs.fish = {
+    package = pkgsUnstable.fish;
+    enable = true;
+  };
+
+  programs.fzf = {
+    fuzzyCompletion = true;
+    keybindings = true;
+  };
+
+  programs.git = {
+    enable = true;
+    package = pkgsUnstable.gitFull;
+    lfs = {
+      enable = true;
+      enablePureSSHTransfer = true;
+      package = pkgsUnstable.git-lfs;
+    };
+  };
+
   programs.gnupg.agent = {
     enable = true;
     enableBrowserSocket = true;
   };
-  programs.java.enable = true;
-  programs.java.binfmt = true;
+
+  programs.java = {
+    enable = true;
+    binfmt = true;
+  };
+
   programs.less.enable = true;
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
@@ -197,9 +212,13 @@ in
   programs.ssh.startAgent = true;
 
   programs.tcpdump.enable = true;
-  programs.wireshark.enable = true;
-  programs.wireshark.dumpcap.enable = true;
-  programs.wireshark.usbmon.enable = true;
+
+  programs.wireshark = {
+    package = pkgsUnstable.wireshark;
+    enable = true;
+    dumpcap.enable = true;
+    usbmon.enable = true;
+  };
 
   programs.steam = {
     enable = true;
@@ -209,7 +228,10 @@ in
     extest.enable = true;
     dedicatedServer.openFirewall = true;
     gamescopeSession.enable = true;
-    extraPackages = with pkgs; [ gamescope jdk ];
+    extraPackages = with pkgs; [
+      gamescope
+      jdk
+    ];
   };
 
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
