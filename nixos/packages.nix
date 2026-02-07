@@ -176,7 +176,7 @@ in
   programs.firefox.enable = true;
 
   programs.fish = {
-    package = pkgsUnstable.fish;
+    package = pkgs.fish;
     enable = true;
   };
 

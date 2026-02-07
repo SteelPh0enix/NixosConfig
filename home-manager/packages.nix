@@ -19,8 +19,6 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.graalvmPackages.graalvm-ce
-
     nix-ai-tools.packages.${system}.crush
   ];
 
