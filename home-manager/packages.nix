@@ -31,7 +31,6 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.graalvmPackages.graalvm-ce
     pkgsUnstable.jellyfin-media-player
     pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
