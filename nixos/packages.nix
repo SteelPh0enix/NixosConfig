@@ -134,8 +134,6 @@ in
     zip
     zstd
 
-    inputs.compose2nix.packages.x86_64-linux.default
-
     (rust-bin.stable.latest.default.override {
       extensions = [
         "cargo"
