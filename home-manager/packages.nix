@@ -35,8 +35,6 @@ in
         eslint
         gcc15
         gdb
-        git-lfs
-        gitFull
         gnumake
         icu
         lldb
@@ -45,7 +43,6 @@ in
         llvmPackages_21.openmp
         lua
         luajit
-        ninja
         nixd
         nixfmt
         nixpkgs-review
@@ -53,11 +50,14 @@ in
         npm-check
         openssl.dev
         pkg-config
-        ruff
+        pkgsUnstable.git-lfs
+        pkgsUnstable.gitFull
+        pkgsUnstable.ninja
+        pkgsUnstable.ruff
+        pkgsUnstable.uv
+        pkgsUnstable.uv-sort
         rustup
         sqlite
-        uv
-        uv-sort
         wget
         yarn
         zlib
@@ -67,6 +67,7 @@ in
 
   programs.wezterm = {
     enable = true;
+    package = pkgsUnstable.wezterm;
     extraConfig = ''
       local wezterm = require('wezterm')
       local config = wezterm.config_builder()
@@ -82,8 +83,8 @@ in
   };
 
   programs.yt-dlp = {
-      enable = true;
-      package = pkgsUnstable.yt-dlp;
+    enable = true;
+    package = pkgsUnstable.yt-dlp;
   };
 
   programs.mpv = {
@@ -131,7 +132,11 @@ in
 
   programs.git = {
     enable = true;
-    lfs.enable = true;
+    lfs = {
+      enable = true;
+      package = pkgsUnstable.git-lfs;
+    };
+    package = pkgsUnstable.gitFull;
     settings = {
       user = {
         name = "SteelPh0enix";
@@ -178,13 +183,13 @@ in
   };
 
   programs.ripgrep = {
-      enable = true;
-      package = pkgsUnstable.ripgrep;
+    enable = true;
+    package = pkgsUnstable.ripgrep;
   };
 
   programs.fd = {
-      enable = true;
-      package = pkgsUnstable.fd;
+    enable = true;
+    package = pkgsUnstable.fd;
   };
 
   programs.eza = {
