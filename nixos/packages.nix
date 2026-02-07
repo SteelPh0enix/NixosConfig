@@ -37,16 +37,13 @@ in
     })
 
     pkgsUnstable.nerd-font-patcher
-    # pkgsUnstable.llama-cpp
 
     bear
     blueman
-    btop-rocm
     ccache
     cifs-utils
     clang
     clang-tools
-    cmake
     curl
     dmidecode
     dnsutils
@@ -56,20 +53,14 @@ in
     dotnet-sdk_9
     exfat
     exfatprogs
-    eza
-    fastfetch
-    fd
-    ffmpeg-full
+    figlet
     file
     findutils
     flac
-    fzf
     gawk
     gcc
     gdb
     gh
-    git
-    git-lfs
     gnugrep
     gnused
     gnutar
@@ -84,7 +75,6 @@ in
     hdparm
     icu
     inetutils
-    jq
     lact
     libunwind
     linuxHeaders
@@ -93,9 +83,7 @@ in
     lm_sensors
     lsof
     ltrace
-    ncdu
     nil
-    ninja
     nixd
     nixfmt
     nixpkgs-review
@@ -106,10 +94,26 @@ in
     p7zip
     parted
     pciutils
+    pkgsUnstable.btop-rocm
+    pkgsUnstable.cmake
+    pkgsUnstable.eza
+    pkgsUnstable.fastfetch
+    pkgsUnstable.fd
+    pkgsUnstable.ffmpeg-full
+    pkgsUnstable.fzf
+    pkgsUnstable.jq
+    pkgsUnstable.llama-cpp
+    pkgsUnstable.mc
+    pkgsUnstable.ncdu
+    pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.ninja
+    pkgsUnstable.radeontop
+    pkgsUnstable.ripgrep
+    pkgsUnstable.uv
+    pkgsUnstable.valgrind
     psmisc
-    ripgrep
+    python314
     rsync
-    rust-analyzer
     socat
     sqlite
     strace
@@ -119,28 +123,49 @@ in
     traceroute
     tree
     usbutils
-    uv
-    valgrind
+    vk-bootstrap
+    vkd3d
+    vkdisplayinfo
+    vkmark
     wget
     which
     wireguard-tools
-    wireshark
     xz
     zip
     zstd
+
+    inputs.compose2nix.packages.x86_64-linux.default
+
+    (rust-bin.stable.latest.default.override {
+      extensions = [
+        "cargo"
+        "rust-analysis"
+        "rust-src"
+        "rust-std"
+        "rustc"
+        "rustfmt"
+      ];
+    })
   ];
 
   systemd.packages = with pkgs; [ lact ];
   systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
-  programs.appimage.enable = true;
-  programs.appimage.binfmt = true;
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
+  };
 
-  programs.bat.enable = true;
+  programs.bat = {
+    enable = true;
+    package = pkgsUnstable.bat;
+  };
+
   programs.ccache.enable = true;
   programs.ccache.cacheDir = "/var/cache/ccache";
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
+
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
@@ -150,37 +175,70 @@ in
       package = pkgsUnstable.nix-direnv;
     };
   };
+
   programs.evince.enable = true;
   programs.firefox.enable = true;
-  programs.fish.enable = true;
-  programs.fzf.fuzzyCompletion = true;
-  programs.fzf.keybindings = true;
-  programs.gamemode.enable = true;
-  programs.git.enable = true;
-  programs.git.lfs.enable = true;
+
+  programs.fish = {
+    package = pkgsUnstable.fish;
+    enable = true;
+  };
+
+  programs.fzf = {
+    fuzzyCompletion = true;
+    keybindings = true;
+  };
+
+  programs.git = {
+    enable = true;
+    package = pkgsUnstable.gitFull;
+    lfs = {
+      enable = true;
+      enablePureSSHTransfer = true;
+      package = pkgsUnstable.git-lfs;
+    };
+  };
+
   programs.gnupg.agent = {
     enable = true;
     enableBrowserSocket = true;
   };
-  programs.java.enable = true;
-  programs.java.binfmt = true;
+
+  programs.java = {
+    package = pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25;
+    enable = true;
+    binfmt = true;
+  };
+
   programs.less.enable = true;
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
   programs.obs-studio.enable = true;
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
-  programs.steam = {
-    enable = true;
-    localNetworkGameTransfers.openFirewall = true;
-    protontricks.enable = true;
-    remotePlay.openFirewall = true;
-  };
   programs.tcpdump.enable = true;
-  programs.thunderbird.enable = true;
-  programs.wireshark.enable = true;
-  programs.wireshark.dumpcap.enable = true;
-  programs.wireshark.usbmon.enable = true;
+
+  programs.wireshark = {
+    package = pkgsUnstable.wireshark;
+    enable = true;
+    dumpcap.enable = true;
+    usbmon.enable = true;
+  };
+
+  programs.steam = {
+    package = pkgsUnstable.steam;
+    enable = true;
+    remotePlay.openFirewall = true;
+    protontricks.enable = true;
+    localNetworkGameTransfers.openFirewall = true;
+    extest.enable = true;
+    dedicatedServer.openFirewall = true;
+    gamescopeSession.enable = true;
+    extraPackages = with pkgs; [
+      gamescope
+      pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
+    ];
+  };
 
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
