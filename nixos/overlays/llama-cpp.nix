@@ -1,9 +1,23 @@
-{ llamaPkgs, ... }:
+{ overridePkgs, ... }:
 (self: super: {
-  llama-cpp = llamaPkgs.llamaPackages.llama-cpp.override {
-    llamaVersion = "1.2.3";
-    buildAllCudaFaQuants = true;
-    useMpi = true;
-    rocmGpuTargets = "gfx1100";
-  };
+  llama-cpp =
+    (overridePkgs.llamaPackages.llama-cpp.override {
+      llamaVersion = "4.2.0";
+      useRocm = true;
+      rocmGpuTargets = "gfx1100";
+      useVulkan = false;
+      useMpi = true;
+    }).overrideAttrs
+      (oldAttrs: {
+        # This instructs Nix to run the build outside the sandbox,
+        # allowing access to the network to download the models.
+        # Requires 'sandbox = relaxed' or 'false' in /etc/nix/nix.conf
+        __noChroot = true;
+
+        # Add 'cacert' to the build inputs so SSL certificates are available
+        nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ super.cacert ];
+
+        # Tell CMake/Curl where to find the certificates
+        SSL_CERT_FILE = "${super.cacert}/etc/ssl/certs/ca-bundle.crt";
+      });
 })
