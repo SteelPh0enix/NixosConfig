@@ -14,4 +14,5 @@
 
   nix.settings.auto-optimise-store = true;
   nix.channel.enable = false;
+  nix.settings.sandbox = "relaxed";
 }
