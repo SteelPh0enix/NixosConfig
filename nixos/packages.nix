@@ -11,7 +11,7 @@ let
     overlays = [
       (llama-cpp.overlays.default)
       (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
-      (import ./overlays/llama-cpp.nix { llamaPkgs = pkgsUnstable; })
+      (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
     ];
     system = pkgs.system;
     config.allowUnfree = true;
