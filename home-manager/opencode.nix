@@ -43,12 +43,21 @@
           "grep *" = "allow";
           "rg *" = "allow";
           "ls *" = "allow";
+          "fd *" = "allow";
+          "fd * -x *" = "ask";
+          "fd * | *" = "ask";
           "git commit *" = "ask";
           "git push *" = "deny";
           "git status *" = "allow";
           "yarn build *" = "allow";
           "yarn test *" = "allow";
           "yarn lint *" = "allow";
+          "uv run *" = "allow";
+          "uv tree *" = "allow";
+          "uv build *" = "allow";
+          "uv tool *" = "allow";
+          "uv help *" = "allow";
+          "uv format *" = "allow";
         };
         read = {
           "*.md" = "allow";
