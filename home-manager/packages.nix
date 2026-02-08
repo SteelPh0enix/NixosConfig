@@ -12,12 +12,13 @@ let
 in
 {
   home.packages = with pkgs; [
-    firefox
     keepassxc
     protonvpn-gui
     quodlibet-xine-full
     ungoogled-chromium
     zenmap
+
+    pkgsUnstable.glibc
 
     nix-ai-tools.packages.${system}.crush
   ];
@@ -28,7 +29,6 @@ in
     package = pkgsUnstable.vscode.fhsWithPackages (
       ps: with ps; [
         automake
-        cmake
         curl
         eslint
         gcc15
@@ -36,9 +36,7 @@ in
         gnumake
         icu
         lldb
-        llvmPackages_21.clang-tools
-        llvmPackages_21.clang-unwrapped
-        llvmPackages_21.openmp
+        llvmPackages.clang-unwrapped
         lua
         luajit
         nixd
@@ -48,8 +46,11 @@ in
         npm-check
         openssl.dev
         pkg-config
+        pkgsUnstable.clang-tools
+        pkgsUnstable.cmake
         pkgsUnstable.git-lfs
         pkgsUnstable.gitFull
+        pkgsUnstable.glibc
         pkgsUnstable.ninja
         pkgsUnstable.ruff
         pkgsUnstable.uv
