@@ -13,7 +13,7 @@ let
       (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
       (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
     ];
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
     config.rocmSupport = true;
   };
@@ -36,14 +36,11 @@ in
       ];
     })
 
-    pkgsUnstable.nerd-font-patcher
-
     bear
     blueman
     ccache
     cifs-utils
     clang
-    clang-tools
     curl
     dmidecode
     dnsutils
@@ -95,12 +92,14 @@ in
     parted
     pciutils
     pkgsUnstable.btop-rocm
+    pkgsUnstable.clang-tools
     pkgsUnstable.cmake
     pkgsUnstable.eza
     pkgsUnstable.fastfetch
     pkgsUnstable.fd
     pkgsUnstable.ffmpeg-full
     pkgsUnstable.fzf
+    pkgsUnstable.glibc
     pkgsUnstable.jq
     pkgsUnstable.llama-cpp
     pkgsUnstable.mc
@@ -112,7 +111,6 @@ in
     pkgsUnstable.uv
     pkgsUnstable.valgrind
     psmisc
-    python314
     rsync
     socat
     sqlite
@@ -175,10 +173,14 @@ in
   };
 
   programs.evince.enable = true;
-  programs.firefox.enable = true;
+
+  programs.firefox = {
+    enable = true;
+    package = pkgsUnstable.firefox;
+  };
 
   programs.fish = {
-    package = pkgsUnstable.fish;
+    package = pkgs.fish;
     enable = true;
   };
 
