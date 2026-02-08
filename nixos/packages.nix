@@ -11,11 +11,8 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     overlays = [
       (import ./overlays/rocm.nix { overridePkgs = pkgsUnstable; })
-      # (import ./overlays/torch.nix { overridePkgs = pkgsUnstable; })
       (llama-cpp.overlays.default)
       (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
-      (import ./overlays/ollama.nix { overridePkgs = pkgsUnstable; })
-      # (import ./overlays/vllm.nix { overridePkgs = pkgsUnstable; })
     ];
     system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
@@ -35,7 +32,6 @@ in
     blueman
     ccache
     clang
-    clang-tools
     curl
     dmidecode
     dnsutils
@@ -86,6 +82,7 @@ in
     parted
     pciutils
     pkgsUnstable.btop-rocm
+    pkgsUnstable.clang-tools
     pkgsUnstable.cmake
     pkgsUnstable.eza
     pkgsUnstable.fastfetch
@@ -93,6 +90,7 @@ in
     pkgsUnstable.ffmpeg-full
     pkgsUnstable.flaresolverr
     pkgsUnstable.fzf
+    pkgsUnstable.glibc
     pkgsUnstable.jq
     pkgsUnstable.llama-cpp
     pkgsUnstable.mc
@@ -107,7 +105,6 @@ in
     pkgsUnstable.uv
     pkgsUnstable.valgrind
     psmisc
-    python315
     rsync
     socat
     sqlite
@@ -173,7 +170,11 @@ in
   };
 
   programs.evince.enable = true;
-  programs.firefox.enable = true;
+
+  programs.firefox = {
+    enable = true;
+    package = pkgsUnstable.firefox;
+  };
 
   programs.fish = {
     package = pkgs.fish;
