@@ -12,13 +12,7 @@ let
 in
 {
   home.packages = with pkgs; [
-    blender-hip
-    discord
     drawio
-    firefox
-    freecad
-    gimp
-    inkscape-with-extensions
     keepassxc
     krename
     libreoffice-qt6-fresh
@@ -27,14 +21,21 @@ in
     qbittorrent-enhanced
     quodlibet-xine-full
     spotify
-    teams-for-linux
     ungoogled-chromium
     zenmap
 
+    pkgsUnstable.blender-hip
+    pkgsUnstable.discord
+    pkgsUnstable.firefox
+    pkgsUnstable.freecad
+    pkgsUnstable.gimp
+    pkgsUnstable.inkscape-with-extensions
+    pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
     pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
     pkgsUnstable.stm32cubemx
+    pkgsUnstable.teams-for-linux
     pkgsUnstable.vkd3d
     pkgsUnstable.vlc
     pkgsUnstable.winePackages.stagingFull
