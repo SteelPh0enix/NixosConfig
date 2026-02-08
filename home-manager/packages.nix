@@ -6,17 +6,16 @@
 }:
 let
   pkgsUnstable = import nixpkgs-unstable {
-    system = pkgs.system;
+    system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
+    config.rocmSupport = true;
   };
 in
 {
   home.packages = with pkgs; [
-    drawio
     keepassxc
     krename
     libreoffice-qt6-fresh
-    orca-slicer
     protonvpn-gui
     qbittorrent-enhanced
     quodlibet-xine-full
@@ -24,11 +23,13 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.blender-hip
+    pkgsUnstable.drawio
+    pkgsUnstable.orca-slicer
+    pkgsUnstable.blender
     pkgsUnstable.discord
-    pkgsUnstable.firefox
     pkgsUnstable.freecad
     pkgsUnstable.gimp
+    pkgsUnstable.glibc
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
@@ -41,7 +42,7 @@ in
     pkgsUnstable.winePackages.stagingFull
     pkgsUnstable.winetricks
 
-    nix-ai-tools.packages.${pkgs.system}.crush
+    nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.crush
   ];
 
   programs.vscode = {
@@ -50,18 +51,14 @@ in
     package = pkgsUnstable.vscode.fhsWithPackages (
       ps: with ps; [
         automake
-        cmake
         curl
         eslint
         gcc15
         gdb
-        glibc
         gnumake
         icu
         lldb
-        llvmPackages_21.clang-tools
-        llvmPackages_21.clang-unwrapped
-        llvmPackages_21.openmp
+        llvmPackages.clang-unwrapped
         lua
         luajit
         nixd
@@ -71,8 +68,11 @@ in
         npm-check
         openssl.dev
         pkg-config
+        pkgsUnstable.clang-tools
+        pkgsUnstable.cmake
         pkgsUnstable.git-lfs
         pkgsUnstable.gitFull
+        pkgsUnstable.glibc
         pkgsUnstable.ninja
         pkgsUnstable.ruff
         pkgsUnstable.uv
