@@ -35,7 +35,6 @@
     dotnetCorePackages.sdk_9_0-bin
     exfat
     exfatprogs
-    fastfetch
     file
     findutils
     gawk
@@ -60,7 +59,6 @@
     lua
     luajit
     mc
-    mypy
     ncdu
     ncurses5
     nil
@@ -81,20 +79,22 @@
     pkgsUnstable.curl
     pkgsUnstable.eslint
     pkgsUnstable.eza
+    pkgsUnstable.fastfetch
     pkgsUnstable.fd
     pkgsUnstable.ffmpeg
     pkgsUnstable.fzf
     pkgsUnstable.jq
+    pkgsUnstable.mypy
     pkgsUnstable.ninja
     pkgsUnstable.p7zip
     pkgsUnstable.ripgrep
     pkgsUnstable.ruff
+    pkgsUnstable.rustup
     pkgsUnstable.uv
     pkgsUnstable.uv-sort
+    pkgsUnstable.valgrind
     psmisc
     rsync
-    rust-analyzer
-    rustup
     socat
     sqlite
     sshpass
@@ -102,7 +102,6 @@
     sysstat
     tree
     usbutils
-    valgrind
     wget
     which
     xz
@@ -112,16 +111,21 @@
     zstd
   ];
 
-  programs.appimage.enable = true;
-  programs.appimage.binfmt = true;
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
+  };
 
   programs.bat = {
     enable = true;
     package = pkgsUnstable.bat;
   };
 
-  programs.ccache.enable = true;
-  programs.ccache.cacheDir = "/var/cache/ccache";
+  programs.ccache = {
+    enable = true;
+    cacheDir = "/var/cache/ccache";
+  };
+
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
 
@@ -139,7 +143,7 @@
   programs.firefox.enable = true;
 
   programs.fish = {
-    package = pkgsUnstable.fish;
+    package = pkgs.fish;
     enable = true;
   };
 

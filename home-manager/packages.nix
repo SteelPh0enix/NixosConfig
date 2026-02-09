@@ -22,20 +22,16 @@ in
     package = pkgsUnstable.vscode.fhsWithPackages (
       ps: with ps; [
         automake
-        cmake
         curl
         dotnetCorePackages.runtime_9_0-bin
         dotnetCorePackages.sdk_9_0-bin
         eslint
         gcc15
         gdb
-        glibc
         gnumake
         icu
         lldb
-        llvmPackages_21.clang-tools
-        llvmPackages_21.clang-unwrapped
-        llvmPackages_21.openmp
+        llvmPackages.clang-unwrapped
         lua
         luajit
         nixd
@@ -45,16 +41,21 @@ in
         npm-check
         openssl.dev
         pkg-config
+        pkgsUnstable.clang-tools
+        pkgsUnstable.cmake
         pkgsUnstable.git-lfs
         pkgsUnstable.gitFull
+        pkgsUnstable.glibc
+        pkgsUnstable.glibc
         pkgsUnstable.ninja
+        pkgsUnstable.ruff
         pkgsUnstable.uv
         pkgsUnstable.uv-sort
         pkgsUnstable.yarn
-        ruff
         rustup
         sqlite
         wget
+        yarn
         zlib
       ]
     );
