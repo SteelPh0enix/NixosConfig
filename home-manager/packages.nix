@@ -23,16 +23,17 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.drawio
-    pkgsUnstable.orca-slicer
     pkgsUnstable.blender
     pkgsUnstable.discord
+    pkgsUnstable.drawio
+    pkgsUnstable.element-desktop
     pkgsUnstable.freecad
     pkgsUnstable.gimp
     pkgsUnstable.glibc
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
+    pkgsUnstable.orca-slicer
     pkgsUnstable.prismlauncher
     pkgsUnstable.protonup-qt
     pkgsUnstable.stm32cubemx
