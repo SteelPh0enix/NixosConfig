@@ -25,4 +25,10 @@
 
   qt.platformTheme = "kde";
   qt.style = "bb10dark";
+
+  xdg.portal = {
+    enable = true;
+    xdgOpenUsePortal = true;
+    wlr.enable = true;
+  };
 }

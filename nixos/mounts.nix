@@ -8,7 +8,7 @@
       "nofail"
       "rw"
       "uid=1000"
-      "gid=1000"
+      "gid=100"
       "dmask=007"
       "fmask=117"
     ];
@@ -24,7 +24,7 @@
       "exec"
       "rw"
       "uid=1000"
-      "gid=1000"
+      "gid=100"
       "dmask=007"
       "fmask=117"
     ];
@@ -40,7 +40,7 @@
       "exec"
       "rw"
       "uid=1000"
-      "gid=1000"
+      "gid=100"
       "dmask=007"
       "fmask=117"
     ];
@@ -56,7 +56,7 @@
       "exec"
       "rw"
       "uid=1000"
-      "gid=1000"
+      "gid=100"
       "dmask=007"
       "fmask=117"
     ];
