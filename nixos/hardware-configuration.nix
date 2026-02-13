@@ -19,35 +19,45 @@
     "ahci"
     "usbhid"
     "usb_storage"
+    "uas"
     "sd_mod"
   ];
   boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [ ];
+  boot.kernelModules = [ "kvm-amd" ];
   boot.kernelParams = [ ];
   boot.extraModulePackages = [ ];
 
-  fileSystems."/" = {
-    device = "/dev/disk/by-uuid/b95b04f5-420e-4798-9957-ef3bd1fa5140";
-    fsType = "ext4";
-  };
+    fileSystems."/" =
+    { device = "/dev/disk/by-uuid/c7acf5c4-98da-40a3-b0b2-ce0a9e8a434b";
+      fsType = "ext4";
+    };
 
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/4CA9-4897";
-    fsType = "vfat";
-    options = [
-      "fmask=0077"
-      "dmask=0077"
-    ];
-  };
+  fileSystems."/boot" =
+    { device = "/dev/disk/by-uuid/6093-4F89";
+      fsType = "vfat";
+      options = [ "fmask=0077" "dmask=0077" ];
+    };
 
-  fileSystems."/home" = {
-    device = "/dev/disk/by-uuid/aef29197-5ec5-4f05-9103-a3e879251320";
-    fsType = "ext4";
-  };
+  fileSystems."/mnt/HDD" =
+    { device = "/dev/disk/by-uuid/d0e55b8c-bc95-4860-b47c-a95d4d16e75a";
+      fsType = "ext4";
+      options = [ "nofail" ];
+    };
+
+  fileSystems."/mnt/NVMe" =
+    { device = "/dev/disk/by-uuid/cab337e4-b58c-4b41-8cee-7794f7ed5567";
+      fsType = "ext4";
+      options = [ "nofail" ];
+    };
+
+  fileSystems."/mnt/SSD" =
+    { device = "/dev/disk/by-uuid/8a7aebcc-10e5-4ba7-b901-ba1fff5b3b98";
+      fsType = "ext4";
+      options = [ "nofail" ];
+    };
+
 
   swapDevices = [ ];
-
-  networking.useDHCP = lib.mkDefault true;
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
