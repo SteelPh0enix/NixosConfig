@@ -96,6 +96,7 @@
         "llama.cpp"
         "moonshotai"
         "nvidia"
+        "novita-ai"
       ];
 
       mcp = {
