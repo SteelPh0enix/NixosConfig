@@ -39,7 +39,6 @@ in
     pkgsUnstable.stm32cubemx
     pkgsUnstable.teams-for-linux
     pkgsUnstable.vkd3d
-    pkgsUnstable.vlc
     pkgsUnstable.winePackages.stagingFull
     pkgsUnstable.winetricks
 

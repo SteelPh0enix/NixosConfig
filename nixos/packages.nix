@@ -101,7 +101,7 @@ in
     pkgsUnstable.fzf
     pkgsUnstable.glibc
     pkgsUnstable.jq
-    #pkgsUnstable.llama-cpp
+    pkgsUnstable.llama-cpp
     pkgsUnstable.mc
     pkgsUnstable.ncdu
     pkgsUnstable.nerd-font-patcher
