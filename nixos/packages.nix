@@ -37,6 +37,7 @@ in
     })
 
     bear
+    bzip3
     blueman
     ccache
     cifs-utils
@@ -111,6 +112,7 @@ in
     pkgsUnstable.uv
     pkgsUnstable.valgrind
     psmisc
+    rar
     rsync
     socat
     sqlite
@@ -120,6 +122,8 @@ in
     thermald
     traceroute
     tree
+    unrar
+    unzip
     usbutils
     vk-bootstrap
     vkd3d
