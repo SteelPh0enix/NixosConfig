@@ -24,7 +24,6 @@ in
     zenmap
 
     pkgsUnstable.blender
-    pkgsUnstable.discord
     pkgsUnstable.drawio
     pkgsUnstable.element-desktop
     pkgsUnstable.freecad
