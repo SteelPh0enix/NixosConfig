@@ -81,6 +81,7 @@ in
     p7zip
     parted
     pciutils
+    pkg-config
     pkgsUnstable.btop-rocm
     pkgsUnstable.clang-tools
     pkgsUnstable.cmake
