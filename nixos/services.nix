@@ -168,6 +168,10 @@ in
         WIKI = "pubkey";
         MERGES = "pubkey, basesigned, commitssigned";
       };
+      actions = {
+        ENABLED = true;
+        DEFAULT_ACTIONS_URL = "github";
+      };
     };
   };
 
@@ -180,7 +184,7 @@ in
       tokenFile = "/home/gitea/runner-token";
       labels = [
         "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-        "ubuntu-latest:docker://node:latest"
+        "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
       ];
       settings = {
         container = {
