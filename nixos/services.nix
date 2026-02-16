@@ -177,8 +177,8 @@ in
 
   services.gitea-actions-runner = {
     package = pkgsUnstable.gitea-actions-runner;
-    instances."RX-78" = {
-      name = "RX-78";
+    instances.framework = {
+      name = "framework";
       enable = true;
       url = "http://steelph0enix.framework:6969/";
       tokenFile = "/home/gitea/runner-token";
@@ -198,7 +198,7 @@ in
     };
   };
 
-  systemd.services."gitea-runner-RX-78" = {
+  systemd.services."gitea-runner-framework" = {
     serviceConfig = {
       # Disable DynamicUser to allow adding the user to the 'docker' group
       DynamicUser = lib.mkForce false;
