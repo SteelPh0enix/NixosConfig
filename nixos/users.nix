@@ -14,7 +14,7 @@
     steelph0enix = { };
     quake = { };
     jellyfin = { };
-    gitea-runner = { };
+    gitea = { };
   };
 
   users.users = {
@@ -77,13 +77,6 @@
     gitea = {
       isNormalUser = false;
       group = "gitea";
-    };
-
-    gitea-runner = {
-      isSystemUser = true;
-      group = "gitea-runner";
-      extraGroups = [ "docker" ];
-      description = "Gitea Actions Runner User";
     };
   };
 
