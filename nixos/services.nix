@@ -200,11 +200,8 @@ in
 
   systemd.services."gitea-runner-framework" = {
     serviceConfig = {
-      # Disable DynamicUser to allow adding the user to the 'docker' group
-      DynamicUser = lib.mkForce false;
-      User = "gitea-runner";
-      Group = "gitea-runner";
       SupplementaryGroups = [ "docker" ];
+      Restart = lib.mkForce "no";
     };
   };
 
