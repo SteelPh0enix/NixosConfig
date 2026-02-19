@@ -8,7 +8,7 @@ let
   pkgsUnstable = import nixpkgs-unstable {
     system = pkgs.stdenv.hostPlatform.system;
     config.allowUnfree = true;
-    config.rocmSupport = true;
+    config.rocmSupport = false;
   };
 in
 {
@@ -23,7 +23,7 @@ in
     ungoogled-chromium
     zenmap
 
-    pkgsUnstable.blender
+    # pkgsUnstable.blender
     pkgsUnstable.drawio
     pkgsUnstable.element-desktop
     pkgsUnstable.freecad
