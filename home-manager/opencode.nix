@@ -126,6 +126,13 @@
               output = 65536;
             };
           };
+          "glm-flash-opus" = {
+            name = "GLM Flash (Claude Opus distill)";
+            limit = {
+              context = 202752;
+              output = 65536;
+            };
+          };
           "qwen-coder" = {
             name = "Qwen Coder";
             limit = {
