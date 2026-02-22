@@ -24,16 +24,21 @@ in
     zenmap
 
     # pkgsUnstable.blender
+    pkgsUnstable.bottles
     pkgsUnstable.drawio
+    pkgsUnstable.dxvk
     pkgsUnstable.element-desktop
     pkgsUnstable.freecad
     pkgsUnstable.gimp
     pkgsUnstable.glibc
+    pkgsUnstable.heroic
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
+    pkgsUnstable.lutris
     pkgsUnstable.orca-slicer
     pkgsUnstable.prismlauncher
+    pkgsUnstable.protontricks
     pkgsUnstable.protonup-qt
     pkgsUnstable.stm32cubemx
     pkgsUnstable.teams-for-linux

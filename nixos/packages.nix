@@ -129,10 +129,12 @@ in
     vkd3d
     vkdisplayinfo
     vkmark
+    websocat
     wget
     which
     wireguard-tools
     xz
+    zenity
     zip
     zstd
 
