@@ -105,6 +105,7 @@ in
     pkgsUnstable.steamcmd
     pkgsUnstable.uv
     pkgsUnstable.valgrind
+    pkgsUnstable.weechat
     psmisc
     rsync
     socat
