@@ -37,8 +37,9 @@ in
     })
 
     bear
-    bzip3
     blueman
+    boost
+    bzip3
     ccache
     cifs-utils
     clang
@@ -127,8 +128,13 @@ in
     usbutils
     vk-bootstrap
     vkd3d
+    vkdevicechooser
     vkdisplayinfo
     vkmark
+    vulkan-extension-layer
+    vulkan-helper
+    vulkan-tools
+    vulkan-utility-libraries
     websocat
     wget
     which
