@@ -23,6 +23,7 @@
     ./services/samba.nix
     ./services/wireguard.nix
     ./services/llm-router.nix
+    ./services/minecraft-server.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
