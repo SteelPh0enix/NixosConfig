@@ -1,16 +1,11 @@
 {
   lib,
   pkgs,
-  nixpkgs-unstable,
+  pkgsUnstable,
   inputs,
   ...
 }:
 let
-  pkgsUnstable = import nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-  };
-
   motdConfig = pkgs.writeText "rust-motd.kdl" ''
     global {
         version "1.0"

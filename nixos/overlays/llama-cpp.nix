@@ -1,7 +1,6 @@
-{ overridePkgs, ... }:
-(self: super: {
+final: prev: {
   llama-cpp =
-    (overridePkgs.llamaPackages.llama-cpp.override {
+    (prev.llamaPackages.llama-cpp.override {
       llamaVersion = "4.2.0";
       useRocm = false;
       useVulkan = true;
@@ -14,9 +13,9 @@
         __noChroot = true;
 
         # Add 'cacert' to the build inputs so SSL certificates are available
-        nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ super.cacert ];
+        nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ prev.cacert ];
 
         # Tell CMake/Curl where to find the certificates
-        SSL_CERT_FILE = "${super.cacert}/etc/ssl/certs/ca-bundle.crt";
+        SSL_CERT_FILE = "${prev.cacert}/etc/ssl/certs/ca-bundle.crt";
       });
-})
+}

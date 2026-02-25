@@ -1,24 +1,11 @@
 {
   config,
   pkgs,
-  nixpkgs-unstable,
-  llama-cpp,
+  pkgsUnstable,
   rust-overlay,
   inputs,
   ...
 }:
-let
-  pkgsUnstable = import nixpkgs-unstable {
-    overlays = [
-      (import ./overlays/rocm.nix { overridePkgs = pkgsUnstable; })
-      (llama-cpp.overlays.default)
-      (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
-    ];
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-    config.rocmSupport = false;
-  };
-in
 {
   nixpkgs.overlays = [
     rust-overlay.overlays.default
@@ -26,7 +13,7 @@ in
   ];
 
   environment.systemPackages = with pkgs; [
-
+    # System utilities
     bear
     bindfs
     blueman
@@ -46,7 +33,6 @@ in
     gawk
     gcc
     gdb
-    gh
     gnugrep
     gnused
     gnutar
@@ -71,9 +57,6 @@ in
     lsof
     ltrace
     nil
-    nixd
-    nixfmt
-    nixpkgs-review
     nmap
     ntfs3g
     openssh
@@ -82,30 +65,6 @@ in
     parted
     pciutils
     pkg-config
-    pkgsUnstable.btop-rocm
-    pkgsUnstable.clang-tools
-    pkgsUnstable.cmake
-    pkgsUnstable.eza
-    pkgsUnstable.fastfetch
-    pkgsUnstable.fd
-    pkgsUnstable.ffmpeg-full
-    pkgsUnstable.flaresolverr
-    pkgsUnstable.fzf
-    pkgsUnstable.glibc
-    pkgsUnstable.jq
-    pkgsUnstable.llama-cpp
-    pkgsUnstable.mc
-    pkgsUnstable.ncdu
-    pkgsUnstable.nerd-font-patcher
-    pkgsUnstable.ninja
-    pkgsUnstable.radeontop
-    pkgsUnstable.ripgrep
-    pkgsUnstable.rust-motd
-    pkgsUnstable.steam-tui
-    pkgsUnstable.steamcmd
-    pkgsUnstable.uv
-    pkgsUnstable.valgrind
-    pkgsUnstable.weechat
     psmisc
     rsync
     socat
@@ -128,6 +87,23 @@ in
     xz
     zip
     zstd
+
+    # Unstable packages
+    pkgsUnstable.btop-rocm
+    pkgsUnstable.fastfetch
+    pkgsUnstable.ffmpeg-full
+    pkgsUnstable.flaresolverr
+    pkgsUnstable.jq
+    pkgsUnstable.llama-cpp
+    pkgsUnstable.mc
+    pkgsUnstable.ncdu
+    pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.radeontop
+    pkgsUnstable.rust-motd
+    pkgsUnstable.steam-tui
+    pkgsUnstable.steamcmd
+    pkgsUnstable.valgrind
+    pkgsUnstable.weechat
 
     inputs.compose2nix.packages.x86_64-linux.default
 
