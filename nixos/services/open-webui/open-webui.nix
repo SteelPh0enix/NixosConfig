@@ -14,7 +14,14 @@
       };
 
       wantedBy = [ "multi-user.target" ];
-      after = [ "pihole.service" ];
+      wants = [
+        "pihole.service"
+        "network-online.target"
+      ];
+      after = [
+        "pihole.service"
+        "network-online.target"
+      ];
     };
   };
 }
