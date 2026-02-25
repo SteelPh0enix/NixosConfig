@@ -121,6 +121,20 @@
               output = 65536;
             };
           };
+          "qwen-35-coder" = {
+            name = "Qwen 3.5 Coder";
+            limit = {
+              context = 262144;
+              output = 65536;
+            };
+          };
+          "minimax-m25" = {
+            name = "MiniMax-M2.5";
+            limit = {
+              context = 100000;
+              output = 32768;
+            };
+          };
         };
       };
     };
