@@ -2,7 +2,6 @@
   pkgs,
   pkgsUnstable,
   nix-ai-tools,
-  system,
   ...
 }:
 {
@@ -13,7 +12,7 @@
     ungoogled-chromium
     zenmap
 
-    nix-ai-tools.packages.${system}.crush
+    nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.crush
   ];
 
   programs.vscode = {
