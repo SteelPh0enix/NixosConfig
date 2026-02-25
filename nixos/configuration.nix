@@ -22,6 +22,7 @@
     ./services/lancache.nix
     ./services/samba.nix
     ./services/wireguard.nix
+    ./services/llm-router.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
