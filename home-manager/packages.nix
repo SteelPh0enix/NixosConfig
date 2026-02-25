@@ -1,15 +1,10 @@
 {
   pkgs,
+  pkgsUnstable,
   nix-ai-tools,
-  nixpkgs-unstable,
+  system,
   ...
 }:
-let
-  pkgsUnstable = import nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-  };
-in
 {
   home.packages = with pkgs; [
     keepassxc
@@ -17,8 +12,6 @@ in
     quodlibet-xine-full
     ungoogled-chromium
     zenmap
-
-    pkgsUnstable.glibc
 
     nix-ai-tools.packages.${system}.crush
   ];
@@ -39,22 +32,10 @@ in
         llvmPackages.clang-unwrapped
         lua
         luajit
-        nixd
-        nixfmt
-        nixpkgs-review
         nodejs
         npm-check
         openssl.dev
         pkg-config
-        pkgsUnstable.clang-tools
-        pkgsUnstable.cmake
-        pkgsUnstable.git-lfs
-        pkgsUnstable.gitFull
-        pkgsUnstable.glibc
-        pkgsUnstable.ninja
-        pkgsUnstable.ruff
-        pkgsUnstable.uv
-        pkgsUnstable.uv-sort
         rustup
         sqlite
         wget

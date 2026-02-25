@@ -1,20 +1,10 @@
 { pkgs, ... }:
 {
+  # Only define custom groups not auto-created by NixOS modules
   users.groups = {
-    wheel = { };
-    video = { };
-    networkmanager = { };
-    render = { };
-    pcap = { };
-    wireshark = { };
-    docker = { };
-    vboxusers = { };
-    plugdev = { };
-    samba = { };
     steelph0enix = { };
     quake = { };
-    jellyfin = { };
-    gitea = { };
+    samba = { };
   };
 
   users.users = {
@@ -60,6 +50,7 @@
       ];
     };
 
+    # Service users - groups auto-created by NixOS modules
     jellyfin = {
       isNormalUser = false;
       group = "users";
