@@ -13,6 +13,7 @@ in
 {
   home.packages = with pkgs; [
     keepassxc
+    chromium
     nix-ai-tools.packages.${pkgs.system}.crush
   ];
 
