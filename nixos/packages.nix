@@ -26,6 +26,7 @@ in
       ];
     })
 
+    # pkgsUnstable.llama-cpp
     bear
     blueman
     boost
@@ -33,7 +34,6 @@ in
     ccache
     cifs-utils
     clang
-    pkgsUnstable.curl
     dmidecode
     dnsutils
     docker
@@ -68,10 +68,6 @@ in
     lm_sensors
     lsof
     ltrace
-    pkgsUnstable.nil
-    pkgsUnstable.nixd
-    pkgsUnstable.nixfmt
-    pkgsUnstable.nixpkgs-review
     nmap
     ntfs3g
     openssh
@@ -82,37 +78,43 @@ in
     pkgsUnstable.btop-rocm
     pkgsUnstable.clang-tools
     pkgsUnstable.cmake
+    pkgsUnstable.curl
     pkgsUnstable.eza
     pkgsUnstable.fastfetch
     pkgsUnstable.fd
     pkgsUnstable.ffmpeg-full
+    pkgsUnstable.flatpak
     pkgsUnstable.fzf
     pkgsUnstable.jq
-    # pkgsUnstable.llama-cpp
     pkgsUnstable.mc
     pkgsUnstable.ncdu
     pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.nil
     pkgsUnstable.ninja
+    pkgsUnstable.nixd
+    pkgsUnstable.nixfmt
+    pkgsUnstable.nixpkgs-review
     pkgsUnstable.radeontop
     pkgsUnstable.ripgrep
+    pkgsUnstable.sqlite
+    pkgsUnstable.tree
     pkgsUnstable.uv
     pkgsUnstable.valgrind
+    pkgsUnstable.vkd3d
+    pkgsUnstable.wget
     psmisc
     rar
     rsync
     socat
-    pkgsUnstable.sqlite
     strace
     sysstat
     tcpdump
     thermald
     traceroute
-    pkgsUnstable.tree
     unrar
     unzip
     usbutils
     vk-bootstrap
-    pkgsUnstable.vkd3d
     vkdevicechooser
     vkdisplayinfo
     vkmark
@@ -121,7 +123,6 @@ in
     vulkan-tools
     vulkan-utility-libraries
     websocat
-    pkgsUnstable.wget
     which
     wireguard-tools
     xz
