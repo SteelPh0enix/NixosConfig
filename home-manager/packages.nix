@@ -13,6 +13,7 @@ let
 in
 {
   home.packages = with pkgs; [
+    freecad
     keepassxc
     krename
     libreoffice-qt6-fresh
@@ -27,7 +28,6 @@ in
     pkgsUnstable.drawio
     pkgsUnstable.dxvk
     pkgsUnstable.element-desktop
-    pkgsUnstable.freecad
     pkgsUnstable.gimp
     pkgsUnstable.glibc
     pkgsUnstable.heroic
