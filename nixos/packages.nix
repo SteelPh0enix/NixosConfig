@@ -1,22 +1,12 @@
 {
   config,
   pkgs,
-  nixpkgs-unstable,
-  llama-cpp,
+  pkgsUnstable,
   rust-overlay,
   ...
 }:
 let
-  pkgsUnstable = import nixpkgs-unstable {
-    overlays = [
-      (llama-cpp.overlays.default)
-      (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
-      (import ./overlays/llama-cpp.nix { overridePkgs = pkgsUnstable; })
-    ];
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-    config.rocmSupport = false;
-  };
+  pkgsUnstable' = pkgsUnstable.extend (import ./overlays/llama-cpp.nix);
 in
 {
   nixpkgs.overlays = [
@@ -43,14 +33,11 @@ in
     ccache
     cifs-utils
     clang
-    curl
+    pkgsUnstable.curl
     dmidecode
     dnsutils
     docker
     docker-buildx
-    dotnet-runtime_9
-    dotnet-sdk_9
-    exfat
     exfatprogs
     figlet
     file
@@ -59,7 +46,6 @@ in
     gawk
     gcc
     gdb
-    gh
     gnugrep
     gnused
     gnutar
@@ -82,10 +68,10 @@ in
     lm_sensors
     lsof
     ltrace
-    nil
-    nixd
-    nixfmt
-    nixpkgs-review
+    pkgsUnstable.nil
+    pkgsUnstable.nixd
+    pkgsUnstable.nixfmt
+    pkgsUnstable.nixpkgs-review
     nmap
     ntfs3g
     openssh
@@ -101,7 +87,6 @@ in
     pkgsUnstable.fd
     pkgsUnstable.ffmpeg-full
     pkgsUnstable.fzf
-    pkgsUnstable.glibc
     pkgsUnstable.jq
     # pkgsUnstable.llama-cpp
     pkgsUnstable.mc
@@ -116,18 +101,18 @@ in
     rar
     rsync
     socat
-    sqlite
+    pkgsUnstable.sqlite
     strace
     sysstat
     tcpdump
     thermald
     traceroute
-    tree
+    pkgsUnstable.tree
     unrar
     unzip
     usbutils
     vk-bootstrap
-    vkd3d
+    pkgsUnstable.vkd3d
     vkdevicechooser
     vkdisplayinfo
     vkmark
@@ -136,24 +121,13 @@ in
     vulkan-tools
     vulkan-utility-libraries
     websocat
-    wget
+    pkgsUnstable.wget
     which
     wireguard-tools
     xz
     zenity
     zip
     zstd
-
-    (rust-bin.stable.latest.default.override {
-      extensions = [
-        "cargo"
-        "rust-analysis"
-        "rust-src"
-        "rust-std"
-        "rustc"
-        "rustfmt"
-      ];
-    })
   ];
 
   systemd.packages = with pkgs; [ lact ];
@@ -199,16 +173,6 @@ in
   programs.fzf = {
     fuzzyCompletion = true;
     keybindings = true;
-  };
-
-  programs.git = {
-    enable = true;
-    package = pkgsUnstable.gitFull;
-    lfs = {
-      enable = true;
-      enablePureSSHTransfer = true;
-      package = pkgsUnstable.git-lfs;
-    };
   };
 
   programs.gnupg.agent = {

@@ -1,16 +1,9 @@
 {
   pkgs,
+  pkgsUnstable,
   nix-ai-tools,
-  nixpkgs-unstable,
   ...
 }:
-let
-  pkgsUnstable = import nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-    config.rocmSupport = false;
-  };
-in
 {
   home.packages = with pkgs; [
     freecad
@@ -24,12 +17,10 @@ in
     ungoogled-chromium
     zenmap
 
-    # pkgsUnstable.blender
     pkgsUnstable.drawio
     pkgsUnstable.dxvk
     pkgsUnstable.element-desktop
     pkgsUnstable.gimp
-    pkgsUnstable.glibc
     pkgsUnstable.heroic
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
@@ -46,6 +37,47 @@ in
 
     nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.crush
   ];
+
+  programs.git = {
+    enable = true;
+    lfs = {
+      enable = true;
+      package = pkgsUnstable.git-lfs;
+    };
+    package = pkgsUnstable.gitFull;
+    settings = {
+      user = {
+        name = "SteelPh0enix";
+        email = "wojciech_olech@hotmail.com";
+        signingkey = "141DE12C7B2F574B";
+      };
+      core.editor = "nvim";
+      merge.ff = true;
+      rerere.enabled = true;
+      safe.directory = "*";
+      pull.rebase = true;
+      push = {
+        autoSetupRemote = true;
+        default = "simple";
+      };
+      commit.gpgsign = true;
+      gpg.format = "openpgp";
+    };
+  };
+
+  programs.lazygit = {
+    enable = true;
+    package = pkgsUnstable.lazygit;
+    settings = {
+      gui = {
+        language = "en";
+      };
+      git = {
+        parseEmoji = true;
+        overrideGpg = true;
+      };
+    };
+  };
 
   programs.vscode = {
     enable = true;
@@ -74,7 +106,6 @@ in
         pkgsUnstable.cmake
         pkgsUnstable.git-lfs
         pkgsUnstable.gitFull
-        pkgsUnstable.glibc
         pkgsUnstable.ninja
         pkgsUnstable.ruff
         pkgsUnstable.uv
@@ -150,48 +181,6 @@ in
       "Shift+p" = "add chapter -1";
       "s" = "script-binding uosc/shuffle";
       "Shift+S" = "script-binding uosc/subtitles";
-    };
-  };
-
-  programs.git = {
-    enable = true;
-    lfs = {
-      enable = true;
-      package = pkgsUnstable.git-lfs;
-    };
-    package = pkgsUnstable.gitFull;
-    settings = {
-      user = {
-        name = "SteelPh0enix";
-        email = [ "wojciech_olech@hotmail.com" ];
-        signingkey = "141DE12C7B2F574B";
-      };
-      core.editor = "nvim";
-      merge.ff = true;
-      rerere.enabled = true;
-      safe.directory = "*";
-      pull.rebase = true;
-      push = {
-        autoSetupRemote = true;
-        default = "simple";
-      };
-      commit.gpgsign = true;
-      gpg.format = "openpgp";
-    };
-
-  };
-
-  programs.lazygit = {
-    enable = true;
-    package = pkgsUnstable.lazygit;
-    settings = {
-      gui = {
-        language = "en";
-      };
-      git = {
-        parseEmoji = true;
-        overrideGpg = true;
-      };
     };
   };
 

@@ -28,10 +28,24 @@
       nixpkgs-unstable,
       home-manager,
       nix-index-database,
+      rust-overlay,
+      llama-cpp,
       ...
     }@inputs:
     let
       inherit (self) outputs;
+      system = "x86_64-linux";
+
+      pkgsUnstable = import nixpkgs-unstable {
+        inherit system;
+        config = {
+          allowUnfree = true;
+          rocmSupport = false;
+        };
+        overlays = [
+          llama-cpp.overlays.default
+        ];
+      };
     in
     {
       nixosConfigurations = {
@@ -41,6 +55,7 @@
               inherit
                 inputs
                 outputs
+                pkgsUnstable
                 ;
             };
           in
