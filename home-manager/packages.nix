@@ -24,7 +24,6 @@ in
     zenmap
 
     # pkgsUnstable.blender
-    pkgsUnstable.bottles
     pkgsUnstable.drawio
     pkgsUnstable.dxvk
     pkgsUnstable.element-desktop
@@ -35,7 +34,6 @@ in
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
-    pkgsUnstable.lutris
     pkgsUnstable.orca-slicer
     pkgsUnstable.prismlauncher
     pkgsUnstable.protontricks
