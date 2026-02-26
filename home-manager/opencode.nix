@@ -43,12 +43,21 @@
           "grep *" = "allow";
           "rg *" = "allow";
           "ls *" = "allow";
+          "fd *" = "allow";
+          "fd * -x *" = "ask";
+          "fd * | *" = "ask";
           "git commit *" = "ask";
           "git push *" = "deny";
           "git status *" = "allow";
           "yarn build *" = "allow";
           "yarn test *" = "allow";
           "yarn lint *" = "allow";
+          "uv run *" = "allow";
+          "uv tree *" = "allow";
+          "uv build *" = "allow";
+          "uv tool *" = "allow";
+          "uv help *" = "allow";
+          "uv format *" = "allow";
         };
         read = {
           "*.md" = "allow";
@@ -87,6 +96,8 @@
         "llama.cpp"
         "moonshotai"
         "nvidia"
+        "novita-ai"
+        "openrouter"
       ];
 
       mcp = {
@@ -116,11 +127,32 @@
               output = 65536;
             };
           };
+          "glm-flash-opus" = {
+            name = "GLM Flash (Claude Opus distill)";
+            limit = {
+              context = 202752;
+              output = 65536;
+            };
+          };
           "qwen-coder" = {
             name = "Qwen Coder";
             limit = {
               context = 262144;
               output = 65536;
+            };
+          };
+          "qwen-35-coder" = {
+            name = "Qwen 3.5 Coder";
+            limit = {
+              context = 262144;
+              output = 65536;
+            };
+          };
+          "minimax-m25" = {
+            name = "MiniMax-M2.5";
+            limit = {
+              context = 100000;
+              output = 32768;
             };
           };
         };
