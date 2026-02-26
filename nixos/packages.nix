@@ -87,9 +87,11 @@
     pkgsUnstable.mypy
     pkgsUnstable.ninja
     pkgsUnstable.p7zip
+    pkgsUnstable.pandoc
     pkgsUnstable.ripgrep
     pkgsUnstable.ruff
     pkgsUnstable.rustup
+    pkgsUnstable.typst
     pkgsUnstable.uv
     pkgsUnstable.uv-sort
     pkgsUnstable.valgrind
