@@ -31,39 +31,41 @@
     let
       system = "x86_64-linux";
       inherit (self) outputs;
+
+      pkgsUnstable = import nixpkgs-unstable {
+        inherit system;
+        config.allowUnfree = true;
+      };
+
+      nixAiTools = inputs.nix-ai-tools;
+
+      specialArgs = {
+        inherit
+          inputs
+          outputs
+          pkgsUnstable
+          nixAiTools
+          ;
+      };
     in
     {
       nixosConfigurations = {
-        steelph0enix-work-vm =
-          let
-            specialArgs = {
-              inherit
-                inputs
-                outputs
-                ;
-
-              pkgsUnstable = import nixpkgs-unstable {
-                inherit system;
-                config.allowUnfree = true;
-              };
-            };
-          in
-          nixpkgs.lib.nixosSystem {
-            inherit specialArgs system;
-            modules = [
-              { _module.args = inputs; }
-              ./nixos/configuration.nix
-              nix-index-database.nixosModules.nix-index
-              home-manager.nixosModules.home-manager
-              {
-                home-manager.backupFileExtension = ".hmgr.backup";
-                home-manager.useGlobalPkgs = true;
-                home-manager.useUserPackages = true;
-                home-manager.extraSpecialArgs = inputs // specialArgs;
-                home-manager.users.steelph0enix = import ./home-manager/home.nix;
-              }
-            ];
-          };
+        steelph0enix-work-vm = nixpkgs.lib.nixosSystem {
+          inherit specialArgs system;
+          modules = [
+            { _module.args = inputs; }
+            ./nixos/configuration.nix
+            nix-index-database.nixosModules.nix-index
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.backupFileExtension = ".hmgr.backup";
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.extraSpecialArgs = specialArgs;
+              home-manager.users.steelph0enix = import ./home-manager/home.nix;
+            }
+          ];
+        };
       };
     };
 }

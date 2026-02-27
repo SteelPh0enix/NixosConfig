@@ -189,6 +189,4 @@
   };
 
   nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
-
-  qt.enable = true;
 }
