@@ -85,6 +85,8 @@
     pkgsUnstable.ffmpeg
     pkgsUnstable.fzf
     pkgsUnstable.jq
+    pkgsUnstable.clang-tools
+    pkgsUnstable.git-lfs
     pkgsUnstable.mypy
     pkgsUnstable.ninja
     pkgsUnstable.p7zip
