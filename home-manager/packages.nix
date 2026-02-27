@@ -16,40 +16,6 @@
     mutableExtensionsDir = true;
     package = pkgsUnstable.vscode.fhsWithPackages (
       ps: with ps; [
-        automake
-        curl
-        dotnetCorePackages.runtime_9_0-bin
-        dotnetCorePackages.sdk_9_0-bin
-        eslint
-        gcc15
-        gdb
-        gnumake
-        icu
-        lldb
-        llvmPackages.clang-unwrapped
-        lua
-        luajit
-        nixd
-        nixfmt
-        nixpkgs-review
-        nodejs
-        npm-check
-        openssl.dev
-        pkg-config
-        pkgsUnstable.clang-tools
-        pkgsUnstable.cmake
-        pkgsUnstable.git-lfs
-        pkgsUnstable.gitFull
-        pkgsUnstable.glibc
-        pkgsUnstable.ninja
-        pkgsUnstable.ruff
-        pkgsUnstable.uv
-        pkgsUnstable.uv-sort
-        pkgsUnstable.yarn
-        rustup
-        sqlite
-        wget
-        zlib
       ]
     );
   };
