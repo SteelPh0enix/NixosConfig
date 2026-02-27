@@ -38,6 +38,7 @@
     file
     findutils
     gawk
+    gcc-arm-embedded
     gcc15
     gdb
     gh
