@@ -1,20 +1,14 @@
 {
   pkgs,
-  nix-ai-tools,
-  nixpkgs-unstable,
+  pkgsUnstable,
+  nixAiTools,
   ...
 }:
-let
-  pkgsUnstable = import nixpkgs-unstable {
-    system = pkgs.system;
-    config.allowUnfree = true;
-  };
-in
 {
   home.packages = with pkgs; [
     keepassxc
     chromium
-    nix-ai-tools.packages.${pkgs.system}.crush
+    nixAiTools.packages.${pkgs.system}.crush
   ];
 
   programs.vscode = {
@@ -47,7 +41,6 @@ in
         pkgsUnstable.git-lfs
         pkgsUnstable.gitFull
         pkgsUnstable.glibc
-        pkgsUnstable.glibc
         pkgsUnstable.ninja
         pkgsUnstable.ruff
         pkgsUnstable.uv
@@ -56,7 +49,6 @@ in
         rustup
         sqlite
         wget
-        yarn
         zlib
       ]
     );
@@ -147,6 +139,4 @@ in
 
   programs.gh.enable = true;
   programs.gh.gitCredentialHelper.enable = true;
-
-  qt.enable = true;
 }

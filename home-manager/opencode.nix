@@ -1,6 +1,6 @@
 {
   pkgs,
-  nix-ai-tools,
+  nixAiTools,
   ...
 }:
 {
@@ -9,7 +9,7 @@
   programs.opencode = {
     enable = true;
     enableMcpIntegration = true;
-    package = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+    package = nixAiTools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
     settings = {
       tui = {
         diff_style = "auto";
