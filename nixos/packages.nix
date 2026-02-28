@@ -23,9 +23,11 @@
       ];
     })
 
+    autoconf
     automake
     bear
     btop
+    can-utils
     colordiff
     dmidecode
     dnsutils
@@ -49,6 +51,7 @@
     gparted
     hdparm
     icu
+    libtool
     linuxHeaders
     lldb
     llvmPackages_21.clang-tools
@@ -76,6 +79,7 @@
     pciutils
     pkg-config
     pkgsUnstable.black
+    pkgsUnstable.clang-tools
     pkgsUnstable.cmake
     pkgsUnstable.curl
     pkgsUnstable.eslint
@@ -84,9 +88,8 @@
     pkgsUnstable.fd
     pkgsUnstable.ffmpeg
     pkgsUnstable.fzf
-    pkgsUnstable.jq
-    pkgsUnstable.clang-tools
     pkgsUnstable.git-lfs
+    pkgsUnstable.jq
     pkgsUnstable.mypy
     pkgsUnstable.ninja
     pkgsUnstable.p7zip
