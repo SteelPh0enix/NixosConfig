@@ -102,6 +102,7 @@
     pkgsUnstable.uv-sort
     pkgsUnstable.valgrind
     psmisc
+    python314
     rsync
     socat
     sqlite
