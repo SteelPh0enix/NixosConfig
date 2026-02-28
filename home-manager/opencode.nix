@@ -133,15 +133,15 @@
               output = 65536;
             };
           };
-          "qwen-coder" = {
-            name = "Qwen Coder";
+          "qwen-35-coder" = {
+            name = "Qwen 3.5 122B (Coder)";
             limit = {
               context = 262144;
               output = 65536;
             };
           };
-          "qwen-35-coder" = {
-            name = "Qwen 3.5 Coder";
+          "qwen-35-mid-coder" = {
+            name = "Qwen 3.5 35B (Coder)";
             limit = {
               context = 262144;
               output = 65536;
