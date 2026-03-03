@@ -97,6 +97,7 @@
         "moonshotai"
         "nvidia"
         "novita-ai"
+        "openrouter"
       ];
 
       mcp = {
