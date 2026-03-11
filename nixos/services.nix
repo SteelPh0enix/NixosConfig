@@ -9,7 +9,7 @@
     allowedTCPPorts = [ ];
     allowedUDPPorts = [ 16969 ];
     checkReversePath = false;
-    extraCommands = ''iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns'';
+    extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
   };
 
   networking.nameservers = [
@@ -92,4 +92,6 @@
   services.udev.extraRules = ''
     SUBSYSTEM=="usb", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0666"
   '';
+
+  services.flatpak.enable = true;
 }
