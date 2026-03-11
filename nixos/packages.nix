@@ -34,6 +34,7 @@ in
     ccache
     cifs-utils
     clang
+    cpupower-gui
     dmidecode
     dnsutils
     docker
