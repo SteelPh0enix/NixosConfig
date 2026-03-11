@@ -2,6 +2,11 @@
 {
   boot.initrd.kernelModules = [ "amdgpu" ];
   boot.kernelModules = [ "kvm-amd" ];
+  boot.extraModprobeConfig = ''
+    options snd_hda_intel power_save=0
+    options snd_hda_intel power_save_controller=N
+  '';
+
   boot.kernelParams = [
     "kvm.enable_virt_at_load=0"
     "microcode.amd_sha_check=off"
