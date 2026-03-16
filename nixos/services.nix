@@ -18,6 +18,9 @@ let
             service display-name="Open WebUI" unit="open-webui"
             service display-name="LanCache" unit="lancache"
             service display-name="Jellyfin" unit="jellyfin"
+            service display-name="Gitea" unit="gitea"
+            service display-name="Gitea runner" unit="gitea-runner-framework"
+            service display-name="XRDP" unit="xrdp"
         }
         uptime prefix="Uptime"
         filesystems {
