@@ -16,6 +16,9 @@
     docker-here-shell = "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)";
     rcp = "rsync --archive --recursive --mkpath --verbose --progress --human-readable";
     rcpc = "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable";
+    jrn = "sudo journalctl -u";
+    sts = "sudo systemctl status";
+    str = "sudo systemctl restart";
   };
 
   environment.sessionVariables = {
