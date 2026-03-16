@@ -34,6 +34,15 @@ let
   '';
 in
 {
+  # Create dns-ready.target for services that depend on DNS resolution
+  systemd.targets."dns-ready" = {
+    description = "DNS resolution ready";
+    unitConfig = {
+      Requires = "pihole.service";
+      After = "pihole.service";
+    };
+  };
+
   services.printing.enable = true;
   services.blueman.enable = true;
   services.thermald.enable = true;
@@ -102,6 +111,11 @@ in
     group = "users";
   };
 
+  systemd.services."jellyfin" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
+  };
+
   services.qbittorrent = {
     enable = true;
     package = pkgsUnstable.qbittorrent-enhanced-nox;
@@ -119,6 +133,11 @@ in
     ];
   };
 
+  systemd.services."qbittorrent" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
+  };
+
   services.jackett = {
     enable = true;
     package = pkgsUnstable.jackett;
@@ -126,11 +145,21 @@ in
     port = 8889;
   };
 
+  systemd.services."jackett" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
+  };
+
   services.flaresolverr = {
     enable = true;
     package = pkgsUnstable.flaresolverr;
     openFirewall = true;
     port = 8890;
+  };
+
+  systemd.services."flaresolverr" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
   };
 
   services.gitea = {
@@ -173,6 +202,11 @@ in
     };
   };
 
+  systemd.services."gitea" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
+  };
+
   services.gitea-actions-runner = {
     package = pkgsUnstable.gitea-actions-runner;
     instances.framework = {
@@ -197,6 +231,8 @@ in
   };
 
   systemd.services."gitea-runner-framework" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
     serviceConfig = {
       SupplementaryGroups = [ "docker" ];
       Restart = lib.mkForce "no";
@@ -213,5 +249,10 @@ in
       enable = true;
     };
     defaultWindowManager = "xfce4-session";
+  };
+
+  systemd.services."xrdp" = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
   };
 }

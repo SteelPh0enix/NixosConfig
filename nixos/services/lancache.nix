@@ -18,8 +18,8 @@
         pkgs.fish
       ];
       wantedBy = [ "multi-user.target" ];
-      wants = [ "network-online.target" ];
-      after = [ "network-online.target" ];
+      wants = [ "network-online.target" "dns-ready.target" ];
+      after = [ "network-online.target" "dns-ready.target" ];
     };
   };
 }
