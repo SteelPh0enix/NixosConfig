@@ -38,9 +38,44 @@ in
   systemd.targets."dns-ready" = {
     description = "DNS resolution ready";
     unitConfig = {
-      Requires = "pihole.service";
-      After = "pihole.service";
+      Requires = "dns-ready-check.service";
+      After = "dns-ready-check.service";
     };
+  };
+
+  # DNS readiness check service - ensures DNS is actually functional
+  systemd.services."dns-ready-check" = {
+    description = "DNS readiness check";
+    after = [ "pihole.service" ];
+    requires = [ "pihole.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      RemainAfterExit = true;
+    };
+    script = ''
+      # Wait for DNS to be ready by testing resolution
+      echo "Waiting for DNS to be ready..."
+
+      # Try DNS resolution with retries
+      max_attempts=30
+      attempt=1
+
+      while [ $attempt -le $max_attempts ]; do
+        # Try to resolve steelph0enix.framework
+        if ${pkgs.dig}/bin/dig @localhost steelph0enix.framework +time=1 +tries=1 >/dev/null 2>&1; then
+          echo "DNS is ready! Resolved steelph0enix.framework successfully."
+          exit 0
+        fi
+
+        echo "DNS not ready yet (attempt $attempt/$max_attempts)..."
+        sleep 1
+        attempt=$((attempt + 1))
+      done
+
+      echo "Failed to verify DNS readiness after $max_attempts attempts"
+      exit 1
+    '';
   };
 
   services.printing.enable = true;
