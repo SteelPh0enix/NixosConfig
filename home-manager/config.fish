@@ -17,6 +17,9 @@ alias docker-here-rocm "docker run --device /dev/kfd --device /dev/dri --securit
 alias docker-here-shell-rocm "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm -it"
 alias rcp "rsync --archive --recursive --mkpath --verbose --progress --human-readable"
 alias rcpc "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable"
+alias jrn "sudo journalctl -u"
+alias sts "sudo systemctl status"
+alias str "sudo systemctl restart"
 
 set -Ux llama_cpp_repo_path "/home/steelph0enix/llama.cpp"
 set -Ux llama_cpp_venv_path "$llama_cpp_repo_path/.venv"
