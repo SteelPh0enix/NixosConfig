@@ -21,7 +21,7 @@
     pkgsUnstable.dxvk
     pkgsUnstable.element-desktop
     pkgsUnstable.gimp
-    pkgsUnstable.heroic
+    heroic
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
@@ -30,7 +30,7 @@
     pkgsUnstable.protontricks
     pkgsUnstable.protonup-qt
     pkgsUnstable.stm32cubemx
-    pkgsUnstable.teams-for-linux
+    teams-for-linux
     pkgsUnstable.vkd3d
     pkgsUnstable.winePackages.stagingFull
     pkgsUnstable.winetricks
