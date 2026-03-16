@@ -7,7 +7,7 @@
     "microcode.amd_sha_check=off"
     "amd_iommu=off"
   ];
-  
+
   boot.extraModprobeConfig = ''
     options amdgpu gttsize=122800
     options amdgpu vm_fragment_size=8

@@ -13,7 +13,10 @@
         ExecStop = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/docker-compose.yml down";
       };
 
-      wantedBy = [ "multi-user.target" "dns-ready.target" ];
+      wantedBy = [
+        "multi-user.target"
+        "dns-ready.target"
+      ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
       before = [ "dns-ready.target" ];
