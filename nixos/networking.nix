@@ -9,15 +9,9 @@
     allowedTCPPorts = [
       53 # PiHole DNS (Docker service)
       443 # HTTPS
+      6969 # Gitea (HTTP)
+      22137 # Gitea (SSH)
       51536 # LLM Router (custom systemd service)
-      51537 # LLM Router additional ports
-      51538
-      51539
-      51540
-      51541
-      18791 # Custom ports (ProtonVPN?)
-      18792
-      9222 # Custom port
     ];
     allowedUDPPorts = [ 53 ]; # PiHole DNS
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
