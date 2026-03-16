@@ -266,8 +266,8 @@ in
   };
 
   systemd.services."gitea-runner-framework" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
+    wants = [ "dns-ready.target" "gitea.service" ];
+    after = [ "dns-ready.target" "gitea.service" ];
     serviceConfig = {
       SupplementaryGroups = [ "docker" ];
       Restart = lib.mkForce "no";
