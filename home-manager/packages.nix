@@ -7,6 +7,7 @@
 {
   home.packages = with pkgs; [
     freecad
+    heroic
     keepassxc
     krename
     libreoffice-qt6-fresh
@@ -14,6 +15,7 @@
     qbittorrent-enhanced
     quodlibet-xine-full
     spotify
+    teams-for-linux
     ungoogled-chromium
     zenmap
 
@@ -21,7 +23,6 @@
     pkgsUnstable.dxvk
     pkgsUnstable.element-desktop
     pkgsUnstable.gimp
-    heroic
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
@@ -30,10 +31,10 @@
     pkgsUnstable.protontricks
     pkgsUnstable.protonup-qt
     pkgsUnstable.stm32cubemx
-    teams-for-linux
     pkgsUnstable.vkd3d
     pkgsUnstable.winePackages.stagingFull
     pkgsUnstable.winetricks
+    pkgsUnstable.xournalpp
 
     nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.crush
   ];
