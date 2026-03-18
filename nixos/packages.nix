@@ -110,6 +110,7 @@ in
     strace
     sysstat
     tcpdump
+    texliveFull
     thermald
     traceroute
     unrar
