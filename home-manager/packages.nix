@@ -119,7 +119,7 @@
     settings = {
       user = {
         name = "SteelPh0enix";
-        email = [ "phoenixpl@hotmail.com" ];
+        email = [ "wojciech_olech@hotmail.com" ];
         signingkey = "/home/steelph0enix/.ssh/gitea.pub";
       };
       core.editor = "nvim";
