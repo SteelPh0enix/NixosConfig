@@ -7,7 +7,6 @@
       "docker.service"
     ];
     requires = [ "docker.service" ];
-    wantedBy = [ "multi-user.target" ];
 
     serviceConfig = {
       Type = "simple";
