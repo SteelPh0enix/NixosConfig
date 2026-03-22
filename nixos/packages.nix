@@ -90,6 +90,7 @@
 
     # Unstable packages
     pkgsUnstable.btop-rocm
+    pkgsUnstable.espeak
     pkgsUnstable.fastfetch
     pkgsUnstable.ffmpeg-full
     pkgsUnstable.flaresolverr
@@ -102,6 +103,8 @@
     pkgsUnstable.rust-motd
     pkgsUnstable.steam-tui
     pkgsUnstable.steamcmd
+    pkgsUnstable.uv
+    pkgsUnstable.uv-sort
     pkgsUnstable.valgrind
     pkgsUnstable.weechat
 
