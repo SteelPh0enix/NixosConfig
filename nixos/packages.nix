@@ -69,6 +69,7 @@
     rsync
     socat
     sqlite
+    sshfs
     strace
     sysstat
     tcpdump
