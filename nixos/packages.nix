@@ -107,6 +107,7 @@ in
     rar
     rsync
     socat
+    sshfs
     strace
     sysstat
     tcpdump
