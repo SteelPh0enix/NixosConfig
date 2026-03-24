@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>llm-router Logs</title>
+    <meta charset="utf-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            color: #569cd6;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        #status {
+            font-size: 0.85em;
+            color: #6a9955;
+            margin-bottom: 10px;
+        }
+        #log-container {
+            flex: 1;
+            overflow-y: auto;
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        .log-line { margin-bottom: 2px; }
+        .timestamp { color: #808080; }
+        .error { color: #f44747; }
+        .warn { color: #cca700; }
+        .info { color: #d4d4d4; }
+    </style>
+</head>
+<body>
+    <h1>☤ llm-router Service Logs</h1>
+    <div id="status">Connecting...</div>
+    <div id="log-container"></div>
+    <script>
+        const status = document.getElementById('status');
+        const container = document.getElementById('log-container');
+        const source = new EventSource('/logs');
+
+        source.onopen = () => {
+            status.textContent = '● Connected to journalctl stream';
+            status.style.color = '#6a9955';
+        };
+
+        source.onerror = () => {
+            status.textContent = '✗ Connection lost, reconnecting...';
+            status.style.color = '#f44747';
+        };
+
+        source.addEventListener('log', (e) => {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            const now = new Date();
+            const ts = now.toLocaleTimeString();
+            div.innerHTML = '<span class="timestamp">[' + ts + ']</span> ' + e.data;
+
+            if (e.data.includes('error') || e.data.includes('Error')) div.classList.add('error');
+            else if (e.data.includes('warn') || e.data.includes('Warn')) div.classList.add('warn');
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        });
+    </script>
+</body>
+</html>

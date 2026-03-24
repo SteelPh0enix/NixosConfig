@@ -66,6 +66,7 @@
     pciutils
     pkg-config
     psmisc
+    python314
     rsync
     socat
     sqlite
