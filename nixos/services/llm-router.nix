@@ -37,6 +37,7 @@ in
         RestartSec = 10;
         User = "steelph0enix";
         Group = "users";
+        LimitMEMLOCK = "infinity";
       };
 
       wantedBy = [ "multi-user.target" ];
