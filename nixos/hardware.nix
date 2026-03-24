@@ -2,10 +2,6 @@
 {
   boot.initrd.kernelModules = [ "amdgpu" ];
   boot.kernelModules = [ "kvm-amd" ];
-  boot.extraModprobeConfig = ''
-    options snd_hda_intel power_save=0
-    options snd_hda_intel power_save_controller=N
-  '';
 
   boot.kernelParams = [
     "kvm.enable_virt_at_load=0"
@@ -68,6 +64,20 @@
   environment.variables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/radeon_icd.x86_64.json";
 
   security.rtkit.enable = true;
+
+  systemd.services.fix-sound = {
+    description = "Disable snd_hda_intel power saving";
+    after = [ "sysinit.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = "yes";
+    };
+    script = ''
+      echo 0 > /sys/module/snd_hda_intel/parameters/power_save
+      echo N > /sys/module/snd_hda_intel/parameters/power_save_controller
+    '';
+  };
 
   services.pipewire = {
     enable = true;
