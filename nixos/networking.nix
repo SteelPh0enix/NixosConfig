@@ -12,6 +12,7 @@
       6969 # Gitea (HTTP)
       22137 # Gitea (SSH)
       51536 # LLM Router (custom systemd service)
+      51569 # LLM Router log web interface
     ];
     allowedUDPPorts = [ 53 ]; # PiHole DNS
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";

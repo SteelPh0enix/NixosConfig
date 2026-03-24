@@ -22,6 +22,7 @@
     ./services/lancache.nix
     ./services/samba.nix
     ./services/wireguard.nix
+    ./services/llm-logs-web.nix
     ./services/llm-router.nix
     ./services/minecraft-server.nix
     ./shell.nix
