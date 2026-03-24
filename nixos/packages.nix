@@ -105,6 +105,7 @@ in
     pkgsUnstable.wget
     psmisc
     rar
+    remmina
     rsync
     socat
     sshfs
