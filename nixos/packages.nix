@@ -14,11 +14,14 @@
 
   environment.systemPackages = with pkgs; [
     # System utilities
+    ascii-image-converter
     bear
     bindfs
     blueman
+    boxes
     ccache
     clang
+    cowsay
     curl
     dmidecode
     dnsutils
@@ -30,6 +33,7 @@
     file
     findutils
     flac
+    python314Packages.pyfiglet
     gawk
     gcc
     gdb
@@ -47,6 +51,7 @@
     hdparm
     icu
     inetutils
+    jp2a
     lact
     libnatpmp
     libva-utils
@@ -75,6 +80,7 @@
     sysstat
     tcpdump
     thermald
+    toilet
     traceroute
     tree
     unzip
