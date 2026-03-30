@@ -76,6 +76,8 @@ in
     p7zip
     parted
     pciutils
+    pkgsUnstable.basedpyright
+    pkgsUnstable.black
     pkgsUnstable.btop-rocm
     pkgsUnstable.clang-tools
     pkgsUnstable.cmake
@@ -86,8 +88,10 @@ in
     pkgsUnstable.ffmpeg-full
     pkgsUnstable.flatpak
     pkgsUnstable.fzf
+    pkgsUnstable.isort
     pkgsUnstable.jq
     pkgsUnstable.mc
+    pkgsUnstable.mypy
     pkgsUnstable.ncdu
     pkgsUnstable.nerd-font-patcher
     pkgsUnstable.nil
@@ -95,8 +99,11 @@ in
     pkgsUnstable.nixd
     pkgsUnstable.nixfmt
     pkgsUnstable.nixpkgs-review
+    pkgsUnstable.python314
+    pkgsUnstable.python314Packages.pytest
     pkgsUnstable.radeontop
     pkgsUnstable.ripgrep
+    pkgsUnstable.ruff
     pkgsUnstable.sqlite
     pkgsUnstable.tree
     pkgsUnstable.uv
