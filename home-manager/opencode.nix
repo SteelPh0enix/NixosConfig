@@ -120,39 +120,32 @@
         name = "llama-server (local)";
         options.baseURL = "http://steelph0enix.framework:51536/v1";
         models = {
-          "glm-flash" = {
-            name = "GLM Flash";
-            limit = {
-              context = 202752;
-              output = 65536;
-            };
-          };
-          "glm-flash-opus" = {
-            name = "GLM Flash (Claude Opus distill)";
-            limit = {
-              context = 202752;
-              output = 65536;
-            };
-          };
-          "qwen-35-coder" = {
-            name = "Qwen 3.5 122B (Coder)";
+          "coder" = {
+            name = "Default coding model";
             limit = {
               context = 262144;
-              output = 65536;
-            };
-          };
-          "qwen-35-mid-coder" = {
-            name = "Qwen 3.5 35B (Coder)";
-            limit = {
-              context = 262144;
-              output = 65536;
-            };
-          };
-          "minimax-m25" = {
-            name = "MiniMax-M2.5";
-            limit = {
-              context = 100000;
               output = 32768;
+            };
+          };
+          "coder-smart" = {
+            name = "Smarter (but slower) coding model";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "quick" = {
+            name = "Quick model for simple tasks";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "nvidia-nemotron-cascade-2" = {
+            name = "Fuck it we ball";
+            limit = {
+              context = 1048576;
+              output = 102400;
             };
           };
         };
