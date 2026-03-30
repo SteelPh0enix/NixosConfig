@@ -97,17 +97,24 @@
     zstd
 
     # Unstable packages
+    pkgsUnstable.basedpyright
+    pkgsUnstable.black
     pkgsUnstable.btop-rocm
     pkgsUnstable.espeak
     pkgsUnstable.fastfetch
     pkgsUnstable.ffmpeg-full
     pkgsUnstable.flaresolverr
+    pkgsUnstable.isort
     pkgsUnstable.jq
     pkgsUnstable.llama-cpp
     pkgsUnstable.mc
+    pkgsUnstable.mypy
     pkgsUnstable.ncdu
     pkgsUnstable.nerd-font-patcher
+    pkgsUnstable.python314
+    pkgsUnstable.python314Packages.pytest
     pkgsUnstable.radeontop
+    pkgsUnstable.ruff
     pkgsUnstable.rust-motd
     pkgsUnstable.steam-tui
     pkgsUnstable.steamcmd
