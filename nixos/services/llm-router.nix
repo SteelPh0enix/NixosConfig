@@ -18,7 +18,7 @@ let
       --props \
       --slots \
       --models-max 2 \
-      --parallel 2 \
+      --parallel 6 \
       --flash-attn on \
       --gpu-layers all
   '';
