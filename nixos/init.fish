@@ -136,7 +136,7 @@ function serve-llm
         --props \
         --slots \
         --models-max 1 \
-        --parallel 1 \
+        --parallel 4 \
         --flash-attn on \
         --gpu-layers all \
         --direct-io \
