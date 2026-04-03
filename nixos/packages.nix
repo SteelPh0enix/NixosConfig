@@ -108,6 +108,7 @@
     pkgsUnstable.jq
     pkgsUnstable.llama-cpp
     pkgsUnstable.mc
+    pkgsUnstable.obsidian
     pkgsUnstable.mypy
     pkgsUnstable.ncdu
     pkgsUnstable.nerd-font-patcher
