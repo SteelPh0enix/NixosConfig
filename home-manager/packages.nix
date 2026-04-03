@@ -26,6 +26,7 @@
     pkgsUnstable.inkscape-with-extensions
     pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
     pkgsUnstable.jellyfin-media-player
+    pkgsUnstable.obsidian
     pkgsUnstable.orca-slicer
     pkgsUnstable.prismlauncher
     pkgsUnstable.protontricks
