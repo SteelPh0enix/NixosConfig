@@ -141,7 +141,7 @@
               output = 32768;
             };
           };
-          "nvidia-nemotron-cascade-2" = {
+          "nvidia-nemotron-3-super" = {
             name = "Fuck it we ball";
             limit = {
               context = 1048576;
