@@ -201,10 +201,27 @@ in
   programs.less.enable = true;
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
-  programs.obs-studio.enable = true;
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
   programs.tcpdump.enable = true;
+
+  programs.obs-studio = {
+    enable = true;
+    package = pkgsUnstable.obs-studio;
+    enableVirtualCamera = true;
+    plugins = [
+      pkgsUnstable.obs-studio-plugins.waveform
+      pkgsUnstable.obs-studio-plugins.obs-vnc
+      pkgsUnstable.obs-studio-plugins.obs-vkcapture
+      pkgsUnstable.obs-studio-plugins.obs-vaapi
+      pkgsUnstable.obs-studio-plugins.obs-text-pthread
+      pkgsUnstable.obs-studio-plugins.obs-pipewire-audio-capture
+      pkgsUnstable.obs-studio-plugins.obs-mute-filter
+      pkgsUnstable.obs-studio-plugins.obs-markdown
+      pkgsUnstable.obs-studio-plugins.obs-gstreamer
+      pkgsUnstable.obs-studio-plugins.obs-dvd-screensaver
+    ];
+  };
 
   programs.wireshark = {
     package = pkgsUnstable.wireshark;
