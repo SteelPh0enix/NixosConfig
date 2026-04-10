@@ -141,11 +141,32 @@
               output = 32768;
             };
           };
-          "nvidia-nemotron-cascade-2" = {
+          "nvidia-nemotron-3-super" = {
             name = "Fuck it we ball";
             limit = {
               context = 1048576;
               output = 102400;
+            };
+          };
+          "qwen-dense-coder" = {
+            name = "Smarter (but slower) coding Qwen model";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "gemma-dense" = {
+            name = "Gemma 4 31B";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "gemma-moe" = {
+            name = "Gemma 4 26B A4B";
+            limit = {
+              context = 262144;
+              output = 32768;
             };
           };
         };
