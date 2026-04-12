@@ -25,6 +25,7 @@
     ./services/llm-logs-web.nix
     ./services/llm-router.nix
     ./services/minecraft-server.nix
+    ./services/prometheus.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
