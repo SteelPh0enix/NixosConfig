@@ -1,16 +1,11 @@
+{ pkgs, ... }:
+
 {
   services.prometheus = {
     enable = true;
     listenAddress = "0.0.0.0";
     listenPort = 9090;
-    scrapeInterval = "15s";
-    scrapeTimeout = "10s";
-    externalLabels = {
-      prometheus = "nixos";
-      monitor = "codelab";
-    };
-    rules = null;
-    alertmanagerConfigs = [];
+    globalConfig.scrape_interval = "15s";
     scrapeConfigs = [
       {
         job_name = "llm-router";

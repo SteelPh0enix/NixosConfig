@@ -10,6 +10,7 @@
       53 # PiHole DNS (Docker service)
       443 # HTTPS
       6969 # Gitea (HTTP)
+      9090 # Prometheus
       22137 # Gitea (SSH)
       51536 # LLM Router (custom systemd service)
       51569 # LLM Router log web interface
