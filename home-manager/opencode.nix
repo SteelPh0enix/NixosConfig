@@ -128,14 +128,14 @@
             };
           };
           "coder-smart" = {
-            name = "Smarter (but slower) coding model";
+            name = "Smarter coding model";
             limit = {
               context = 262144;
               output = 32768;
             };
           };
           "quick" = {
-            name = "Quick model for simple tasks";
+            name = "Quick model";
             limit = {
               context = 262144;
               output = 32768;
@@ -146,6 +146,27 @@
             limit = {
               context = 1048576;
               output = 102400;
+            };
+          };
+          "qwen-dense-coder" = {
+            name = "Smarter coding Qwen model";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "gemma-4-dense" = {
+            name = "Gemma 4 31B";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "gemma-4-moe" = {
+            name = "Gemma 4 26B A4B";
+            limit = {
+              context = 262144;
+              output = 32768;
             };
           };
         };
