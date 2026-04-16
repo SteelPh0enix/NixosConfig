@@ -20,7 +20,7 @@ alias rcpc "rsync --archive --recursive --mkpath --compress --verbose --progress
 
 set -Ux llama_cpp_repo_path "/home/steelph0enix/llama.cpp"
 set -Ux llama_cpp_venv_path "$llama_cpp_repo_path/.venv"
-set -gx PATH "/home/steelph0enix/.npm/bin:$PATH"
+set -gx PATH "/home/steelph0enix/.npm/bin:/home/steelph0enix/.local/bin:$PATH"
 
 function llama-cpp-update
     echo (set_color green)"Directory: $llama_cpp_repo_path"(set_color normal)
