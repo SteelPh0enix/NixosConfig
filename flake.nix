@@ -19,6 +19,11 @@
     nix-ai-tools.url = "github:numtide/nix-ai-tools";
     ucodenix.url = "github:e-tho/ucodenix";
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
+
+    aagl = {
+      url = "github:ezKEa/aagl-gtk-on-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -30,6 +35,7 @@
       nix-index-database,
       rust-overlay,
       llama-cpp,
+      aagl,
       ...
     }@inputs:
     let
@@ -66,7 +72,9 @@
               ./nixos/configuration.nix
               nix-index-database.nixosModules.nix-index
               home-manager.nixosModules.home-manager
+              aagl.nixosModules.default
               {
+                nix.settings = aagl.nixConfig;
                 home-manager.backupFileExtension = "hmgr.backup";
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
