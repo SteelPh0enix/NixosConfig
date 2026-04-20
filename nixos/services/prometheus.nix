@@ -4,7 +4,7 @@
   services.prometheus = {
     enable = true;
     listenAddress = "0.0.0.0";
-    listenPort = 9090;
+    port = 9090;
     globalConfig.scrape_interval = "15s";
     scrapeConfigs = [
       {
@@ -19,5 +19,5 @@
       }
     ];
   };
-  firewall.allowedTCPPorts = [ 9090 ];
+ 
 }
