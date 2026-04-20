@@ -10,6 +10,8 @@
       noto-fonts-cjk-sans
       noto-fonts-color-emoji
       liberation_ttf
+      corefonts
+      winePackages.fonts
 
       nerd-fonts.symbols-only
       nerd-fonts.monaspace
