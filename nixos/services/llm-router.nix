@@ -5,12 +5,6 @@ let
     exec ${pkgsUnstable.llama-cpp}/bin/llama-server \
       --models-dir /home/LLMs/llama-models/ \
       --models-preset /home/LLMs/llama-models.ini \
-      --mlock \
-      --direct-io \
-      --fit on \
-      --log-colors on \
-      --offline \
-      --warmup \
       --host 0.0.0.0 \
       --port 51536 \
       --webui \
@@ -18,9 +12,15 @@ let
       --props \
       --slots \
       --models-max 2 \
-      --parallel 1 \
-      --flash-attn on \
-      --gpu-layers all
+      --parallel 2 \
+      --cont-batching \
+      --batch-size 4096 \
+      --ubatch-size 2048 \
+      --threads 16 \
+      --threads-batch 8 \
+      --prio 2 \
+      -ctk q4_0 \
+      -ctv q4_0
   '';
 in
 {
@@ -38,6 +38,10 @@ in
         User = "steelph0enix";
         Group = "users";
         LimitMEMLOCK = "infinity";
+        Environment = [
+          "GGML_VK_VISIBLE_DEVICES=0"
+          "AMD_VULKAN_ICD=RADV"
+        ];
       };
 
       wantedBy = [ "multi-user.target" ];
