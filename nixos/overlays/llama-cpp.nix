@@ -17,5 +17,12 @@ final: prev: {
 
         # Tell CMake/Curl where to find the certificates
         SSL_CERT_FILE = "${prev.cacert}/etc/ssl/certs/ca-bundle.crt";
+
+        # Enable Zen 5 native CPU optimizations (AVX-512, AVX-512-FP16)
+        cmakeFlags = builtins.map (flag:
+          if builtins.match ".*GGML_NATIVE.*" flag != null
+          then "-DGGML_NATIVE:BOOL=ON"
+          else flag
+        ) oldAttrs.cmakeFlags;
       });
 }
