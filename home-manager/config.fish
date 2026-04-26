@@ -64,7 +64,7 @@ function os-rebuild
 
     echo (set_color yellow)"Rebuilding NixOS (boot) for main PC..."(set_color normal)
     # sudo will likely prompt for password here
-    sudo nixos-rebuild boot --flake .#steelph0enix-pc --upgrade-all --print-build-logs --show-trace --refresh
+    sudo nixos-rebuild boot --flake .#steelph0enix-pc --print-build-logs --show-trace --refresh
 end
 
 function os-update
