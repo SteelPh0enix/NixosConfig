@@ -27,6 +27,8 @@ in
     })
 
     # pkgsUnstable.llama-cpp
+    autoconf
+    automake
     bear
     blueman
     boost
@@ -48,6 +50,7 @@ in
     gcc
     gdb
     gnugrep
+    gnumake
     gnused
     gnutar
     gparted
@@ -62,13 +65,16 @@ in
     icu
     inetutils
     lact
+    libtool
     libunwind
+    libusb1
     linuxHeaders
     linuxKernel.packages.linux_zen.cpupower
     lldb
     lm_sensors
     lsof
     ltrace
+    minicom
     nmap
     ntfs3g
     openssh
@@ -100,7 +106,9 @@ in
     pkgsUnstable.nixfmt
     pkgsUnstable.nixpkgs-review
     pkgsUnstable.python314
+    pkgsUnstable.python314Packages.pyserial
     pkgsUnstable.python314Packages.pytest
+    pkgsUnstable.python314Packages.pyusb
     pkgsUnstable.radeontop
     pkgsUnstable.ripgrep
     pkgsUnstable.ruff
@@ -122,6 +130,7 @@ in
     texliveFull
     thermald
     traceroute
+    uhubctl
     unrar
     unzip
     usbutils
