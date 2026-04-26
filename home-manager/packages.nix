@@ -42,7 +42,6 @@
     enable = true;
     lfs = {
       enable = true;
-      package = pkgs.git-lfs;
     };
     package = pkgs.gitFull;
     settings = {
@@ -67,7 +66,6 @@
 
   programs.lazygit = {
     enable = true;
-    package = pkgs.lazygit;
     settings = {
       gui = {
         language = "en";
@@ -121,7 +119,6 @@
 
   programs.wezterm = {
     enable = true;
-    package = pkgs.wezterm;
     extraConfig = ''
       local wezterm = require('wezterm')
       local config = wezterm.config_builder()
@@ -138,7 +135,6 @@
 
   programs.yt-dlp = {
     enable = true;
-    package = pkgs.yt-dlp;
   };
 
   programs.mpv = {
@@ -192,18 +188,11 @@
     withRuby = true;
   };
 
-  programs.ripgrep = {
-    enable = true;
-    package = pkgs.ripgrep;
-  };
+  programs.ripgrep.enable = true;
 
-  programs.fd = {
-    enable = true;
-    package = pkgs.fd;
-  };
+  programs.fd.enable = true;
 
   programs.eza = {
-    package = pkgs.eza;
     enable = true;
     enableFishIntegration = true;
     icons = "always";
