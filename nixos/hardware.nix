@@ -1,11 +1,18 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 {
   boot.initrd.kernelModules = [ "amdgpu" ];
   boot.kernelModules = [ "kvm-amd" ];
+
   boot.kernelParams = [
-    "kvm.enable_virt_at_load=0"
     "microcode.amd_sha_check=off"
-    "amd_iommu=off"
+    "amd_pstate=active"
+    "amdgpu.ppfeaturemask=0xffffffff"
+    "amdgpu.gpu_recovery=1"
+    "amdgpu.gfx_off=0"
+    "amdgpu.runpm=0"
+    "amdgpu.tmz=0"
+    "amdgpu.noretry=0"
+    "split_lock_detect=off"
   ];
 
   boot.extraModprobeConfig = ''
@@ -16,6 +23,7 @@
   '';
 
   hardware.enableRedistributableFirmware = true;
+  hardware.cpu.amd.updateMicrocode = lib.mkForce false;
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
   hardware.amdgpu = {
@@ -93,4 +101,25 @@
       };
     };
   };
+
+  powerManagement.cpuFreqGovernor = "performance";
+
+  boot.kernel.sysctl = {
+    "vm.swappiness" = 10;
+    "vm.vfs_cache_pressure" = 50;
+    "kernel.sched_cfs_bandwidth_slice_us" = 3000;
+    "kernel.sched_latency_ns" = 1000000;
+    "kernel.sched_min_granularity_ns" = 100000;
+    "kernel.sched_wakeup_granularity_ns" = 200000;
+    "net.core.netdev_max_backlog" = 65536;
+    "net.ipv4.tcp_fastopen" = 3;
+  };
+
+  zramSwap = {
+    enable = true;
+    memoryPercent = 50;
+  };
+
+  services.irqbalance.enable = true;
+  services.fstrim.enable = true;
 }

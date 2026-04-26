@@ -81,5 +81,10 @@
       item = "memlock";
       value = "infinity";
     }
+    {
+      domain = "*";
+      item = "nofile";
+      value = "1048576";
+    }
   ];
 }

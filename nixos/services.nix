@@ -1,7 +1,6 @@
 {
   lib,
   pkgs,
-  pkgsUnstable,
   inputs,
   ...
 }:
@@ -82,7 +81,6 @@ in
 
   services.printing.enable = true;
   services.blueman.enable = true;
-  services.thermald.enable = true;
 
   services.openssh = {
     enable = true;
@@ -113,15 +111,6 @@ in
     package = lib.mkForce pkgs.gnome.gvfs;
   };
 
-  services.tuned = {
-    enable = true;
-    settings = {
-      daemon = true;
-      dynamic_tuning = true;
-      recommend_command = true;
-    };
-  };
-
   services.watchdogd = {
     enable = true;
     settings = {
@@ -132,7 +121,7 @@ in
   };
 
   systemd.services."rust-motd" = {
-    script = "${pkgsUnstable.rust-motd}/bin/rust-motd ${motdConfig} > /tmp/motd && cp /tmp/motd /etc/motd";
+    script = "${pkgs.rust-motd}/bin/rust-motd ${motdConfig} > /tmp/motd && cp /tmp/motd /etc/motd";
     serviceConfig = {
       Type = "oneshot";
       User = "root";
@@ -142,7 +131,7 @@ in
 
   services.jellyfin = {
     enable = true;
-    package = pkgsUnstable.jellyfin;
+    package = pkgs.jellyfin;
     openFirewall = true;
     user = "jellyfin";
     group = "users";
@@ -155,7 +144,7 @@ in
 
   services.qbittorrent = {
     enable = true;
-    package = pkgsUnstable.qbittorrent-enhanced-nox;
+    package = pkgs.qbittorrent-enhanced-nox;
     user = "qbittorrent";
     group = "users";
     openFirewall = true;
@@ -177,7 +166,7 @@ in
 
   services.jackett = {
     enable = true;
-    package = pkgsUnstable.jackett;
+    package = pkgs.jackett;
     openFirewall = true;
     port = 8889;
   };
@@ -189,7 +178,7 @@ in
 
   services.flaresolverr = {
     enable = true;
-    package = pkgsUnstable.flaresolverr;
+    package = pkgs.flaresolverr;
     openFirewall = true;
     port = 8890;
   };
@@ -201,7 +190,7 @@ in
 
   services.gitea = {
     enable = true;
-    package = pkgsUnstable.gitea;
+    package = pkgs.gitea;
     lfs.enable = true;
     appName = "RX-78-GITEA";
     user = "gitea";
@@ -245,7 +234,7 @@ in
   };
 
   services.gitea-actions-runner = {
-    package = pkgsUnstable.gitea-actions-runner;
+    package = pkgs.gitea-actions-runner;
     instances.framework = {
       name = "framework";
       enable = true;
@@ -278,12 +267,12 @@ in
   };
 
   services.xrdp = {
-    package = pkgsUnstable.xrdp;
+    package = pkgs.xrdp;
     enable = true;
     openFirewall = true;
     port = 3389;
     audio = {
-      package = pkgsUnstable.pulseaudio-module-xrdp;
+      package = pkgs.pulseaudio-module-xrdp;
       enable = true;
     };
     defaultWindowManager = "xfce4-session";
