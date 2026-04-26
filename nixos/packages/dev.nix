@@ -25,17 +25,13 @@
     libunwind
     libusb1
     linuxHeaders
-    linuxPackages.cpupower
     lldb
     openssl
     texliveFull
 
     basedpyright
-    black
     clang-tools
     cmake
-    isort
-    mypy
     nil
     ninja
     nixd

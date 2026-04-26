@@ -23,12 +23,10 @@
     element-desktop
     gimp
     inkscape-with-extensions
-    javaPackages.compiler.temurin-bin.jdk-25
     jellyfin-media-player
     obsidian
     orca-slicer
     prismlauncher
-    protontricks
     protonup-qt
     stm32cubemx
     winePackages.stagingFull
