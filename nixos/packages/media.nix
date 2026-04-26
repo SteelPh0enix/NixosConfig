@@ -1,4 +1,4 @@
-{ pkgs, pkgsUnstable, ... }:
+{ pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
     gst_all_1.gst-libav
@@ -18,6 +18,6 @@
     vulkan-utility-libraries
     websocat
 
-    pkgsUnstable.ffmpeg-full
+    ffmpeg-full
   ];
 }

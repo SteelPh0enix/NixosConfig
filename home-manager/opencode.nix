@@ -10,11 +10,12 @@
     enable = true;
     enableMcpIntegration = true;
     package = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
-    settings = {
-      tui = {
-        diff_style = "auto";
-      };
 
+    tui = {
+      diff_style = "auto";
+    };
+
+    settings = {
       server = {
         hostname = "localhost";
         mdns = false;

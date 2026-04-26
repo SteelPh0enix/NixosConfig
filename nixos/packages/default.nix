@@ -1,14 +1,9 @@
 {
   config,
   pkgs,
-  pkgsUnstable,
-  rust-overlay,
   inputs,
   ...
 }:
-let
-  pkgsUnstable' = pkgsUnstable.extend (import ../overlays/llama-cpp.nix);
-in
 {
   imports = [
     ./dev.nix
@@ -18,7 +13,7 @@ in
   ];
 
   nixpkgs.overlays = [
-    rust-overlay.overlays.default
+    inputs.rust-overlay.overlays.default
     inputs.nix-cachyos-kernel.overlays.pinned
     (import ../overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
   ];
@@ -33,7 +28,7 @@ in
 
   programs.bat = {
     enable = true;
-    package = pkgsUnstable.bat;
+    package = pkgs.bat;
   };
 
   programs.ccache.enable = true;
@@ -44,10 +39,10 @@ in
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
-    package = pkgsUnstable.direnv;
+    package = pkgs.direnv;
     nix-direnv = {
       enable = true;
-      package = pkgsUnstable.nix-direnv;
+      package = pkgs.nix-direnv;
     };
   };
 
@@ -55,7 +50,7 @@ in
 
   programs.firefox = {
     enable = true;
-    package = pkgsUnstable.firefox;
+    package = pkgs.firefox;
   };
 
   programs.fish = {
@@ -74,7 +69,7 @@ in
   };
 
   programs.java = {
-    package = pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25;
+    package = pkgs.javaPackages.compiler.temurin-bin.jdk-25;
     enable = true;
     binfmt = true;
   };
@@ -88,31 +83,31 @@ in
 
   programs.obs-studio = {
     enable = true;
-    package = pkgsUnstable.obs-studio;
+    package = pkgs.obs-studio;
     enableVirtualCamera = true;
     plugins = [
-      pkgsUnstable.obs-studio-plugins.waveform
-      pkgsUnstable.obs-studio-plugins.obs-vnc
-      pkgsUnstable.obs-studio-plugins.obs-vkcapture
-      pkgsUnstable.obs-studio-plugins.obs-vaapi
-      pkgsUnstable.obs-studio-plugins.obs-text-pthread
-      pkgsUnstable.obs-studio-plugins.obs-pipewire-audio-capture
-      pkgsUnstable.obs-studio-plugins.obs-mute-filter
-      pkgsUnstable.obs-studio-plugins.obs-markdown
-      pkgsUnstable.obs-studio-plugins.obs-gstreamer
-      pkgsUnstable.obs-studio-plugins.obs-dvd-screensaver
+      pkgs.obs-studio-plugins.waveform
+      pkgs.obs-studio-plugins.obs-vnc
+      pkgs.obs-studio-plugins.obs-vkcapture
+      pkgs.obs-studio-plugins.obs-vaapi
+      pkgs.obs-studio-plugins.obs-text-pthread
+      pkgs.obs-studio-plugins.obs-pipewire-audio-capture
+      pkgs.obs-studio-plugins.obs-mute-filter
+      pkgs.obs-studio-plugins.obs-markdown
+      pkgs.obs-studio-plugins.obs-gstreamer
+      pkgs.obs-studio-plugins.obs-dvd-screensaver
     ];
   };
 
   programs.wireshark = {
-    package = pkgsUnstable.wireshark;
+    package = pkgs.wireshark;
     enable = true;
     dumpcap.enable = true;
     usbmon.enable = true;
   };
 
   programs.steam = {
-    package = pkgsUnstable.steam;
+    package = pkgs.steam;
     enable = true;
     remotePlay.openFirewall = true;
     protontricks.enable = true;
@@ -122,7 +117,7 @@ in
     gamescopeSession.enable = true;
     extraPackages = with pkgs; [
       gamescope
-      pkgsUnstable.javaPackages.compiler.temurin-bin.jdk-25
+      pkgs.javaPackages.compiler.temurin-bin.jdk-25
     ];
   };
 
