@@ -2,9 +2,6 @@
   nixpkgs.config = {
     allowUnfree = true;
     rocmSupport = true;
-    permittedInsecurePackages = [
-      "qtwebengine-5.15.19"
-    ];
   };
 
   nix.gc = {
