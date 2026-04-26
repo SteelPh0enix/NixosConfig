@@ -16,7 +16,6 @@
     automake
     bear
     boost
-    ccache
     clang
     gcc
     gdb

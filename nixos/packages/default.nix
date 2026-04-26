@@ -1,5 +1,4 @@
 {
-  config,
   pkgs,
   inputs,
   ...
@@ -15,7 +14,6 @@
   nixpkgs.overlays = [
     inputs.rust-overlay.overlays.default
     inputs.nix-cachyos-kernel.overlays.pinned
-    (import ../overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
   ];
 
   systemd.packages = with pkgs; [ lact ];
@@ -28,8 +26,6 @@
 
   programs.bat.enable = true;
 
-  programs.ccache.enable = true;
-  programs.ccache.cacheDir = "/var/cache/ccache";
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
 
@@ -104,8 +100,6 @@
   };
 
   programs.sleepy-launcher.enable = true;
-
-  nix.settings.extra-sandbox-paths = [ config.programs.ccache.cacheDir ];
 
   qt.enable = true;
 }
