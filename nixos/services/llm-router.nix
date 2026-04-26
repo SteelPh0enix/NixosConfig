@@ -32,6 +32,10 @@ in
         LimitMEMLOCK = "infinity";
       };
 
+      environment = {
+        GGML_VK_ALLOW_GRAPHICS_QUEUE = "1";
+      };
+
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
