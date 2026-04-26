@@ -1,8 +1,8 @@
-{ pkgs, pkgsUnstable, ... }:
+{ pkgs, ... }:
 
 let
   llm-router-script = pkgs.writeShellScriptBin "llm-router" ''
-    exec ${pkgsUnstable.llama-cpp}/bin/llama-server \
+    exec ${pkgs.llama-cpp}/bin/llama-server \
       --models-dir /home/LLMs/llama-models/ \
       --models-preset /home/LLMs/llama-models.ini \
       --host 0.0.0.0 \

@@ -15,7 +15,7 @@
     ./mounts.nix
     ./networking.nix
     ./nix.nix
-    ./packages.nix
+    ./packages/default.nix
     ./services.nix
     ./services/open-webui/open-webui.nix
     ./services/pihole/pihole.nix

@@ -67,7 +67,7 @@ function os-rebuild
 
     echo (set_color yellow)"Rebuilding NixOS (boot) for RX-78-FPC..."(set_color normal)
     # sudo will likely prompt for password here
-    sudo nixos-rebuild boot --flake .#RX-78-FPC --upgrade-all --print-build-logs --show-trace --refresh
+    sudo nixos-rebuild boot --flake .#RX-78-FPC --print-build-logs --show-trace --refresh
 end
 
 function os-update

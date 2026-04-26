@@ -1,13 +1,12 @@
 {
   pkgs,
-  pkgsUnstable,
   nix-ai-tools,
   ...
 }:
 {
   home.packages = with pkgs; [
     keepassxc
-    protonvpn-gui
+    proton-vpn
     quodlibet-xine-full
     ungoogled-chromium
     zenmap
@@ -18,7 +17,7 @@
   programs.vscode = {
     enable = true;
     mutableExtensionsDir = true;
-    package = pkgsUnstable.vscode.fhsWithPackages (
+    package = pkgs.vscode.fhsWithPackages (
       ps: with ps; [
         automake
         curl
@@ -40,13 +39,20 @@
         wget
         yarn
         zlib
+        clang-tools
+        cmake
+        git-lfs
+        gitFull
+        ninja
+        ruff
+        uv
+        uv-sort
       ]
     );
   };
 
   programs.wezterm = {
     enable = true;
-    package = pkgsUnstable.wezterm;
     extraConfig = ''
       local wezterm = require('wezterm')
       local config = wezterm.config_builder()
@@ -63,29 +69,25 @@
 
   programs.yt-dlp = {
     enable = true;
-    package = pkgsUnstable.yt-dlp;
   };
 
   programs.mpv = {
     enable = true;
 
-    package = (
-      pkgs.mpv-unwrapped.wrapper {
-        scripts = with pkgs.mpvScripts; [
-          sponsorblock
-          thumbnail
-          thumbfast
-          autosub
-          uosc
-        ];
-
-        mpv = pkgs.mpv-unwrapped.override {
-          waylandSupport = true;
-          jackaudioSupport = true;
-          ffmpeg = pkgs.ffmpeg-full;
-        };
-      }
-    );
+    package = pkgs.mpv.override {
+      mpv-unwrapped = pkgs.mpv-unwrapped.override {
+        waylandSupport = true;
+        jackaudioSupport = true;
+        ffmpeg = pkgs.ffmpeg-full;
+      };
+      scripts = with pkgs.mpvScripts; [
+        sponsorblock
+        thumbnail
+        thumbfast
+        autosub
+        uosc
+      ];
+    };
 
     config = {
       osc = "no";
@@ -113,9 +115,8 @@
     enable = true;
     lfs = {
       enable = true;
-      package = pkgsUnstable.git-lfs;
     };
-    package = pkgsUnstable.gitFull;
+    package = pkgs.gitFull;
     settings = {
       user = {
         name = "SteelPh0enix";
@@ -138,7 +139,6 @@
 
   programs.lazygit = {
     enable = true;
-    package = pkgsUnstable.lazygit;
     settings = {
       gui = {
         language = "en";
@@ -161,19 +161,12 @@
     withRuby = true;
   };
 
-  programs.ripgrep = {
-    enable = true;
-    package = pkgsUnstable.ripgrep;
-  };
+  programs.ripgrep.enable = true;
 
-  programs.fd = {
-    enable = true;
-    package = pkgsUnstable.fd;
-  };
+  programs.fd.enable = true;
 
   programs.eza = {
     enable = true;
-    package = pkgsUnstable.eza;
     enableFishIntegration = true;
     icons = "always";
     git = true;
