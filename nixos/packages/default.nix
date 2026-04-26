@@ -40,8 +40,6 @@
 
   programs.evince.enable = true;
 
-  programs.firefox.enable = true;
-
   programs.fish.enable = true;
 
   programs.fzf.fuzzyCompletion = true;

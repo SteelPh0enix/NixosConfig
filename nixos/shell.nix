@@ -2,7 +2,7 @@
 {
   environment.sessionVariables = {
     EDITOR = "nvim";
-    BROWSER = "firefox";
+    BROWSER = "";
     TERMINAL = "wezterm";
     OPENAI_API_KEY="***";
     OPENAI_BASE_URL = "http://steelph0enix.framework:51536/v1";
