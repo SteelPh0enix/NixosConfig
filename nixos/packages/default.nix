@@ -6,149 +6,19 @@
   ...
 }:
 let
-  pkgsUnstable' = pkgsUnstable.extend (import ./overlays/llama-cpp.nix);
+  pkgsUnstable' = pkgsUnstable.extend (import ../overlays/llama-cpp.nix);
 in
 {
-  nixpkgs.overlays = [
-    rust-overlay.overlays.default
-    (import ./overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
+  imports = [
+    ./dev.nix
+    ./system.nix
+    ./media.nix
+    ./apps.nix
   ];
 
-  environment.systemPackages = with pkgs; [
-    (rust-bin.stable.latest.default.override {
-      extensions = [
-        "cargo"
-        "rust-analysis"
-        "rust-src"
-        "rust-std"
-        "rustc"
-        "rustfmt"
-      ];
-    })
-
-    # pkgsUnstable.llama-cpp
-    autoconf
-    automake
-    bear
-    blueman
-    boost
-    bzip3
-    ccache
-    cifs-utils
-    clang
-    cpupower-gui
-    dmidecode
-    dnsutils
-    docker
-    docker-buildx
-    exfatprogs
-    figlet
-    file
-    findutils
-    flac
-    gawk
-    gcc
-    gdb
-    gnugrep
-    gnumake
-    gnused
-    gnutar
-    gparted
-    gst_all_1.gst-libav
-    gst_all_1.gst-plugins-bad
-    gst_all_1.gst-plugins-base
-    gst_all_1.gst-plugins-good
-    gst_all_1.gst-plugins-ugly
-    gst_all_1.gst-vaapi
-    gst_all_1.gstreamer
-    hdparm
-    icu
-    inetutils
-    lact
-    libtool
-    libunwind
-    libusb1
-    linuxHeaders
-    linuxKernel.packages.linux_zen.cpupower
-    lldb
-    lm_sensors
-    lsof
-    ltrace
-    minicom
-    nmap
-    ntfs3g
-    openssh
-    openssl
-    p7zip
-    parted
-    pciutils
-    pkgsUnstable.basedpyright
-    pkgsUnstable.black
-    pkgsUnstable.btop-rocm
-    pkgsUnstable.clang-tools
-    pkgsUnstable.cmake
-    pkgsUnstable.curl
-    pkgsUnstable.eza
-    pkgsUnstable.fastfetch
-    pkgsUnstable.fd
-    pkgsUnstable.ffmpeg-full
-    pkgsUnstable.flatpak
-    pkgsUnstable.fzf
-    pkgsUnstable.isort
-    pkgsUnstable.jq
-    pkgsUnstable.mc
-    pkgsUnstable.mypy
-    pkgsUnstable.ncdu
-    pkgsUnstable.nerd-font-patcher
-    pkgsUnstable.nil
-    pkgsUnstable.ninja
-    pkgsUnstable.nixd
-    pkgsUnstable.nixfmt
-    pkgsUnstable.nixpkgs-review
-    pkgsUnstable.python314
-    pkgsUnstable.python314Packages.pyserial
-    pkgsUnstable.python314Packages.pytest
-    pkgsUnstable.python314Packages.pyusb
-    pkgsUnstable.radeontop
-    pkgsUnstable.ripgrep
-    pkgsUnstable.ruff
-    pkgsUnstable.sqlite
-    pkgsUnstable.tree
-    pkgsUnstable.uv
-    pkgsUnstable.valgrind
-    pkgsUnstable.vkd3d
-    pkgsUnstable.wget
-    psmisc
-    rar
-    remmina
-    rsync
-    socat
-    sshfs
-    strace
-    sysstat
-    tcpdump
-    texliveFull
-    thermald
-    traceroute
-    uhubctl
-    unrar
-    unzip
-    usbutils
-    vk-bootstrap
-    vkdevicechooser
-    vkdisplayinfo
-    vkmark
-    vulkan-extension-layer
-    vulkan-helper
-    vulkan-tools
-    vulkan-utility-libraries
-    websocat
-    which
-    wireguard-tools
-    xz
-    zenity
-    zip
-    zstd
+  nixpkgs.overlays = [
+    rust-overlay.overlays.default
+    (import ../overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
   ];
 
   systemd.packages = with pkgs; [ lact ];

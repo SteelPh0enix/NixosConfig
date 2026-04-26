@@ -12,9 +12,8 @@
     ./hardware-configuration.nix
     ./hardware.nix
     ./locale.nix
-    ./mounts.nix
     ./nix.nix
-    ./packages.nix
+    ./packages
     ./services.nix
     ./shell.nix
     ./users.nix
