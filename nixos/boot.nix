@@ -11,4 +11,6 @@
 
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.timeout = 5;
+
+  boot.kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest;
 }
