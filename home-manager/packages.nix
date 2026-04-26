@@ -23,7 +23,13 @@
     element-desktop
     gimp
     inkscape-with-extensions
-    jellyfin-media-player
+    (jellyfin-media-player.overrideAttrs (old: {
+      nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.makeWrapper ];
+      postInstall = (old.postInstall or "") + ''
+        wrapProgram $out/bin/jellyfin-desktop \
+          --set QT_QPA_PLATFORM xcb
+      '';
+    }))
     obsidian
     orca-slicer
     prismlauncher
