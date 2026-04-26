@@ -6,6 +6,16 @@
   boot.kernelParams = [
     "kvm.enable_virt_at_load=0"
     "microcode.amd_sha_check=off"
+    "amd_pstate=active"
+    "processor.max_cstate=1"
+    "idle=nomwait"
+    "amdgpu.ppfeaturemask=0xffffffff"
+    "amdgpu.gpu_recovery=1"
+    "amdgpu.gfx_off=0"
+    "amdgpu.runpm=0"
+    "amdgpu.tmz=0"
+    "amdgpu.dcdebugmask=0x10"
+    "amdgpu.noretry=0"
   ];
 
   hardware.enableRedistributableFirmware = true;
@@ -128,5 +138,10 @@
         };
       };
     };
+  };
+
+  zramSwap = {
+    enable = true;
+    memoryPercent = 50;
   };
 }

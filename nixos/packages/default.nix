@@ -3,6 +3,7 @@
   pkgs,
   pkgsUnstable,
   rust-overlay,
+  inputs,
   ...
 }:
 let
@@ -18,6 +19,7 @@ in
 
   nixpkgs.overlays = [
     rust-overlay.overlays.default
+    inputs.nix-cachyos-kernel.overlays.pinned
     (import ../overlays/ccache.nix { cacheDir = config.programs.ccache.cacheDir; })
   ];
 
