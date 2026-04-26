@@ -16,6 +16,8 @@
     "amdgpu.tmz=0"
     "amdgpu.dcdebugmask=0x10"
     "amdgpu.noretry=0"
+    "split_lock_detect=off"
+    "rcu_nocbs=0-23"
   ];
 
   hardware.enableRedistributableFirmware = true;
@@ -138,6 +140,19 @@
         };
       };
     };
+  };
+
+  powerManagement.cpuFreqGovernor = "performance";
+
+  boot.kernel.sysctl = {
+    "vm.swappiness" = 10;
+    "vm.vfs_cache_pressure" = 50;
+    "kernel.sched_cfs_bandwidth_slice_us" = 3000;
+    "kernel.sched_latency_ns" = 1000000;
+    "kernel.sched_min_granularity_ns" = 100000;
+    "kernel.sched_wakeup_granularity_ns" = 50000;
+    "net.core.netdev_max_backlog" = 65536;
+    "net.ipv4.tcp_fastopen" = 3;
   };
 
   zramSwap = {

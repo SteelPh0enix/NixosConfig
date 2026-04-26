@@ -94,4 +94,6 @@
   '';
 
   services.flatpak.enable = true;
+  services.fstrim.enable = true;
+  services.irqbalance.enable = true;
 }

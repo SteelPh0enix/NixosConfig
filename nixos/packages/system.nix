@@ -1,4 +1,4 @@
-{ pkgs, pkgsUnstable, ... }:
+{ pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
     bzip3
@@ -20,7 +20,6 @@
     hdparm
     icu
     inetutils
-    lact
     lm_sensors
     lsof
     ltrace
@@ -39,7 +38,6 @@
     strace
     sysstat
     tcpdump
-    thermald
     traceroute
     uhubctl
     unrar
@@ -51,19 +49,19 @@
     zip
     zstd
 
-    pkgsUnstable.curl
-    pkgsUnstable.eza
-    pkgsUnstable.fastfetch
-    pkgsUnstable.fd
-    pkgsUnstable.fzf
-    pkgsUnstable.jq
-    pkgsUnstable.mc
-    pkgsUnstable.ncdu
-    pkgsUnstable.radeontop
-    pkgsUnstable.ripgrep
-    pkgsUnstable.tree
-    pkgsUnstable.uv
-    pkgsUnstable.vkd3d
-    pkgsUnstable.wget
+    curl
+    eza
+    fastfetch
+    fd
+    fzf
+    jq
+    mc
+    ncdu
+    radeontop
+    ripgrep
+    tree
+    uv
+    vkd3d
+    wget
   ];
 }

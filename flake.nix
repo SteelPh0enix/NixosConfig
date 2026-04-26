@@ -2,10 +2,9 @@
   description = "My NixOS configuration";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    home-manager.url = "github:nix-community/home-manager/release-25.11";
+    home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-index-database.url = "github:nix-community/nix-index-database";
@@ -16,9 +15,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-ai-tools.url = "github:numtide/nix-ai-tools";
-    ucodenix.url = "github:e-tho/ucodenix";
-    llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
+    nix-ai-tools = {
+      url = "github:numtide/nix-ai-tools";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    ucodenix = {
+      url = "github:e-tho/ucodenix";
+    };
 
     aagl = {
       url = "github:ezKEa/aagl-gtk-on-nix";
@@ -35,59 +39,37 @@
     {
       self,
       nixpkgs,
-      nixpkgs-unstable,
       home-manager,
       nix-index-database,
-      rust-overlay,
-      llama-cpp,
       aagl,
       ...
     }@inputs:
     let
       inherit (self) outputs;
       system = "x86_64-linux";
-
-      pkgsUnstable = import nixpkgs-unstable {
-        inherit system;
-        config = {
-          allowUnfree = true;
-          rocmSupport = false;
-        };
-        overlays = [
-          llama-cpp.overlays.default
-        ];
-      };
     in
     {
       nixosConfigurations = {
-        steelph0enix-pc =
-          let
-            specialArgs = {
-              inherit
-                inputs
-                outputs
-                pkgsUnstable
-                ;
-            };
-          in
-          nixpkgs.lib.nixosSystem {
-            inherit specialArgs;
-            modules = [
-              { _module.args = inputs; }
-              ./nixos/configuration.nix
-              nix-index-database.nixosModules.nix-index
-              home-manager.nixosModules.home-manager
-              aagl.nixosModules.default
-              {
-                nix.settings = aagl.nixConfig;
-                home-manager.backupFileExtension = "hmgr.backup";
-                home-manager.useGlobalPkgs = true;
-                home-manager.useUserPackages = true;
-                home-manager.extraSpecialArgs = inputs // specialArgs;
-                home-manager.users.steelph0enix = import ./home-manager/home.nix;
-              }
-            ];
+        steelph0enix-pc = nixpkgs.lib.nixosSystem {
+          specialArgs = {
+            inherit inputs outputs;
           };
+          modules = [
+            { _module.args = inputs; }
+            ./nixos/configuration.nix
+            nix-index-database.nixosModules.nix-index
+            home-manager.nixosModules.home-manager
+            aagl.nixosModules.default
+            {
+              nix.settings = aagl.nixConfig;
+              home-manager.backupFileExtension = "hmgr.backup";
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.extraSpecialArgs = inputs;
+              home-manager.users.steelph0enix = import ./home-manager/home.nix;
+            }
+          ];
+        };
       };
     };
 }
