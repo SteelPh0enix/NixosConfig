@@ -25,9 +25,8 @@
     libunwind
     libusb1
     linuxHeaders
-    pkgs.linuxPackages.cpupower
+    linuxPackages.cpupower
     lldb
-    openssh
     openssl
     texliveFull
 

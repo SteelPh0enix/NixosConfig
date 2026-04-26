@@ -4,20 +4,15 @@
   boot.kernelModules = [ "kvm-amd" ];
 
   boot.kernelParams = [
-    "kvm.enable_virt_at_load=0"
     "microcode.amd_sha_check=off"
     "amd_pstate=active"
-    "processor.max_cstate=1"
-    "idle=nomwait"
     "amdgpu.ppfeaturemask=0xffffffff"
     "amdgpu.gpu_recovery=1"
     "amdgpu.gfx_off=0"
     "amdgpu.runpm=0"
     "amdgpu.tmz=0"
-    "amdgpu.dcdebugmask=0x10"
     "amdgpu.noretry=0"
     "split_lock_detect=off"
-    "rcu_nocbs=0-23"
   ];
 
   hardware.enableRedistributableFirmware = true;
@@ -69,27 +64,11 @@
     KERNEL=="ttyACM*", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="93ff", MODE="0666", SYMLINK+="coral_micro_UART-$attr{serial}"
   '';
 
-  services.pulseaudio.extraConfig = "unload-module module-suspend-on-idle";
-
   # force RADV
   environment.variables.AMD_VULKAN_ICD = "RADV";
   environment.variables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/radeon_icd.x86_64.json";
 
   security.rtkit.enable = true;
-
-  systemd.services.fix-sound = {
-    description = "Disable snd_hda_intel power saving";
-    after = [ "sysinit.target" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = "yes";
-    };
-    script = ''
-      echo 0 > /sys/module/snd_hda_intel/parameters/power_save
-      echo N > /sys/module/snd_hda_intel/parameters/power_save_controller
-    '';
-  };
 
   services.pipewire = {
     enable = true;
@@ -150,7 +129,7 @@
     "kernel.sched_cfs_bandwidth_slice_us" = 3000;
     "kernel.sched_latency_ns" = 1000000;
     "kernel.sched_min_granularity_ns" = 100000;
-    "kernel.sched_wakeup_granularity_ns" = 50000;
+    "kernel.sched_wakeup_granularity_ns" = 200000;
     "net.core.netdev_max_backlog" = 65536;
     "net.ipv4.tcp_fastopen" = 3;
   };

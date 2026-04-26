@@ -67,15 +67,6 @@
     interface = "wg0";
   };
 
-  services.tuned = {
-    enable = true;
-    settings = {
-      daemon = true;
-      dynamic_tuning = true;
-      recommend_command = true;
-    };
-  };
-
   services.avahi.enable = true;
   services.system-config-printer.enable = true;
   services.printing = {
@@ -88,10 +79,6 @@
     browsed.enable = true;
     cups-pdf.enable = true;
   };
-
-  services.udev.extraRules = ''
-    SUBSYSTEM=="usb", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0666"
-  '';
 
   services.flatpak.enable = true;
   services.fstrim.enable = true;

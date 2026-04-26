@@ -26,10 +26,7 @@
     binfmt = true;
   };
 
-  programs.bat = {
-    enable = true;
-    package = pkgs.bat;
-  };
+  programs.bat.enable = true;
 
   programs.ccache.enable = true;
   programs.ccache.cacheDir = "/var/cache/ccache";
@@ -39,29 +36,17 @@
   programs.direnv = {
     enable = true;
     enableFishIntegration = true;
-    package = pkgs.direnv;
-    nix-direnv = {
-      enable = true;
-      package = pkgs.nix-direnv;
-    };
+    nix-direnv.enable = true;
   };
 
   programs.evince.enable = true;
 
-  programs.firefox = {
-    enable = true;
-    package = pkgs.firefox;
-  };
+  programs.firefox.enable = true;
 
-  programs.fish = {
-    package = pkgs.fish;
-    enable = true;
-  };
+  programs.fish.enable = true;
 
-  programs.fzf = {
-    fuzzyCompletion = true;
-    keybindings = true;
-  };
+  programs.fzf.fuzzyCompletion = true;
+  programs.fzf.keybindings = true;
 
   programs.gnupg.agent = {
     enable = true;
@@ -83,7 +68,6 @@
 
   programs.obs-studio = {
     enable = true;
-    package = pkgs.obs-studio;
     enableVirtualCamera = true;
     plugins = [
       pkgs.obs-studio-plugins.waveform
@@ -100,14 +84,12 @@
   };
 
   programs.wireshark = {
-    package = pkgs.wireshark;
     enable = true;
     dumpcap.enable = true;
     usbmon.enable = true;
   };
 
   programs.steam = {
-    package = pkgs.steam;
     enable = true;
     remotePlay.openFirewall = true;
     protontricks.enable = true;
@@ -117,7 +99,7 @@
     gamescopeSession.enable = true;
     extraPackages = with pkgs; [
       gamescope
-      pkgs.javaPackages.compiler.temurin-bin.jdk-25
+      javaPackages.compiler.temurin-bin.jdk-25
     ];
   };
 
