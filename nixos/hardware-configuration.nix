@@ -30,7 +30,7 @@
   fileSystems."/" =
     { device = "/dev/disk/by-uuid/c7acf5c4-98da-40a3-b0b2-ce0a9e8a434b";
       fsType = "ext4";
-      options = [ "noatime" "discard" ];
+      options = [ "noatime" ];
     };
 
   fileSystems."/boot" =
@@ -48,16 +48,14 @@
   fileSystems."/mnt/NVMe" =
     { device = "/dev/disk/by-uuid/cab337e4-b58c-4b41-8cee-7794f7ed5567";
       fsType = "ext4";
-      options = [ "nofail" "noatime" "discard" ];
+      options = [ "nofail" "noatime" ];
     };
 
   fileSystems."/mnt/SSD" =
     { device = "/dev/disk/by-uuid/8a7aebcc-10e5-4ba7-b901-ba1fff5b3b98";
       fsType = "ext4";
-      options = [ "nofail" "noatime" "discard" ];
+      options = [ "nofail" "noatime" ];
     };
-
-
   swapDevices = [ ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
