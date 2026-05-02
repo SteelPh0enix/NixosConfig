@@ -3,7 +3,7 @@
   users.groups = {
     steelph0enix = { };
     pcap = { };
-    wireshark = { };
+    # wireshark = { };
     docker = { };
     vboxusers = { };
     plugdev = { };
@@ -20,7 +20,7 @@
       "networkmanager"
       "render"
       "pcap"
-      "wireshark"
+      # "wireshark"
       "docker"
       "vboxusers"
       "plugdev"
