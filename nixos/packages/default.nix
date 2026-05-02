@@ -63,11 +63,11 @@
 
   programs.tcpdump.enable = true;
 
-  programs.wireshark = {
-    enable = true;
-    dumpcap.enable = true;
-    usbmon.enable = true;
-  };
+  # programs.wireshark = {
+  #   enable = true;
+  #   dumpcap.enable = true;
+  #   usbmon.enable = true;
+  # };
 
   programs.steam = {
     enable = true;
