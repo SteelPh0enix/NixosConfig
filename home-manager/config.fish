@@ -67,6 +67,15 @@ function os-rebuild
     sudo nixos-rebuild boot --flake .#steelph0enix-pc --print-build-logs --show-trace --refresh
 end
 
+function os-rebuild-switch
+    echo (set_color green)"Directory: ~/nixos-config"(set_color normal)
+    cd ~/nixos-config; or return 1
+
+    echo (set_color yellow)"Rebuilding NixOS (boot) for main PC and switching to new build..."(set_color normal)
+    # sudo will likely prompt for password here
+    sudo nixos-rebuild switch --flake .#steelph0enix-pc --print-build-logs --show-trace --refresh
+end
+
 function os-update
     echo (set_color magenta)"=== Starting OS Update Sequence ==="(set_color normal)
 
