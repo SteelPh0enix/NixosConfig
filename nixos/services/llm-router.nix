@@ -7,7 +7,7 @@ let
       --models-preset /home/LLMs/llama-models.ini \
       --host 0.0.0.0 \
       --port 51536 \
-      --models-max 1 \
+      --models-max 4 \
       --parallel 1 \
       --webui \
       --metrics \
