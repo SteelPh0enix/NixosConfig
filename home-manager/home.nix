@@ -1,4 +1,10 @@
 {
+  config,
+  pkgs,
+  nixvim,
+  ...
+}:
+{
   home = {
     username = "steelph0enix";
     homeDirectory = "/home/steelph0enix";
@@ -10,9 +16,11 @@
   xdg.configFile."crush/crush.json".source = ./crush.json;
 
   imports = [
+    nixvim.homeModules.nixvim
     ./shell.nix
     ./packages.nix
     ./fonts.nix
     ./opencode.nix
+    ./nixvim
   ];
 }
