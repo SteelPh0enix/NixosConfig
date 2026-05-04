@@ -33,6 +33,11 @@
       url = "github:xddxdd/nix-cachyos-kernel";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixvim = {
+      url = "github:nix-community/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -41,6 +46,7 @@
       nixpkgs,
       home-manager,
       nix-index-database,
+      nixvim,
       aagl,
       ...
     }@inputs:
@@ -64,7 +70,7 @@
               home-manager.backupFileExtension = "hmgr.backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = inputs;
+              home-manager.extraSpecialArgs = inputs // { inherit nixvim; };
               home-manager.users.steelph0enix = import ./home-manager/home.nix;
             }
           ];
