@@ -24,7 +24,7 @@
     gimp
     inkscape-with-extensions
     (jellyfin-media-player.overrideAttrs (old: {
-      nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.makeWrapper ];
+      nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
       postInstall = (old.postInstall or "") + ''
         wrapProgram $out/bin/jellyfin-desktop \
           --set QT_QPA_PLATFORM xcb
@@ -179,17 +179,6 @@
       "s" = "script-binding uosc/shuffle";
       "Shift+S" = "script-binding uosc/subtitles";
     };
-  };
-
-  programs.neovim = {
-    defaultEditor = true;
-    enable = true;
-    viAlias = true;
-    vimAlias = true;
-    vimdiffAlias = true;
-    withNodeJs = true;
-    withPython3 = true;
-    withRuby = true;
   };
 
   programs.ripgrep.enable = true;
