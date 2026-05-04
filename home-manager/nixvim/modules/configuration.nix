@@ -1,16 +1,8 @@
-{
-  pkgs,
-  lib,
-  nixvim,
-  ...
-}:
-
-with lib;
-
+{ ... }:
 {
   # ---- Extra packages (LSPs, tools, runtime deps) ----
-  extraLuaPackages = p: with p; [ ];
-  extraPython3Packages = p: with p; [ ];
+  extraLuaPackages = _p: [ ];
+  extraPython3Packages = _p: [ ];
 
   viAlias = true;
   vimAlias = true;
