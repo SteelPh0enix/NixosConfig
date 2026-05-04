@@ -23,7 +23,7 @@
     libtool
     libunwind
     libusb1
-    linuxHeaders
+    llvm
     lldb
     openssl
     texliveFull
