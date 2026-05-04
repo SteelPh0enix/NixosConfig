@@ -111,6 +111,7 @@
     };
   };
 
+
   programs.git = {
     enable = true;
     lfs = {
@@ -148,17 +149,6 @@
         overrideGpg = true;
       };
     };
-  };
-
-  programs.neovim = {
-    defaultEditor = true;
-    enable = true;
-    viAlias = true;
-    vimAlias = true;
-    vimdiffAlias = true;
-    withNodeJs = true;
-    withPython3 = true;
-    withRuby = true;
   };
 
   programs.ripgrep.enable = true;
