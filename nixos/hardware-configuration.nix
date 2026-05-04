@@ -27,35 +27,47 @@
   boot.kernelParams = [ ];
   boot.extraModulePackages = [ ];
 
-  fileSystems."/" =
-    { device = "/dev/disk/by-uuid/c7acf5c4-98da-40a3-b0b2-ce0a9e8a434b";
-      fsType = "ext4";
-      options = [ "noatime" ];
-    };
+  fileSystems."/" = {
+    device = "/dev/disk/by-uuid/c7acf5c4-98da-40a3-b0b2-ce0a9e8a434b";
+    fsType = "ext4";
+    options = [ "noatime" ];
+  };
 
-  fileSystems."/boot" =
-    { device = "/dev/disk/by-uuid/6093-4F89";
-      fsType = "vfat";
-      options = [ "fmask=0077" "dmask=0077" ];
-    };
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-uuid/6093-4F89";
+    fsType = "vfat";
+    options = [
+      "fmask=0077"
+      "dmask=0077"
+    ];
+  };
 
-  fileSystems."/mnt/HDD" =
-    { device = "/dev/disk/by-uuid/d0e55b8c-bc95-4860-b47c-a95d4d16e75a";
-      fsType = "ext4";
-      options = [ "nofail" "noatime" ];
-    };
+  fileSystems."/mnt/HDD" = {
+    device = "/dev/disk/by-uuid/d0e55b8c-bc95-4860-b47c-a95d4d16e75a";
+    fsType = "ext4";
+    options = [
+      "nofail"
+      "noatime"
+    ];
+  };
 
-  fileSystems."/mnt/NVMe" =
-    { device = "/dev/disk/by-uuid/cab337e4-b58c-4b41-8cee-7794f7ed5567";
-      fsType = "ext4";
-      options = [ "nofail" "noatime" ];
-    };
+  fileSystems."/mnt/NVMe" = {
+    device = "/dev/disk/by-uuid/cab337e4-b58c-4b41-8cee-7794f7ed5567";
+    fsType = "ext4";
+    options = [
+      "nofail"
+      "noatime"
+    ];
+  };
 
-  fileSystems."/mnt/SSD" =
-    { device = "/dev/disk/by-uuid/8a7aebcc-10e5-4ba7-b901-ba1fff5b3b98";
-      fsType = "ext4";
-      options = [ "nofail" "noatime" ];
-    };
+  fileSystems."/mnt/SSD" = {
+    device = "/dev/disk/by-uuid/8a7aebcc-10e5-4ba7-b901-ba1fff5b3b98";
+    fsType = "ext4";
+    options = [
+      "nofail"
+      "noatime"
+    ];
+  };
   swapDevices = [ ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";

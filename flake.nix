@@ -70,7 +70,9 @@
               home-manager.backupFileExtension = "hmgr.backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = inputs // { inherit nixvim; };
+              home-manager.extraSpecialArgs = inputs // {
+                inherit nixvim;
+              };
               home-manager.users.steelph0enix = import ./home-manager/home.nix;
             }
           ];
