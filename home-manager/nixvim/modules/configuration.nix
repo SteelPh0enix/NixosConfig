@@ -10,13 +10,9 @@
 
   # ---- Keymaps ----
   keymaps = [
+    # --- Save / Close ---
     {
-      key = "<leader>ev";
-      action = ":e $MYVIMRC<CR>";
-      options.desc = "Edit Nixvim config";
-    }
-    {
-      key = "<leader>w";
+      key = "<C-s>";
       action = "<cmd>w<CR>";
       options.desc = "Save file";
     }
@@ -25,6 +21,59 @@
       action = "<cmd>q<CR>";
       options.desc = "Close buffer";
     }
+
+    # --- File tree ---
+    {
+      key = "<leader>fs";
+      action = "<cmd>NvimTreeToggle<CR>";
+      options.desc = "Toggle file tree";
+    }
+
+    # --- LSP navigation ---
+    {
+      key = "gd";
+      action = "<cmd>lua vim.lsp.buf.definition()<CR>";
+      options.desc = "Go to definition";
+    }
+    {
+      key = "gD";
+      action = "<cmd>lua vim.lsp.buf.declaration()<CR>";
+      options.desc = "Go to declaration";
+    }
+    {
+      key = "gr";
+      action = "<cmd>lua vim.lsp.buf.references()<CR>";
+      options.desc = "Find references";
+    }
+    {
+      key = "gi";
+      action = "<cmd>lua vim.lsp.buf.implementation()<CR>";
+      options.desc = "Go to implementation";
+    }
+    {
+      key = "go";
+      action = "<cmd>lua vim.lsp.buf.type_definition()<CR>";
+      options.desc = "Go to type definition";
+    }
+
+    # --- Hover / Diagnostics ---
+    {
+      key = "K";
+      action = "<cmd>lua vim.lsp.buf.hover()<CR>";
+      options.desc = "Hover details";
+    }
+    {
+      key = "]d";
+      action = "<cmd>lua vim.diagnostic.goto_next()<CR>";
+      options.desc = "Next diagnostic";
+    }
+    {
+      key = "[d";
+      action = "<cmd>lua vim.diagnostic.goto_prev()<CR>";
+      options.desc = "Previous diagnostic";
+    }
+
+    # --- Quickfix navigation ---
     {
       key = "]l";
       action = "<cmd>cnext<CR>";
@@ -38,6 +87,10 @@
   ];
 
   # ---- Neovim options ----
+  extraConfigLua = ''
+    vim.g.mapleader = ' '
+  '';
+
   opts = {
     encoding = "utf-8";
     langmenu = "en_US";
@@ -62,7 +115,7 @@
     relativenumber = true;
     cursorline = true;
     cursorcolumn = false;
-    colorcolumn = "80";
+    colorcolumn = "80,100,120";
 
     splitbelow = true;
     splitright = true;
@@ -79,26 +132,31 @@
     updatetime = 300;
   };
 
-  globals.loaded_ruby_provider = 0;
-  globals.loaded_perl_provider = 0;
-  globals.loaded_python_provider = 0;
-
   # ---- Plugins ----
   plugins = {
     cmp.enable = true;
-    diffview.enable = true;
+
     gitsigns.enable = true;
     lualine.enable = true;
-    markdown-preview.enable = true;
-    neoconf.enable = true;
     nvim-autopairs.enable = true;
     nvim-lightbulb.enable = true;
+    cmp-nvim-lsp.enable = true;
+    cmp-path.enable = true;
+    nvim-tree.enable = true;
     treesitter.enable = true;
     obsidian.enable = false;
     render-markdown.enable = true;
     rustaceanvim.enable = true;
-    tmux-navigator.enable = true;
     web-devicons.enable = true;
   };
+
+  # ---- LSP Server Configuration ----
+  plugins.lsp = {
+    enable = true;
+    servers.clangd.enable = true;
+  };
+
+  # ---- Nvim-tree configuration ----
+  plugins.nvim-tree.openOnSetup = false;
 
 }
