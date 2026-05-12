@@ -13,7 +13,7 @@
     proton-vpn
     qbittorrent-enhanced
     quodlibet-xine-full
-    spotify
+    # spotify
     teams-for-linux
     ungoogled-chromium
     zenmap
