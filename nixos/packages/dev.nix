@@ -14,33 +14,34 @@
 
     autoconf
     automake
+    basedpyright
     bear
     boost
     clang
+    clang-tools
+    cmake
     gcc
     gdb
     gnumake
     libtool
     libunwind
     libusb1
-    llvm
     lldb
-    openssl
-    texliveFull
-    basedpyright
-    clang-tools
-    cmake
+    llvm
     nil
     ninja
     nixd
     nixfmt
     nixpkgs-review
+    openssl
+    pi-coding-agent
     pnpm
     python314
     python314Packages.pyserial
     python314Packages.pytest
     python314Packages.pyusb
     ruff
+    texliveFull
     valgrind
   ];
 }
