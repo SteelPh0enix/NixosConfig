@@ -14,31 +14,30 @@
 
     autoconf
     automake
+    basedpyright
     bear
+    black
     boost
     clang
+    clang-tools
+    cmake
     gcc
     gdb
     gnumake
+    isort
     libtool
     libunwind
     libusb1
-    llvm
     lldb
-    openssl
-    texliveFull
-
-    basedpyright
-    black
-    clang-tools
-    cmake
-    isort
+    llvm
     mypy
     nil
     ninja
     nixd
     nixfmt
     nixpkgs-review
+    openssl
+    pi-coding-agent
     pkg-config
     pnpm
     python314
@@ -46,6 +45,7 @@
     python314Packages.pytest
     python314Packages.pyusb
     ruff
+    texliveFull
     uv
     uv-sort
     valgrind
