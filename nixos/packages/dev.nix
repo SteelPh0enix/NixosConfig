@@ -40,6 +40,7 @@
     nixfmt
     nixpkgs-review
     pkg-config
+    pnpm
     python314
     python314Packages.pyserial
     python314Packages.pytest
