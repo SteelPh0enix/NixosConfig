@@ -27,7 +27,6 @@
     lldb
     openssl
     texliveFull
-
     basedpyright
     clang-tools
     cmake
@@ -36,6 +35,7 @@
     nixd
     nixfmt
     nixpkgs-review
+    pnpm
     python314
     python314Packages.pyserial
     python314Packages.pytest
