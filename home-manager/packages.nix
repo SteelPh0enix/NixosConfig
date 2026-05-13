@@ -1,28 +1,36 @@
 {
   pkgs,
-  nix-ai-tools,
   ...
 }:
 {
   home.packages = with pkgs; [
-    freecad
-    heroic
-    keepassxc
-    krename
-    libreoffice-qt6-fresh
-    proton-vpn
-    qbittorrent-enhanced
-    quodlibet-xine-full
-    # spotify
-    teams-for-linux
-    ungoogled-chromium
-    zenmap
-
     drawio
     dxvk
     element-desktop
+    freecad
     gimp
+    heroic
     inkscape-with-extensions
+    keepassxc
+    krename
+    libreoffice-qt6-fresh
+    obsidian
+    orca-slicer
+    prismlauncher
+    proton-vpn
+    protonup-qt
+    qbittorrent-enhanced
+    quodlibet-xine-full
+    # spotify
+    # stm32cubemx
+    teams-for-linux
+    teamspeak6-client
+    ungoogled-chromium
+    winePackages.stagingFull
+    winetricks
+    xournalpp
+    zenmap
+
     (jellyfin-media-player.overrideAttrs (old: {
       nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
       postInstall = (old.postInstall or "") + ''
@@ -30,16 +38,6 @@
           --set QT_QPA_PLATFORM xcb
       '';
     }))
-    obsidian
-    orca-slicer
-    prismlauncher
-    protonup-qt
-    stm32cubemx
-    winePackages.stagingFull
-    winetricks
-    xournalpp
-
-    nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.crush
   ];
 
   programs.git = {
