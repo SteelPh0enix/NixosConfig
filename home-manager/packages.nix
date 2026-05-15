@@ -130,7 +130,13 @@
       config.font = wezterm.font_with_fallback { 'BerkeleyMono Nerd Font Mono' }
       config.initial_cols = 120
       config.initial_rows = 30
-      config.enable_wayland = false
+      config.enable_wayland = true
+      config.scrollback_lines = 20000
+      config.enable_scroll_bar = true
+
+      config.colors = {
+        scrollbar_thumb = '#8810ff',
+      }
 
       return config'';
   };
