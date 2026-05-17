@@ -24,6 +24,7 @@
     gcc
     gdb
     gnumake
+    imagemagick
     isort
     libtool
     libunwind
