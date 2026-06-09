@@ -21,6 +21,7 @@
     clang-tools
     cmake
     gcc
+    gcc-arm-embedded
     gdb
     gnumake
     libtool
