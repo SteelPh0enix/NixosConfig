@@ -41,6 +41,7 @@
     python314Packages.pytest
     python314Packages.pyusb
     ruff
+    stm32cubemx
     texliveFull
     valgrind
   ];
