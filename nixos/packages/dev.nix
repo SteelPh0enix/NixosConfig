@@ -43,6 +43,11 @@
     python314Packages.pyusb
     ruff
     stm32cubemx
+    stlink
+    stlink-gui
+    stlink-tool
+    stm32flash
+    stm32loader
     texliveFull
     valgrind
   ];
