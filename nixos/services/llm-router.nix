@@ -12,7 +12,8 @@ let
       --webui \
       --metrics \
       --props \
-      --slots
+      --slots \
+      --tools all
   '';
 in
 {
