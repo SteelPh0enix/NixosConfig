@@ -57,7 +57,7 @@
       local wezterm = require('wezterm')
       local config = wezterm.config_builder()
 
-      config.color_scheme = 'Kanagawa (Gogh)'
+      config.color_scheme = 'Afterglow (Gogh)'
       config.font_size = 10.5
       config.font = wezterm.font_with_fallback { 'BerkeleyMono Nerd Font Mono' }
       config.initial_cols = 120
