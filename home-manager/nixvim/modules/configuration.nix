@@ -88,10 +88,10 @@
 
   # ---- Neovim options ----
   extraConfigLua = ''
-    vim.g.mapleader = ' '
+    vim.g.mapleader = '<Space>'
   '';
 
-  opts = {
+  opts= {
     encoding = "utf-8";
     langmenu = "en_US";
 
@@ -135,7 +135,6 @@
   # ---- Plugins ----
   plugins = {
     cmp.enable = true;
-
     gitsigns.enable = true;
     lualine.enable = true;
     nvim-autopairs.enable = true;
