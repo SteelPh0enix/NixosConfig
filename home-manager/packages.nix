@@ -21,8 +21,7 @@
     protonup-qt
     qbittorrent-enhanced
     quodlibet-xine-full
-    # spotify
-    # stm32cubemx
+    spotify
     teams-for-linux
     teamspeak6-client
     ungoogled-chromium
