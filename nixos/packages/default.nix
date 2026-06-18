@@ -105,7 +105,5 @@
     ];
   };
 
-  programs.sleepy-launcher.enable = true;
-
   qt.enable = true;
 }
