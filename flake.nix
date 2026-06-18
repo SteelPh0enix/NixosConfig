@@ -24,11 +24,6 @@
       url = "github:e-tho/ucodenix";
     };
 
-    aagl = {
-      url = "github:ezKEa/aagl-gtk-on-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     nix-cachyos-kernel = {
       url = "github:xddxdd/nix-cachyos-kernel";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -47,7 +42,6 @@
       home-manager,
       nix-index-database,
       nixvim,
-      aagl,
       ...
     }@inputs:
     let
@@ -64,9 +58,7 @@
             ./nixos/configuration.nix
             nix-index-database.nixosModules.nix-index
             home-manager.nixosModules.home-manager
-            aagl.nixosModules.default
             {
-              nix.settings = aagl.nixConfig;
               home-manager.backupFileExtension = "hmgr.backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
