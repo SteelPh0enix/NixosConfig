@@ -11,13 +11,13 @@
       rootless.setSocketVariable = true;
       autoPrune.enable = true;
     };
-    virtualbox.host = {
-      enable = true;
-      enableKvm = false;
-      enableExtensionPack = true;
-      enableHardening = true;
-      addNetworkInterface = false;
-    };
+    # virtualbox.host = {
+    #   enable = true;
+    #   enableKvm = false;
+    #   enableExtensionPack = true;
+    #   enableHardening = true;
+    #   addNetworkInterface = false;
+    # };
     oci-containers.backend = "docker";
   };
 
