@@ -98,11 +98,11 @@
         "onchg": "onchg"
       },
       "locked": {
-        "lastModified": 1774888967,
-        "narHash": "sha256-bbB44tkmxKehBvXYeBruuPp/VnJMwMwyc98tyJ6rWO4=",
+        "lastModified": 1782302101,
+        "narHash": "sha256-TwNc83RZu9ayyxZr2ijH2N30Bz8VJsFfzAz/LbTeksU=",
         "owner": "aksiksi",
         "repo": "compose2nix",
-        "rev": "901ac12a99c14c6f526487d58588f5c01109f5bb",
+        "rev": "59d764947486ad841a4f85523bf771f4f72228b6",
         "type": "github"
       },
       "original": {
@@ -263,8 +263,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1782287492,
-        "narHash": "sha256-by0kM2IcW4Eplo71yFPDK3GV7dLVSSsnzQxZjdWgvNA=",
+        "lastModified": 1782303725,
+        "narHash": "sha256-RiZl+kKkzBQJzLiqKBVSkiAAOvJ3B+HMjDuay1PEtF0=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
