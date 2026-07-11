@@ -60,13 +60,13 @@ function llama-cpp-hf-to-gguf -a model_path gguf_path
 end
 
 function os-rebuild
-    echo (set_color yellow)"Rebuilding NixOS for main PC..."(set_color normal)
+    echo (set_color yellow)"Rebuilding NixOS for FWPC..."(set_color normal)
     nh os boot ~/nixos-config --hostname RX-78-FPC --update --keep-going
     echo (set_color green)"System rebuild complete."(set_color normal)
 end
 
 function os-rebuild-switch
-    echo (set_color yellow)"Rebuilding NixOS for main PC and switching to new build..."(set_color normal)
+    echo (set_color yellow)"Rebuilding NixOS for FWPC and switching to new build..."(set_color normal)
     nh os switch ~/nixos-config --hostname RX-78-FPC --update --keep-going
     echo (set_color green)"System rebuild complete, switched to new build."(set_color normal)
 end
