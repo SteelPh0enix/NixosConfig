@@ -59,21 +59,15 @@ function llama-cpp-hf-to-gguf -a model_path gguf_path
 end
 
 function os-rebuild
-    echo (set_color green)"Directory: ~/nixos-config"(set_color normal)
-    cd ~/nixos-config; or return 1
-
-    echo (set_color yellow)"Rebuilding NixOS (boot) for main PC..."(set_color normal)
-    # sudo will likely prompt for password here
-    sudo nixos-rebuild boot --flake .#steelph0enix-pc --print-build-logs --show-trace --refresh
+    echo (set_color yellow)"Rebuilding NixOS for main PC..."(set_color normal)
+    nh os boot ~/nixos-config --hostname steelph0enix-pc --update --keep-going
+    echo (set_color green)"System rebuild complete."(set_color normal)
 end
 
 function os-rebuild-switch
-    echo (set_color green)"Directory: ~/nixos-config"(set_color normal)
-    cd ~/nixos-config; or return 1
-
-    echo (set_color yellow)"Rebuilding NixOS (boot) for main PC and switching to new build..."(set_color normal)
-    # sudo will likely prompt for password here
-    sudo nixos-rebuild switch --flake .#steelph0enix-pc --print-build-logs --show-trace --refresh
+    echo (set_color yellow)"Rebuilding NixOS for main PC and switching to new build..."(set_color normal)
+    nh os switch ~/nixos-config --hostname steelph0enix-pc --update --keep-going
+    echo (set_color green)"System rebuild complete, switched to new build."(set_color normal)
 end
 
 function os-update
@@ -82,43 +76,23 @@ function os-update
     # 1. Update llama.cpp
     llama-cpp-update; or return 1
 
-    # 2. Update Flake inputs
-    echo (set_color green)"Directory: ~/nixos-config"(set_color normal)
-    cd ~/nixos-config; or return 1
-
-    echo (set_color blue)"Updating flake inputs..."(set_color normal)
-    nix flake update; or return 1
-
-    # 3. Rebuild System
+    # 2. Rebuild System
     os-rebuild; or return 1
 
-    # 4. Commit changes
+    # 3. Commit changes
     echo (set_color blue)"Committing flake.lock..."(set_color normal)
     git add flake.lock && git commit -m 'os update'
-
-    echo (set_color magenta)"=== OS Update Complete ==="(set_color normal)
+    echo (set_color green)"=== OS Update done! ==="(set_color normal)
 end
 
 function os-clean
-    echo (set_color yellow)"Running Store Garbage Collection (Root)..."(set_color normal)
-    sudo nix-store --gc; or return 1
-
-    echo (set_color yellow)"Optimizing Nix Store..."(set_color normal)
-    sudo nix-store --optimise; or return 1
-
-    echo (set_color yellow)"Deleting old generations (Root)..."(set_color normal)
-    sudo nix-collect-garbage -d; or return 1
-
-    echo (set_color yellow)"Deleting old generations (User)..."(set_color normal)
-    nix-collect-garbage -d
-
+    echo (set_color yellow)"Running NixOS cleanup..."(set_color normal)
+    nh clean all --optimise
     echo (set_color green)"System Clean Complete."(set_color normal)
 end
 
 function os-check
     echo (set_color yellow)"Running NixOS store check/fix..."(set_color normal)
-
     sudo nix-store --verify --check-contents --repair
-
     echo (set_color green)"NixOS store check/fix complete!"(set_color normal)
 end
