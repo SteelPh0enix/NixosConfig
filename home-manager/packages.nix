@@ -1,5 +1,6 @@
 {
   pkgs,
+  nixpkgs-previous,
   ...
 }:
 {
@@ -7,7 +8,8 @@
     drawio
     dxvk
     element-desktop
-    freecad
+    # freecad
+    nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.freecad
     gimp
     heroic
     inkscape-with-extensions
