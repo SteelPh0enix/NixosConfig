@@ -1,6 +1,8 @@
 { pkgs, inputs, ... }:
 {
   environment.systemPackages = with pkgs; [
+
+
     ascii-image-converter
     bindfs
     boxes
@@ -8,14 +10,19 @@
     cifs-utils
     cowsay
     cpupower-gui
+    curl
     dmidecode
     dnsutils
     docker-buildx
     exfatprogs
+    eza
+    fastfetch
+    fd
     figlet
     file
     findutils
     flac
+    fzf
     gawk
     gnugrep
     gnused
@@ -25,23 +32,30 @@
     icu
     inetutils
     jp2a
+    jq
     lact
     libnatpmp
     libva-utils
+    llama-cpp
     lm_sensors
     lsof
     ltrace
     mc
     minicom
+    ncdu
+    nh
     nmap
     ntfs3g
     p7zip
     parted
     pciutils
     psmisc
+    radeontop
     rar
     remmina
+    ripgrep
     rsync
+    rust-motd
     socat
     sshfs
     strace
@@ -50,32 +64,19 @@
     toilet
     traceroute
     tree
+    tree
     uhubctl
     unrar
     unzip
     usbutils
+    uv
+    vkd3d
+    wget
     which
     wireguard-tools
     xz
     zip
     zstd
-
-    curl
-    eza
-    fastfetch
-    fd
-    fzf
-    jq
-    llama-cpp
-    ncdu
-    radeontop
-    ripgrep
-    rust-motd
-    tree
-    uv
-    vkd3d
-    wget
-
     inputs.compose2nix.packages.x86_64-linux.default
   ];
 }
