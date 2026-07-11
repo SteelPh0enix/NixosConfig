@@ -33,6 +33,7 @@
     minicom
     ncdu
     nh
+    nix-output-monitor
     nmap
     ntfs3g
     p7zip
