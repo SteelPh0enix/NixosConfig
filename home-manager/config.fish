@@ -79,7 +79,7 @@ function os-update
 
     # 3. Commit changes
     echo (set_color blue)"Committing flake.lock..."(set_color normal)
-    git add flake.lock && git commit -m 'os update'
+    git -C ~/nixos-config add flake.lock && git -C ~/nixos-config commit -m 'os update'
     echo (set_color green)"=== OS Update done! ==="(set_color normal)
 end
 
