@@ -4,14 +4,19 @@
     bzip3
     cifs-utils
     cpupower-gui
+    curl
     dmidecode
     dnsutils
     docker-buildx
     exfatprogs
+    eza
+    fastfetch
+    fd
     figlet
     file
     findutils
     flac
+    fzf
     gawk
     gnugrep
     gnused
@@ -20,18 +25,24 @@
     hdparm
     icu
     inetutils
+    jq
     lm_sensors
     lsof
     ltrace
+    mc
     minicom
+    ncdu
+    nh
     nmap
     ntfs3g
     p7zip
     parted
     pciutils
     psmisc
+    radeontop
     rar
     remmina
+    ripgrep
     rsync
     socat
     sshfs
@@ -39,29 +50,18 @@
     sysstat
     tcpdump
     traceroute
+    tree
     uhubctl
     unrar
     unzip
     usbutils
+    uv
+    vkd3d
+    wget
     which
     wireguard-tools
     xz
     zip
     zstd
-
-    curl
-    eza
-    fastfetch
-    fd
-    fzf
-    jq
-    mc
-    ncdu
-    radeontop
-    ripgrep
-    tree
-    uv
-    vkd3d
-    wget
   ];
 }
