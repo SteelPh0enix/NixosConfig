@@ -14,6 +14,7 @@
     "amdgpu.noretry=0"
     "split_lock_detect=off"
     "amdgpu.lockup_timeout=600000"
+    "amd_iommu=off"
   ];
 
   boot.extraModprobeConfig = ''
