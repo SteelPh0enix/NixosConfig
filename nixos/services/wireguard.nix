@@ -9,6 +9,7 @@ in
   networking.nat = {
     enable = true;
     enableIPv6 = true;
+    externalInterface = "enp191s0";
     internalInterfaces = [
       wireguardIface
     ];
