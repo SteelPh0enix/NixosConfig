@@ -148,10 +148,6 @@ function update-services
     env -C ~/nixos-config/nixos/services/open-webui sudo docker compose pull --policy always
     sudo systemctl restart open-webui
 
-    echo (set_color green)"Updating Lancache"(set_color normal)
-    env -C /mnt/NAS2/lancache sudo docker compose pull --policy always
-    sudo systemctl restart lancache
-
     echo (set_color green)"Updating PiHole"(set_color normal)
     env -C ~/nixos-config/nixos/services/pihole sudo docker compose pull --policy always
     sudo systemctl restart pihole

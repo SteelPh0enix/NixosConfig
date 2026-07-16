@@ -47,23 +47,4 @@
       Unit = "rust-motd.service";
     };
   };
-
-  systemd.timers."update-lancache-pihole" = {
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnBootSec = "1m";
-      OnCalendar = "daily";
-      Persistent = true;
-      Unit = "update-lancache-pihole.service";
-    };
-  };
-
-  systemd.services."update-lancache-pihole" = {
-    script = "/root/update-lancache.sh";
-    serviceConfig = {
-      Type = "oneshot";
-      User = "root";
-    };
-    path = [ pkgs.gitFull ];
-  };
 }
