@@ -5,7 +5,7 @@
     btop-rocm
     nerd-font-patcher
     sqlite
-    openscad-unstable
-    openscad-lsp
+    # openscad-unstable
+    # openscad-lsp
   ];
 }
