@@ -11,8 +11,6 @@
 
   programs.home-manager.enable = true;
 
-  xdg.configFile."crush/crush.json".source = ./crush.json;
-
   imports = [
     nixvim.homeModules.nixvim
     ./shell.nix

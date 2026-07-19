@@ -4,12 +4,26 @@
   ...
 }:
 {
-  xdg.configFile."opencode/agents".source = ./opencode-agents;
-
   programs.opencode = {
     enable = true;
     enableMcpIntegration = true;
     package = nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.opencode;
+    web.enable = false;
+
+    context = ''
+      ## General guidelines
+
+      - When searching for files, ALWAYS use `fd` (fdfind) instead of default `find`.
+      - When searching for text, ALWAYS use `rg` (ripgrep) instead of default grep.
+      - ALWAYS ground your research by searching the web with Kagi.
+    '';
+
+    agents = {
+      docs-writer = ./opencode-agents/docs-writer.md;
+      reviewer = ./opencode-agents/reviewer.md;
+      security-auditor = ./opencode-agents/security-auditor.md;
+      tester = ./opencode-agents/tester.md;
+    };
 
     tui = {
       diff_style = "auto";
@@ -101,42 +115,36 @@
         "openrouter"
       ];
 
-      mcp = {
-        searxng = {
-          type = "local";
-          enabled = true;
-          command = [
-            "npx"
-            "-y"
-            "mcp-searxng"
-          ];
-          environment = {
-            "SEARXNG_URL" = "https://search.steelph0enix.dev/";
-          };
-        };
-      };
+      mcp = {};
 
       provider."llama.cpp" = {
         npm = "@ai-sdk/openai-compatible";
         name = "llama-server (local)";
         options.baseURL = "http://steelph0enix.framework:51536/v1";
         models = {
-          "coder" = {
+          "coder-reasoning" = {
             name = "Default coding model";
             limit = {
               context = 262144;
               output = 32768;
             };
           };
-          "coder-smart" = {
-            name = "Smarter (but slower) coding model";
+          "coder-smart-reasoning" = {
+            name = "Smarter coding model";
             limit = {
               context = 262144;
               output = 32768;
             };
           };
-          "quick" = {
-            name = "Quick model for simple tasks";
+          "coder" = {
+            name = "Default coding model (reasoning off)";
+            limit = {
+              context = 262144;
+              output = 32768;
+            };
+          };
+          "coder-smart" = {
+            name = "Smarter coding model (reasoning off)";
             limit = {
               context = 262144;
               output = 32768;
@@ -149,24 +157,10 @@
               output = 102400;
             };
           };
-          "qwen-dense-coder" = {
-            name = "Smarter (but slower) coding Qwen model";
+          "deepseek-v4-flash" = {
+            name = "Deepseek V4 Flash";
             limit = {
-              context = 262144;
-              output = 32768;
-            };
-          };
-          "gemma-dense" = {
-            name = "Gemma 4 31B";
-            limit = {
-              context = 262144;
-              output = 32768;
-            };
-          };
-          "gemma-moe" = {
-            name = "Gemma 4 26B A4B";
-            limit = {
-              context = 262144;
+              context = 256000;
               output = 32768;
             };
           };
