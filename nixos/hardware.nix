@@ -21,7 +21,7 @@
     options amdgpu gttsize=122800
     options amdgpu vm_fragment_size=8
     options ttm pages_limit=31457280
-    options ttm page_pool_size=15728640
+    options ttm page_pool_size=31457280
   '';
 
   hardware.enableRedistributableFirmware = true;
