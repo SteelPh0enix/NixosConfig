@@ -1,0 +1,34 @@
+services:
+  anything-llm:
+    image: mintplexlabs/anythingllm:latest
+    container_name: anything-llm
+    pull_policy: never
+    cap_add:
+      - SYS_ADMIN # Required by AnythingLLM's document parser/scraper
+    volumes:
+      - /home/anythingllm:/app/server/storage
+    ports:
+      - 55569:3001
+    environment:
+      # Auth/Storage
+      - STORAGE_DIR=/app/server/storage
+      - JWT_SECRET=${JWT_SECRET}
+
+      # Inference engine
+      - LLM_PROVIDER=generic-openai
+      - GENERIC_OPEN_AI_BASE_PATH=http://192.168.0.185:51536/v1
+      - GENERIC_OPEN_AI_API_KEY=${LLAMA_CPP_API_KEY:-dummy}
+      - GENERIC_OPEN_AI_MODEL_PREF=gemma-moe-reasoning
+      - GENERIC_OPEN_AI_MODEL_TOKEN_LIMIT=262144
+
+      - EMBEDDING_ENGINE=native
+      - EMBEDDING_MODEL_PREF=nomic-embed-text-v1
+
+      # Built-in AnythingLLM Services
+      - VECTOR_DB=lancedb
+      - WHISPER_PROVIDER=local
+      - WHISPER_MODEL=Xenova/whisper-large
+      - TTS_PROVIDER=native
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: on-failure
