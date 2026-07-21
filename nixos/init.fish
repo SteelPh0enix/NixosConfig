@@ -144,9 +144,9 @@ function serve-llm
 end
 
 function update-services
-    echo (set_color green)"Updating OpenWebUI..."(set_color normal)
-    env -C ~/nixos-config/nixos/services/open-webui sudo docker compose pull --policy always
-    sudo systemctl restart open-webui
+    echo (set_color green)"Updating AnythingLLM..."(set_color normal)
+    env -C ~/nixos-config/nixos/services/anything-llm sudo docker compose pull --policy always
+    sudo systemctl restart anything-llm
 
     echo (set_color green)"Updating PiHole"(set_color normal)
     env -C ~/nixos-config/nixos/services/pihole sudo docker compose pull --policy always
