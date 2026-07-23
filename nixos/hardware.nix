@@ -63,6 +63,11 @@
     KERNEL=="hidraw*", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="93fe", MODE="0666", GROUP="plugdev"
     SUBSYSTEM=="usb",  ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="93ff", MODE="0666", GROUP="plugdev"
     KERNEL=="ttyACM*", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="93ff", MODE="0666", SYMLINK+="coral_micro_UART-$attr{serial}"
+
+    # Moondrop Dawn Pro 2 - full access for steelph0enix
+    SUBSYSTEM=="usb", ATTR{idVendor}=="35d8", ATTR{idProduct}=="011d", MODE="0660", OWNER="steelph0enix"
+    SUBSYSTEM=="sound", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0660", OWNER="steelph0enix"
+    KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0660", OWNER="steelph0enix"
   '';
 
   # force RADV
