@@ -17,6 +17,7 @@
       "users"
       "wheel"
       "video"
+      "audio"
       "networkmanager"
       "render"
       "pcap"
