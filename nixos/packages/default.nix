@@ -60,10 +60,6 @@
   programs.nix-ld.enable = true;
   programs.npm = {
     enable = true;
-    npmrc = ''
-      min-release-age=7
-      minimum-release-age=10080
-    '';
   };
   programs.screen.enable = true;
 
