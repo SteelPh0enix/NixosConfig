@@ -29,9 +29,10 @@
     hdparm
     icu
     inetutils
+    inputs.compose2nix.packages.x86_64-linux.default
     jp2a
     jq
-    lact
+    libdisplay-info
     libnatpmp
     libva-utils
     llama-cpp
@@ -76,6 +77,5 @@
     xz
     zip
     zstd
-    inputs.compose2nix.packages.x86_64-linux.default
   ];
 }
