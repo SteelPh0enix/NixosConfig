@@ -37,6 +37,7 @@
     nmap
     ntfs3g
     p7zip
+    parallel-full
     parted
     pciutils
     psmisc
