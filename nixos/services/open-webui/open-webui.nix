@@ -4,7 +4,7 @@
   systemd.services = {
     "open-webui" = {
       description = "Open-WebUI service";
-      enable = true;
+      enable = false;
       enableStrictShellChecks = true;
 
       serviceConfig = {
