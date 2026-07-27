@@ -37,7 +37,10 @@ function llama-cpp-venv-create
     llama-cpp-venv-activate
 
     echo (set_color blue)"Installing/updating packages..."
-    uv pip install --upgrade pip wheel setuptools transformers numpy torch --prerelease=allow --index-strategy unsafe-best-match
+    uv pip install --upgrade pip wheel setuptools transformers numpy torch \
+        --prerelease=allow \
+        --index-strategy unsafe-best-match \
+        --torch-backend=rocm7.2
 
     pushd $llama_cpp_repo_path/gguf-py
     uv pip install --upgrade .
