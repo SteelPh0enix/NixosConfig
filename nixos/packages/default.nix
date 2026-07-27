@@ -16,8 +16,8 @@
     inputs.nix-cachyos-kernel.overlays.pinned
   ];
 
-  systemd.packages = with pkgs; [ lact ];
-  systemd.services.lactd.wantedBy = [ "multi-user.target" ];
+  # systemd.packages = with nixpkgs-previous; [ lact ];
+  # systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
   programs.appimage = {
     enable = true;
@@ -85,11 +85,11 @@
     ];
   };
 
-  # programs.wireshark = {
-  #   enable = true;
-  #   dumpcap.enable = true;
-  #   usbmon.enable = true;
-  # };
+  programs.wireshark = {
+    enable = true;
+    dumpcap.enable = true;
+    usbmon.enable = true;
+  };
 
   programs.steam = {
     enable = true;
