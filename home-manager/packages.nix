@@ -1,21 +1,22 @@
 {
   pkgs,
-  nixpkgs-previous,
+  # nixpkgs-previous,
   ...
 }:
 {
   home.packages = with pkgs; [
+    discord
     drawio
     dxvk
     element-desktop
-    # freecad
-    nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.freecad
+    freecad
     gimp
     heroic
     inkscape-with-extensions
     keepassxc
     krename
     libreoffice-qt6-fresh
+    # nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.freecad
     obsidian
     orca-slicer
     prismlauncher
