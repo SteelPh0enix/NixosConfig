@@ -152,6 +152,10 @@ function update-services
     env -C ~/nixos-config/nixos/services/hindsight sudo docker compose pull --policy always
     sudo systemctl restart hindsight
 
+    echo (set_color green)"Updating TEI (embeddings + reranker)"(set_color normal)
+    env -C ~/nixos-config/nixos/services/tei sudo docker compose pull --policy always
+    sudo systemctl restart tei
+
     echo (set_color green)"Updating PiHole"(set_color normal)
     env -C ~/nixos-config/nixos/services/pihole sudo docker compose pull --policy always
     sudo systemctl restart pihole

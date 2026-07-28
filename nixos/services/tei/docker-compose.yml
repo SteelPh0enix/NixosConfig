@@ -1,0 +1,39 @@
+services:
+  tei-embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    container_name: tei-embeddings
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - "51540:80"
+    volumes:
+      - tei-data:/data
+    environment:
+      - HF_HUB_CACHE=/data
+      - MODEL_ID=Qwen/Qwen3-Embedding-0.6B
+      - PORT=80
+      - MAX_BATCH_TOKENS=16384
+      - MAX_CONCURRENT_REQUESTS=256
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  tei-reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    container_name: tei-reranker
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "51541:80"
+    volumes:
+      - tei-data:/data
+    environment:
+      - HF_HUB_CACHE=/data
+      - MODEL_ID=Alibaba-NLP/gte-multilingual-reranker-base
+      - PORT=80
+      - MAX_BATCH_TOKENS=8192
+      - MAX_CONCURRENT_REQUESTS=128
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+volumes:
+  tei-data:
