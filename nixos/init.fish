@@ -148,6 +148,10 @@ function update-services
     env -C ~/nixos-config/nixos/services/anything-llm sudo docker compose pull --policy always
     sudo systemctl restart anything-llm
 
+    echo (set_color green)"Updating Hindsight"(set_color normal)
+    env -C ~/nixos-config/nixos/services/hindsight sudo docker compose pull --policy always
+    sudo systemctl restart hindsight
+
     echo (set_color green)"Updating PiHole"(set_color normal)
     env -C ~/nixos-config/nixos/services/pihole sudo docker compose pull --policy always
     sudo systemctl restart pihole

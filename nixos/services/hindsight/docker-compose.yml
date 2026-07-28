@@ -1,0 +1,39 @@
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest
+    container_name: hindsight
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - 51520:8888
+      - 51521:9999
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+    environment:
+      # LLM Provider (OpenAI-compatible via llama-server)
+      - HINDSIGHT_API_LLM_PROVIDER=openai
+      - HINDSIGHT_API_LLM_BASE_URL=http://192.168.0.185:51536/v1
+      - HINDSIGHT_API_LLM_MODEL=kat-coder-reasoning
+      - HINDSIGHT_API_LLM_API_KEY=local
+
+      # Embeddings (Hindsight built-in local embedder)
+      - HINDSIGHT_API_EMBEDDINGS_PROVIDER=local
+      - HINDSIGHT_API_EMBEDDINGS_LOCAL_MODEL=BAAI/bge-small-en-v1.5
+
+      # Reranker (Hindsight built-in)
+      - HINDSIGHT_API_RERANKER_PROVIDER=local
+
+      # Retain token limit (kat-coder supports 262k context)
+      - HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS=65000
+
+      # Stable worker ID for task recovery across restarts
+      - HINDSIGHT_API_WORKER_ID=hindsight-steelph0enix
+
+      # Disable telemetry (local deployment)
+      - HINDSIGHT_TELEMETRY_ENABLED=false
+
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+volumes:
+  hindsight-data:
