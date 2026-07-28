@@ -13,9 +13,11 @@
       9090 # Prometheus
       9119 # Hermes Agent dashboard
       22137 # Gitea (SSH)
-      51536 # LLM Router (custom systemd service)
       51520 # Hindsight API
       51521 # Hindsight Control Panel
+      51536 # LLM Router (custom systemd service)
+      51540 # TEI (embedding)
+      51541 # TEI (reranking)
       51569 # LLM Router log web interface
       # Few generic ports for one-shot/test stuff
       11111
