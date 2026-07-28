@@ -27,6 +27,7 @@
     ./services/minecraft-server.nix
     ./services/prometheus.nix
     ./services/hindsight/hindsight.nix
+    ./services/tei/tei.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
