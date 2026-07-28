@@ -15,6 +15,7 @@ let
             service display-name="Accounts" unit="accounts-daemon"
             service display-name="PiHole" unit="pihole"
             service display-name="AnythingLLM" unit="anything-llm"
+            service display-name="Hindsight" unit="hindsight"
             service display-name="Jellyfin" unit="jellyfin"
             service display-name="Gitea" unit="gitea"
             service display-name="Gitea runner" unit="gitea-runner-framework"

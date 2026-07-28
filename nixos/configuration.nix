@@ -26,6 +26,7 @@
     ./services/llm-router.nix
     ./services/minecraft-server.nix
     ./services/prometheus.nix
+    ./services/hindsight/hindsight.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
