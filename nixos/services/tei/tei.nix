@@ -16,10 +16,12 @@
       wantedBy = [ "multi-user.target" ];
       wants = [
         "pihole.service"
+        "dns-ready.target"
         "network-online.target"
       ];
       after = [
         "pihole.service"
+        "dns-ready.target"
         "network-online.target"
       ];
     };
