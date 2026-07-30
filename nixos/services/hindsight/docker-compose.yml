@@ -23,6 +23,11 @@ services:
       # Reranker (external TEI service)
       - HINDSIGHT_API_RERANKER_PROVIDER=tei
       - HINDSIGHT_API_RERANKER_TEI_URL=http://host.docker.internal:51541
+      # Hindsight defaults to 128 pairs / 8 concurrent requests.  This CPU
+      # TEI backend accepts 32 pairs and has a shallow request queue, so send
+      # batches serially to avoid its HTTP 429 queue-overflow response.
+      - HINDSIGHT_API_RERANKER_TEI_BATCH_SIZE=32
+      - HINDSIGHT_API_RERANKER_TEI_MAX_CONCURRENT=1
 
       # Retain token limit (kat-coder supports 262k context)
       - HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS=65000

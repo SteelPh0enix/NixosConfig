@@ -16,6 +16,12 @@ services:
       - MAX_CONCURRENT_REQUESTS=256
     extra_hosts:
       - host.docker.internal:host-gateway
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 36
+      start_period: 10s
 
   tei-reranker:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
@@ -35,6 +41,12 @@ services:
       - MAX_CONCURRENT_REQUESTS=128
     extra_hosts:
       - host.docker.internal:host-gateway
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 36
+      start_period: 10s
 
 volumes:
   tei-data:
