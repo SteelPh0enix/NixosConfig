@@ -206,8 +206,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1785448794,
-        "narHash": "sha256-ZBiEgph0mkyujtIVZFfCLpekRSbzpWEHxD3RJVL1kmA=",
+        "lastModified": 1785450637,
+        "narHash": "sha256-XW4m/JcSQNIyoByf6l2r9zU9o3ccDYs3p8wKDMUTzIk=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -227,11 +227,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1785448730,
-        "narHash": "sha256-ji0hLG+LbRzja2HLVgIGfe0uMylATI5vLBdBnAOwjSI=",
+        "lastModified": 1785450153,
+        "narHash": "sha256-/D01Km6ymzxdIHGEmu23FBsJxM1Ej/g6GsrT/+XvgoM=",
         "owner": "numtide",
         "repo": "nix-ai-tools",
-        "rev": "461eb48f90c0499b40ac1a2f4542842dd41e930b",
+        "rev": "228f24673aa57377bbb38eb13fd946d273532df2",
         "type": "github"
       },
       "original": {
