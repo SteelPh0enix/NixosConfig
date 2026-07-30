@@ -206,8 +206,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1785415399,
-        "narHash": "sha256-AVDAOAiTIlhVTEzGP/ZNAQfTvMevZzdREaJ2FHNMKPs=",
+        "lastModified": 1785442975,
+        "narHash": "sha256-46TkzzoCDZB0oQ1FQV2Y7glGGtX9QiIIxjvN3qlq8pI=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -249,11 +249,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785380160,
-        "narHash": "sha256-rNwDqalyX23Zvx7UfXGhf+XTkeNUChaq9LvmTjdo9I0=",
+        "lastModified": 1785437982,
+        "narHash": "sha256-m0mLVZc4RmzlBMjPOFh+rnALT92jMXJqQtLBMP9jo90=",
         "owner": "xddxdd",
         "repo": "nix-cachyos-kernel",
-        "rev": "388fbfb7bab5db194d35c6ce3f1fec41cffd0fc6",
+        "rev": "8dfc5b3a553819ba50f601d804a3df64360bd5d8",
         "type": "github"
       },
       "original": {
