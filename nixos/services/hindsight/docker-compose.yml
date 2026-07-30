@@ -16,12 +16,13 @@ services:
       - HINDSIGHT_API_LLM_MODEL=kat-coder-reasoning
       - HINDSIGHT_API_LLM_API_KEY=local
 
-      # Embeddings (Hindsight built-in local embedder)
-      - HINDSIGHT_API_EMBEDDINGS_PROVIDER=local
-      - HINDSIGHT_API_EMBEDDINGS_LOCAL_MODEL=BAAI/bge-small-en-v1.5
+      # Embeddings (external TEI service)
+      - HINDSIGHT_API_EMBEDDINGS_PROVIDER=tei
+      - HINDSIGHT_API_EMBEDDINGS_TEI_URL=http://host.docker.internal:51540
 
-      # Reranker (Hindsight built-in)
-      - HINDSIGHT_API_RERANKER_PROVIDER=local
+      # Reranker (external TEI service)
+      - HINDSIGHT_API_RERANKER_PROVIDER=tei
+      - HINDSIGHT_API_RERANKER_TEI_URL=http://host.docker.internal:51541
 
       # Retain token limit (kat-coder supports 262k context)
       - HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS=65000
