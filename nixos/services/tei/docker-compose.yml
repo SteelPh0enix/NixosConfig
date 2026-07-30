@@ -31,6 +31,7 @@ services:
       - MODEL_ID=Alibaba-NLP/gte-multilingual-reranker-base
       - PORT=80
       - MAX_BATCH_TOKENS=8192
+      - MAX_BATCH_SIZE=32
       - MAX_CONCURRENT_REQUESTS=128
     extra_hosts:
       - host.docker.internal:host-gateway

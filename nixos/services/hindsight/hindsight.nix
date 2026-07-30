@@ -18,11 +18,13 @@
         "pihole.service"
         "dns-ready.target"
         "network-online.target"
+        "tei.service"
       ];
       after = [
         "pihole.service"
         "dns-ready.target"
         "network-online.target"
+        "tei.service"
       ];
     };
   };
