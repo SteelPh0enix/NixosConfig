@@ -1,0 +1,102 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-local-web-extract"
+version = "0.2.2"
+description = "Free, self-hosted, local web extraction backend for Hermes Agent and compatible agents."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+keywords = ["web-extraction", "scraping", "hermes", "firecrawl-compatible", "self-hosted"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Text Processing :: Markup :: HTML",
+]
+
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "trafilatura>=1.9.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.2.0",
+    "markdownify>=0.12.0",
+    "pypdf>=4.2.0",
+    "cachetools>=5.3.0",
+]
+
+[project.optional-dependencies]
+browser = [
+    "crawl4ai>=0.3.0",
+    "playwright>=1.44.0",
+]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "respx>=0.21.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "types-cachetools>=5.3.0",
+    "types-beautifulsoup4>=4.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/gopalasubramanium/web_extract"
+Repository = "https://github.com/gopalasubramanium/web_extract"
+Issues = "https://github.com/gopalasubramanium/web_extract/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+    "T20", # flake8-print
+]
+ignore = [
+    "S101",  # assert in tests is fine
+    "S104",  # binding to all interfaces is intentional
+    "B008",  # FastAPI depends on default argument calls
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "T20"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = ["tests/"]

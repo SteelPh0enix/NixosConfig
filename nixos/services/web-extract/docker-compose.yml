@@ -1,0 +1,31 @@
+services:
+  hermes-local-web-extract:
+    image: hermes-local-web-extract:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes-local-web-extract
+    ports:
+      - "${LOCAL_EXTRACT_PORT:-51545}:8090"
+    env_file:
+      - .env
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8090/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512M

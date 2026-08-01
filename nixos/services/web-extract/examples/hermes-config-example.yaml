@@ -1,0 +1,33 @@
+# hermes-config-example.yaml
+#
+# Conceptual configuration showing how to integrate hermes-local-web-extract
+# with Hermes Agent. Actual config keys depend on your Hermes version.
+#
+# See docs/hermes-integration.md for full integration guidance.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Option A: Firecrawl base URL override
+# Use this if your Hermes version supports overriding the Firecrawl base URL.
+# ──────────────────────────────────────────────────────────────────────────────
+web_extract:
+  provider: firecrawl
+  # Point to your local hermes-local-web-extract instance
+  firecrawl_base_url: http://localhost:8090
+  # No real API key needed — the service is local and unauthenticated
+  firecrawl_api_key: "local"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Option B: Custom local_extract provider
+# Use this if Hermes supports a custom provider with a configurable endpoint.
+# ──────────────────────────────────────────────────────────────────────────────
+# web_extract:
+#   provider: local_extract
+#   base_url: http://localhost:8090
+#   endpoint: /extract
+#   timeout_seconds: 30
+
+# ──────────────────────────────────────────────────────────────────────────────
+# If your Hermes version does not support either option above:
+# See docs/hermes-integration.md → "Approach 2: Local adapter"
+# for a Python snippet that calls /extract directly.
+# ──────────────────────────────────────────────────────────────────────────────

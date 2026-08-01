@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Create virtualenv and install dependencies
+        run: uv pip install -r requirements-dev.txt -e . --system
+
+      - name: Lint with ruff
+        run: |
+          ruff check src/ tests/
+          ruff format --check src/ tests/
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+        env:
+          LOCAL_EXTRACT_ALLOW_PRIVATE_NETWORKS: "false"
+          LOCAL_EXTRACT_CACHE_ENABLED: "false"
+          LOCAL_EXTRACT_BROWSER_ENABLED: "false"
+          LOCAL_EXTRACT_RATE_LIMIT_PER_MINUTE: "10000"
