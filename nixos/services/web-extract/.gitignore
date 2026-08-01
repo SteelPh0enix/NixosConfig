@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env.local
+
+# Environment variables (keep .env.example, exclude .env)
+.env
+!.env.example
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ruff
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+tmp/
+
+# Distribution
+*.whl
+*.tar.gz
+
+# Crawl4AI / Playwright browser data
+.crawl4ai/
+playwright-data/
+
+# diskcache
+cache/
+diskcache/

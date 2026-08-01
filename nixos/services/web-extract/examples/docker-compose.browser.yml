@@ -1,0 +1,26 @@
+# Browser profile for hermes-local-web-extract
+# Enables JavaScript rendering via Crawl4AI + Playwright.
+#
+# WARNING: This profile installs Chromium and supporting libraries.
+# The image will be significantly larger (~1 GB) and requires more memory.
+# Only use this profile when you specifically need JS-rendered content.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f examples/docker-compose.browser.yml up -d
+#
+# You must also set LOCAL_EXTRACT_BROWSER_ENABLED=true in your .env
+
+services:
+  hermes-local-web-extract:
+    build:
+      context: ..
+      dockerfile: Dockerfile.browser
+    environment:
+      - LOCAL_EXTRACT_BROWSER_ENABLED=true
+    # Browser rendering needs more memory and a writable home for Playwright
+    read_only: false
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 2G

@@ -18,6 +18,7 @@
       51536 # LLM Router (custom systemd service)
       51540 # TEI (embedding)
       51541 # TEI (reranking)
+      51545 # Web Extract (hermes-local-web-extract)
       51569 # LLM Router log web interface
       # Few generic ports for one-shot/test stuff
       11111

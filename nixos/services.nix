@@ -17,6 +17,7 @@ let
             service display-name="AnythingLLM" unit="anything-llm"
             service display-name="Hindsight" unit="hindsight"
             service display-name="TEI" unit="tei"
+            service display-name="Web Extract" unit="web-extract"
             service display-name="Jellyfin" unit="jellyfin"
             service display-name="Gitea" unit="gitea"
             service display-name="Gitea runner" unit="gitea-runner-framework"

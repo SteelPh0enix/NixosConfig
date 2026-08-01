@@ -28,6 +28,7 @@
     ./services/prometheus.nix
     ./services/hindsight/hindsight.nix
     ./services/tei/tei.nix
+    ./services/web-extract/web-extract.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
