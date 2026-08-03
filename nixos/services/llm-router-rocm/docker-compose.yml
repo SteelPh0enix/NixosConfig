@@ -1,0 +1,76 @@
+# LLM Router - ROCm (HIP) backend on AMD Strix Halo (gfx1151)
+#
+# This is the SECOND llama-server, tuned for PROMPT-PROCESSING (prefill) speed,
+# which is where ROCm/HIP beats Vulkan on this APU. It serves the exact same
+# model fleet as the Vulkan llm-router (51536) via the same models.ini preset.
+#
+# Image: kyuz0's community "amd-strix-halo-toolboxes" container, built
+# specifically for the Radeon 8060S / gfx1151 (Strix Halo) iGPU. We use the
+# latest stable ROCm tag (rocm-7.14). This image bakes in a temporary upstream
+# workaround for llama.cpp issue #25992 (PR #25863) that prevents llama.cpp
+# from selecting ROCm host buffers for compute on integrated GPUs - this is
+# the root cause of the "broken output / no tool calls" you saw with the
+# stock NixOS ROCm build, and it is why this community image is reliable.
+#
+# References:
+#   - https://github.com/kyuzo/amd-strix-halo-toolboxes  (rocm-7.14 tag)
+#   - llama.cpp discussion #23659 uses `docker pull ...:rocm-7.2.3`
+#   - llama.cpp issue #25992 (ROCm host-buffer inference failure on iGPU)
+#
+# Host prerequisites (already satisfied in hardware.nix):
+#   - /dev/kfd and /dev/dri/renderD128 accessible
+#   - ulimit memlock unlimited (mlock load mode)
+#   - Flash attention ON and pinned/mmap'd model loading are handled by the INI
+#     preset; do NOT disable them on Strix Halo.
+services:
+  llm-router-rocm:
+    image: kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+    container_name: llm-router-rocm
+    pull_policy: missing
+    restart: unless-stopped
+
+    # ROCm/HSA needs direct access to the AMD GPU kernel driver + render node.
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
+
+    # ROCm HSA requires relaxed seccomp; mlock keeps weights resident.
+    security_opt:
+      - seccomp=unconfined
+    ipc: host
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+    # Host networking so llama-server can bind 0.0.0.0:51580 directly
+    # (same as the Vulkan llm-router on 51536).
+    network_mode: host
+
+    # Mount the model fleet at the SAME absolute paths the INI preset uses,
+    # so /home/LLMs/... and /home/steelph0enix/LLMs/... resolve unchanged.
+    volumes:
+      - /home/LLMs:/home/LLMs:ro
+      - /home/steelph0enix/LLMs:/home/steelph0enix/LLMs:ro
+
+    entrypoint: ["/usr/local/bin/llama-server"]
+    command:
+      - --models-dir
+      - /home/LLMs/llama-models/
+      - --models-preset
+      - /home/LLMs/llama-models.ini
+      - --host
+      - 0.0.0.0
+      - --port
+      - "51580"
+      - --models-max
+      - "2"
+      - --load-mode
+      - mlock
+      - --webui
+      - --metrics
+      - --props
+      - --slots

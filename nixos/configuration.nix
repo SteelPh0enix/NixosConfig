@@ -24,6 +24,7 @@
     ./services/wireguard.nix
     ./services/llm-logs-web.nix
     ./services/llm-router.nix
+    ./services/llm-router-rocm/llm-router-rocm.nix
     ./services/minecraft-server.nix
     ./services/prometheus.nix
     ./services/hindsight/hindsight.nix
