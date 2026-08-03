@@ -8,6 +8,7 @@ let
       --host 0.0.0.0 \
       --port 51536 \
       --models-max 2 \
+      --no-mmap \
       --webui \
       --metrics \
       --props \
@@ -32,7 +33,15 @@ in
       };
 
       environment = {
-        GGML_VK_ALLOW_GRAPHICS_QUEUE = "1";
+        # GGML_VK_ALLOW_GRAPHICS_QUEUE = "1";
+
+        # Trick ROCm into supporting RDNA 3.5 by spoofing a compatible architecture
+        HSA_OVERRIDE_GFX_VERSION = "11.5.1";
+
+        # Extremely important for APUs: Enables Zero-copy Unified Memory Architecture
+        # Prevents llama.cpp from copying data back and forth over a simulated PCIe bus
+        GGML_HIP_UMA = "1";
+        GGML_HIP_ENABLE_UNIFIED_MEMORY = "1";
       };
 
       wantedBy = [ "multi-user.target" ];
