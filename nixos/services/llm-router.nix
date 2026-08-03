@@ -8,7 +8,7 @@ let
       --host 0.0.0.0 \
       --port 51536 \
       --models-max 2 \
-      --no-mmap \
+      --load-mode mlock \
       --webui \
       --metrics \
       --props \
