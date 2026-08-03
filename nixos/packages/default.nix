@@ -15,7 +15,6 @@
     inputs.rust-overlay.overlays.default
     inputs.nix-cachyos-kernel.overlays.pinned
     (import ../overlays/freecad.nix)
-    (import ../overlays/rocm.nix)
     inputs.llama-cpp.overlays.default
     (import ../overlays/llama-cpp.nix)
   ];
