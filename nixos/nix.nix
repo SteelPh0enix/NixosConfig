@@ -2,6 +2,7 @@
   nixpkgs.config = {
     allowUnfree = true;
     rocmSupport = true;
+    rocmTargets = [ "gfx1151" ];
   };
 
   nix.gc = {
