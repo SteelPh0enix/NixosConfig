@@ -2,8 +2,8 @@ final: prev: {
   llama-cpp =
     (prev.llamaPackages.llama-cpp.override {
       llamaVersion = "4.2.0";
-      useRocm = true;
-      useVulkan = false;
+      useRocm = false;
+      useVulkan = true;
       useMpi = true;
     }).overrideAttrs
       (oldAttrs: {
