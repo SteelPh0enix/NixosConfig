@@ -26,7 +26,6 @@
     ./services/llm-router.nix
     ./services/llm-router-rocm/llm-router-rocm.nix
     ./services/minecraft-server.nix
-    ./services/prometheus.nix
     ./services/hindsight/hindsight.nix
     ./services/tei/tei.nix
     ./services/web-extract/web-extract.nix
