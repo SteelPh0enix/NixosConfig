@@ -17,7 +17,8 @@
       51521 # Hindsight Control Panel
       51536 # LLM Router ROCm (Docker, community Strix Halo image)
       51580 # LLM Router (custom systemd service)
-      51581 # LLM Router log web interface
+      51581 # LLM Router (native) log web interface
+      51569 # LLM Router ROCm log web interface
       51540 # TEI (embedding)
       51541 # TEI (reranking)
       51545 # Web Extract (hermes-local-web-extract)

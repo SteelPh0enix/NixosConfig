@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 Simple HTTP server with SSE endpoint for streaming journalctl logs.
-Run as: python3 /etc/nixos/services/llm-logs-server/server.py
-Then visit: http://localhost:51581
+Run as: python3 /etc/nixos/services/llm-logs-server/server.py [--service <unit>] [--port <port>]
+Then visit: http://localhost:51581  (native) / http://localhost:51569 (ROCm)
 """
 
 import os
 import subprocess
 import threading
 import queue
+import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
@@ -60,6 +61,11 @@ class LogHandler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             self.send_error(500, "HTML template not found")
             return
+
+        # Substitute the service label into the shared template so the page
+        # says which llama-server variant it's showing logs for.
+        label = SERVICE_NAME.replace("-service", "").replace("_", " ").upper()
+        html = html.replace("__SERVICE_LABEL__", label)
 
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -125,13 +131,39 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 def main() -> None:
-    print("☤ llm-router Log Server")
+    parser = argparse.ArgumentParser(
+        description="Stream systemd journal logs for an llm-router service over SSE."
+    )
+    parser.add_argument(
+        "--service",
+        default="llm-router",
+        help="systemd unit name to follow (default: llm-router). For the ROCm "
+        "variant pass 'llm-router-rocm'.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=51581,
+        help="HTTP port to listen on (default: 51581).",
+    )
+    parser.add_argument(
+        "--host",
+        default="[IP_ADDRESS]",
+        help="Bind address (default: [IP_ADDRESS], the LAN host interface).",
+    )
+    args = parser.parse_args()
+
+    global SERVICE_NAME, PORT
+    SERVICE_NAME = args.service
+    PORT = args.port
+
+    print(f"☤ {SERVICE_NAME} Log Server")
     print(f"  Starting journalctl stream for '{SERVICE_NAME}' service...")
 
     thread = threading.Thread(target=stream_logs, daemon=True)
     thread.start()
 
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), LogHandler)
+    server = ThreadingHTTPServer((args.host, PORT), LogHandler)
     print(f"  Web interface: http://localhost:{PORT}")
     print("  Press Ctrl+C to stop\n")
 
