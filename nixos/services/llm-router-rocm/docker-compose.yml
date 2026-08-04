@@ -2,7 +2,7 @@
 #
 # This is the SECOND llama-server, tuned for PROMPT-PROCESSING (prefill) speed,
 # which is where ROCm/HIP beats Vulkan on this APU. It serves the exact same
-# model fleet as the Vulkan llm-router (51536) via the same models.ini preset.
+# model fleet as the Vulkan llm-router (51580) via the same models.ini preset.
 #
 # Image: kyuz0's community "amd-strix-halo-toolboxes" container, built
 # specifically for the Radeon 8060S / gfx1151 (Strix Halo) iGPU. We use the
@@ -46,8 +46,8 @@ services:
         soft: -1
         hard: -1
 
-    # Host networking so llama-server can bind 0.0.0.0:51580 directly
-    # (same as the Vulkan llm-router on 51536).
+    # Host networking so llama-server can bind [IP_ADDRESS]:51536 directly
+    # (same as the Vulkan llm-router on 51580).
     network_mode: host
 
     # Mount the model fleet at the SAME absolute paths the INI preset uses,
@@ -65,7 +65,7 @@ services:
       - --host
       - 0.0.0.0
       - --port
-      - "51580"
+      - "51536"
       - --models-max
       - "2"
       - --load-mode

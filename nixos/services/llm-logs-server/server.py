@@ -2,7 +2,7 @@
 """
 Simple HTTP server with SSE endpoint for streaming journalctl logs.
 Run as: python3 /etc/nixos/services/llm-logs-server/server.py
-Then visit: http://localhost:51569
+Then visit: http://localhost:51581
 """
 
 import os
@@ -18,7 +18,7 @@ HTML_FILE = os.path.join(SCRIPT_DIR, "index.html")
 
 LOG_QUEUE: queue.Queue[str] = queue.Queue()
 SERVICE_NAME = "llm-router"
-PORT = 51569
+PORT = 51581
 
 
 def stream_logs() -> None:

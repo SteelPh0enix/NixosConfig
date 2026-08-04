@@ -6,7 +6,7 @@ let
       --models-dir /home/LLMs/llama-models/ \
       --models-preset /home/LLMs/llama-models.ini \
       --host 0.0.0.0 \
-      --port 51536 \
+      --port 51580 \
       --models-max 2 \
       --load-mode mlock \
       --webui \

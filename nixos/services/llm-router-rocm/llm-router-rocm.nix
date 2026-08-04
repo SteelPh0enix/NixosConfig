@@ -3,7 +3,7 @@
 {
   systemd.services = {
     "llm-router-rocm" = {
-      description = "LLM Router ROCm (HIP) service - community kyuzo Strix Halo image on port 51580";
+      description = "LLM Router ROCm (HIP) service - community kyuzo Strix Halo image on port 51536";
       enable = true;
       enableStrictShellChecks = true;
 
