@@ -19,6 +19,7 @@
         "networkmanager"
         "render"
         "pcap"
+        "systemd-journal"
         # "wireshark"
         "docker"
         "vboxusers"
