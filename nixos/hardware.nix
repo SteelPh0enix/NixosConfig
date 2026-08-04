@@ -12,16 +12,18 @@
     "amdgpu.runpm=0"
     "amdgpu.tmz=0"
     "amdgpu.noretry=0"
-    "split_lock_detect=off"
+    "amdgpu.gttsize=126976"
     "amdgpu.lockup_timeout=600000"
+    "split_lock_detect=off"
     "amd_iommu=off"
+    "ttm.pages_limit=32505856"
   ];
 
   boot.extraModprobeConfig = ''
-    options amdgpu gttsize=122800
+    options amdgpu gttsize=126976
     options amdgpu vm_fragment_size=8
-    options ttm pages_limit=31457280
-    options ttm page_pool_size=31457280
+    options ttm pages_limit=32505856
+    options ttm page_pool_size=32505856
   '';
 
   hardware.enableRedistributableFirmware = true;
