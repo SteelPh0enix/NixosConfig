@@ -77,88 +77,16 @@ end
 
 # LLM functions
 
-function serve-llm
-    set -l llama_port 51536
-    set -l context_length 0
-    argparse h/help 'm/model=' 'p/port=' 'c/context=' -- $argv
-    or return 1
-
-    if set -q _flag_help
-        echo "Usage: serve-llm -m/--model=<path to GGUF file> -p/--port=<port, optional, $llama_port by default> -c/--context=<context length, optional, 0 (max context) by default>"
-        return 2
-    end
-
-    if not set -q _flag_model
-        echo "Error: model path is required!" >&2
-        return 3
-    end
-
-    set -l model_path $_flag_model
-    set -l model_name (basename $model_path .gguf)
-
-    if not test -e "$model_path"
-        echo "Error: Model $model_path does not exist!" >&2
-        return 4
-    end
-
-    if set -q _flag_port
-        set llama_port $_flag_port
-    end
-
-    if set -q _flag_context
-        set context_length $_flag_context
-    end
-
-    if test "$context_length" -lt 0
-        echo "Error: context length must be >= 0!" >&2
-        return 5
-    end
-
-    if test "$context_length" -gt 0
-        echo "Serving $model_name with $context_length tokens of context on port $llama_port, additional flags: $argv"
-    else
-        echo "Serving $model_name with maximum available context on port $llama_port, additional flags: $argv"
-    end
-
-    llama-server \
-        --ctx-size $context_length \
-        --model $model_path \
-        --alias $model_name \
-        --mlock \
-        --fit on \
-        --log-colors on \
-        --offline \
-        --warmup \
-        --host 0.0.0.0 \
-        --port $llama_port \
-        --webui \
-        --metrics \
-        --props \
-        --slots \
-        --models-max 1 \
-        --parallel 1 \
-        --flash-attn on \
-        --gpu-layers all \
-        --direct-io \
-        $argv
-end
-
 function llm-router
     llama-server \
-        --models-dir /home/LLMs/llama-models/ \
-        --models-preset /home/LLMs/llama-models.ini \
-        --mlock \
-        --direct-io \
-        --fit on \
-        --log-colors on \
-        --offline \
-        --warmup \
+        --models-dir /mnt/SSD/LLMs/llama-models/ \
+        --models-preset /mnt/SSD/LLMs/llama-models.ini \
         --host 0.0.0.0 \
         --port 51536 \
+        --models-max 1 \
+        --load-mode mlock \
         --webui \
         --metrics \
         --props \
-        --slots \
-        --flash-attn on \
-        --gpu-layers all
+        --slots
 end

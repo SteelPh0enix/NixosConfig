@@ -26,6 +26,7 @@
     icu
     inetutils
     jq
+    llama-cpp
     lm_sensors
     lsof
     ltrace
