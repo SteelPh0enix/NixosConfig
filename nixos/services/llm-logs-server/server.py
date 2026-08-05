@@ -148,8 +148,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--host",
-        default="[IP_ADDRESS]",
-        help="Bind address (default: [IP_ADDRESS], the LAN host interface).",
+        default="0.0.0.0",
+        help="Bind address (default: 0.0.0.0, the LAN host interface).",
     )
     args = parser.parse_args()
 
