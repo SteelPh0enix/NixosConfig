@@ -25,6 +25,8 @@
       url = "github:e-tho/ucodenix";
     };
 
+    llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
+
     nix-cachyos-kernel = {
       url = "github:xddxdd/nix-cachyos-kernel";
       inputs.nixpkgs.follows = "nixpkgs";
