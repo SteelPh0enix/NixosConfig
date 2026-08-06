@@ -6,8 +6,8 @@
   networking.firewall = {
     enable = true;
     allowPing = true;
-    allowedTCPPorts = [ ];
-    allowedUDPPorts = [ 16969 ];
+    allowedTCPPorts = [ 51536 ];
+    allowedUDPPorts = [ 51536 16969 ];
     checkReversePath = false;
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
   };
