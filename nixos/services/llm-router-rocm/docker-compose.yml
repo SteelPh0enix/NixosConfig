@@ -50,6 +50,14 @@ services:
     # (same as the Vulkan llm-router on 51580).
     network_mode: host
 
+    # ROCm/HIP idle-busy workaround (llama.cpp stays at 100% GPU / max clock
+    # even when idle on AMD after a request - ROCm issue #2625, llama.cpp #3929).
+    # Limiting HIP to a single hardware queue prevents the amdgpu power state
+    # from being left stuck in a "busy" boosted mode (ROCm #5706 / #6298).
+    # Only the ROCm backend needs this; the Vulkan llm-router is unaffected.
+    environment:
+      - GPU_MAX_HW_QUEUES=1
+
     # Mount the model fleet at the SAME absolute paths the INI preset uses,
     # so /home/LLMs/... and /home/steelph0enix/LLMs/... resolve unchanged.
     volumes:
