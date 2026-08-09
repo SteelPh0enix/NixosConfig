@@ -19,6 +19,14 @@
   services.blueman.enable = true;
   services.gvfs.enable = true;
 
+  services.tuned = {
+    enable = true;
+    ppdSupport = true;
+    settings = {
+      dynamic_tuning = true;
+    };
+  };
+
   services.openssh = {
     enable = true;
     ports = [ 22137 ];
