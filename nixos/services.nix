@@ -284,4 +284,12 @@ in
     wants = [ "dns-ready.target" ];
     after = [ "dns-ready.target" ];
   };
+
+  services.tuned = {
+    enable = true;
+    ppdSupport = true;
+    settings = {
+      dynamic_tuning = true;
+    };
+  };
 }
