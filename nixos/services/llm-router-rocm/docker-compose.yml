@@ -75,7 +75,7 @@ services:
       - --port
       - "51536"
       - --models-max
-      - "2"
+      - "4"
       - --load-mode
       - mlock
       - --webui
