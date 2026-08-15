@@ -27,8 +27,8 @@ set -gx PATH "/home/steelph0enix/.npm/bin:/home/steelph0enix/.local/bin:$PATH"
 
 function llama-cpp-update
     echo (set_color green)"Directory: $llama_cpp_repo_path"(set_color normal)
-    echo (set_color blue)"Switching to master and pulling updates..."(set_color normal)
-    git -C $llama_cpp_repo_path switch master && git -C $llama_cpp_repo_path pull; or return 1
+    echo (set_color blue)"Pulling llama.cpp updates..."(set_color normal)
+    git -C $llama_cpp_repo_path pull; or return 1
 end
 
 function llama-cpp-venv-create
