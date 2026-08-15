@@ -16,7 +16,6 @@
     ./shell.nix
     ./packages.nix
     ./fonts.nix
-    ./opencode.nix
     ./nixvim
   ];
 }

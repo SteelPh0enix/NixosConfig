@@ -10,8 +10,6 @@
     quodlibet-xine-full
     ungoogled-chromium
     zenmap
-
-    nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.crush
   ];
 
   programs.vscode = {
