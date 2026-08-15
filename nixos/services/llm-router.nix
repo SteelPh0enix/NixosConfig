@@ -7,7 +7,7 @@ let
       --models-preset /home/LLMs/llama-models.ini \
       --host 0.0.0.0 \
       --port 51580 \
-      --models-max 2 \
+      --models-max 4 \
       --load-mode mlock \
       --webui \
       --metrics \
