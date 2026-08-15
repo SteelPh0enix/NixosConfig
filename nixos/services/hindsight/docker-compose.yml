@@ -13,7 +13,7 @@ services:
       # LLM Provider (OpenAI-compatible via llama-server)
       - HINDSIGHT_API_LLM_PROVIDER=openai
       - HINDSIGHT_API_LLM_BASE_URL=http://192.168.0.185:51536/v1
-      - HINDSIGHT_API_LLM_MODEL=qwen-uncensored
+      - HINDSIGHT_API_LLM_MODEL=gemma-moe
       - HINDSIGHT_API_LLM_API_KEY=local
 
       # Embeddings (external TEI service)
