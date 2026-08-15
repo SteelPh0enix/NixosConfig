@@ -28,6 +28,8 @@
       ];
       openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID7HEYiuWVQP3BcNDibe5cwVuL081u1Noos4OAuyWVBb FrameworkPC SSH"
+        # Deploy key used by Forgejo CI to publish coverage reports to /srv/coverage
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIMBBk8Y/FcUNsIemBzYJb7TiBMYpnT1ik/H9+obvnxR forgejo-localmachine"
       ];
     };
 

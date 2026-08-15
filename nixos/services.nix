@@ -191,6 +191,13 @@ in
     after = [ "dns-ready.target" ];
   };
 
+  # --- Nginx (static hosting; vhosts defined in services/*.nix) ---
+  services.nginx = {
+    enable = true;
+    recommendedOptimisation = true;
+    recommendedTlsSettings = true;
+  };
+
   # --- Forgejo (replaces Gitea) ---
   services.forgejo = {
     enable = true;

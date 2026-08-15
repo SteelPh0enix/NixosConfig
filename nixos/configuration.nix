@@ -29,6 +29,7 @@
     ./services/hindsight/hindsight.nix
     ./services/tei/tei.nix
     ./services/web-extract/web-extract.nix
+    ./services/coverage.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
