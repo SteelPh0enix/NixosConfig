@@ -9,10 +9,10 @@
     allowedTCPPorts = [
       53 # PiHole DNS (Docker service)
       443 # HTTPS
-      6969 # Gitea (HTTP)
+      6969 # Forgejo (HTTP)
       9090 # Prometheus
       9119 # Hermes Agent dashboard
-      22137 # Gitea (SSH)
+      22137 # Forgejo (SSH)
       51520 # Hindsight API
       51521 # Hindsight Control Panel
       51536 # LLM Router ROCm (Docker, community Strix Halo image)

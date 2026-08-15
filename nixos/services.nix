@@ -1,4 +1,5 @@
 {
+  config,
   lib,
   pkgs,
   inputs,
@@ -19,8 +20,8 @@ let
             service display-name="TEI" unit="tei"
             service display-name="Web Extract" unit="web-extract"
             service display-name="Jellyfin" unit="jellyfin"
-            service display-name="Gitea" unit="gitea"
-            service display-name="Gitea runner" unit="gitea-runner-framework"
+            service display-name="Forgejo" unit="forgejo"
+            service display-name="Forgejo runner" unit="gitea-runner-framework"
             service display-name="XRDP" unit="xrdp"
         }
         uptime prefix="Uptime"
@@ -95,7 +96,7 @@ in
       AllowUsers = [
         "steelph0enix"
         "quake"
-        "gitea"
+        "forgejo"
       ];
       LogLevel = "VERBOSE";
       MaxAuthTries = 10;
@@ -190,63 +191,82 @@ in
     after = [ "dns-ready.target" ];
   };
 
-  services.gitea = {
+  # --- Forgejo (replaces Gitea) ---
+  services.forgejo = {
     enable = true;
-    package = pkgs.gitea;
+    package = pkgs.forgejo; # 16.0.2
     lfs.enable = true;
-    appName = "RX-78-GITEA";
-    user = "gitea";
     settings = {
-      packages = {
-        ENABLED = true;
-      };
-      "packages.container" = {
-        ENABLED = true;
-      };
+      DEFAULT.APP_NAME = "RX-78-FORGEJO";
       server = {
         PROTOCOL = "http";
         HTTP_PORT = 6969;
-        SSH_PORT = 22137;
+        SSH_PORT = 22137; # displayed in clone URLs
         DOMAIN = "steelph0enix.framework";
-        PUBLIC_URL_DETECTION = "auto";
+        # ROOT_URL auto-computed as http://steelph0enix.framework:6969/
         OFFLINE_MODE = true;
         ENABLE_GZIP = true;
-        LFS_START_SERVER = true;
-      };
-      "repository.signing" = {
-        SIGNING_KEY = "/var/lib/gitea/.ssh/gitea-signing-key.pub";
-        SIGNING_EMAIL = "phoenixpl@hotmail.com";
-        SIGNING_NAME = "Gitea";
-        SIGNING_FORMAT = "ssh";
-        INITIAL_COMMIT = "always";
-        CRUD_ACTIONS = "pubkey, parentsigned";
-        WIKI = "pubkey";
-        MERGES = "pubkey, basesigned, commitssigned";
       };
       actions = {
         ENABLED = true;
         DEFAULT_ACTIONS_URL = "github";
       };
+      packages = {
+        ENABLED = true;
+      };
+      # not present in the Forgejo v16 config reference; harmless no-op, kept for parity
+      "packages.container" = {
+        ENABLED = true;
+      };
+      "repository.signing" = {
+        FORMAT = "ssh";
+        SIGNING_KEY = "/var/lib/forgejo/.ssh/forgejo-signing-key.pub";
+        SIGNING_EMAIL = "phoenixpl@hotmail.com";
+        SIGNING_NAME = "Forgejo";
+        INITIAL_COMMIT = "always";
+        CRUD_ACTIONS = "pubkey, parentsigned";
+        WIKI = "pubkey";
+        MERGES = "pubkey, basesigned, commitssigned";
+      };
+      service = {
+        DISABLE_REGISTRATION = true;
+      };
     };
   };
 
-  systemd.services."gitea" = {
+  systemd.services."forgejo" = {
     wants = [ "dns-ready.target" ];
     after = [ "dns-ready.target" ];
   };
 
+  # --- Forgejo Actions runner ---
+  # Since Forgejo 15 the one-time "runner registration token" flow is
+  # deprecated (forgejo/forgejo#11516, #11650): the WebUI now creates the
+  # runner directly and issues a persistent uuid + token pair that belongs
+  # in the runner's config file (server.connections). The nixpkgs
+  # gitea-actions-runner module still tries the deprecated
+  # `forgejo-runner register --token` flow in its ExecStartPre, which fails
+  # with "runner registration token not found". We therefore replace
+  # ExecStartPre/ExecStart with a config-based setup that reads UUID= and
+  # TOKEN= from the token file (kept out of git / the nix store).
   services.gitea-actions-runner = {
-    package = pkgs.gitea-actions-runner;
+    package = pkgs.forgejo-runner;
     instances.framework = {
       name = "framework";
       enable = true;
       url = "http://steelph0enix.framework:6969/";
-      tokenFile = "/home/gitea/runner-token";
+      tokenFile = "/home/forgejo-runner/runner-token";
       labels = [
         "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
         "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
       ];
       settings = {
+        runner = {
+          labels = [
+            "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
+            "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
+          ];
+        };
         container = {
           # MOUNT THE HOST DOCKER SOCKET
           # This allows the 'docker' command inside the container
@@ -259,14 +279,44 @@ in
     };
   };
 
-  systemd.services."gitea-runner-framework" = {
-    wants = [ "dns-ready.target" "gitea.service" ];
-    after = [ "dns-ready.target" "gitea.service" ];
-    serviceConfig = {
-      SupplementaryGroups = [ "docker" ];
-      Restart = lib.mkForce "no";
+  systemd.services."gitea-runner-framework" =
+    let
+      frameworkCfg = config.services.gitea-actions-runner.instances.framework;
+      # Same base config the module would generate (everything except the
+      # server connection, which is appended at runtime from the token file).
+      baseConfig = (pkgs.formats.yaml { }).
+        generate "config.yaml" frameworkCfg.settings;
+    in
+    {
+      wants = [ "dns-ready.target" "forgejo.service" ];
+      after = [ "dns-ready.target" "forgejo.service" ];
+      serviceConfig = {
+        SupplementaryGroups = [ "docker" ];
+        Restart = lib.mkForce "no";
+        # Replaces the module's deprecated registration step.
+        ExecStartPre = lib.mkForce [
+          (pkgs.writeShellScript "forgejo-runner-prepare-config" ''
+            set -euo pipefail
+            # File must contain: UUID=<runner uuid> and TOKEN=<runner token>
+            source /home/forgejo-runner/runner-token
+            mkdir -p /var/lib/gitea-runner/framework
+            {
+              cat ${baseConfig}
+              cat <<EOF
+server:
+  connections:
+    framework:
+      url: ${frameworkCfg.url}
+      uuid: ${"$" + "{UUID}"}
+      token: ${"$" + "{TOKEN}"}
+EOF
+            } > /var/lib/gitea-runner/framework/config.yaml
+          '')
+        ];
+        ExecStart = lib.mkForce
+          "${pkgs.forgejo-runner}/bin/forgejo-runner daemon --config /var/lib/gitea-runner/framework/config.yaml";
+      };
     };
-  };
 
   services.xrdp = {
     package = pkgs.xrdp;

@@ -65,11 +65,6 @@
       isNormalUser = false;
       group = "users";
     };
-
-    gitea = {
-      isNormalUser = false;
-      group = "gitea";
-    };
   };
 
   users.defaultUserShell = pkgs.fish;

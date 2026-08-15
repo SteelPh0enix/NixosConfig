@@ -24,7 +24,7 @@ alias str "sudo systemctl restart"
 set -Ux llama_cpp_repo_path "/home/steelph0enix/llama.cpp"
 set -Ux llama_cpp_venv_path "$llama_cpp_repo_path/.venv"
 set -gx PATH "/home/steelph0enix/.npm/bin:/home/steelph0enix/.local/bin:$PATH"
-set -gx LLAMA_BASE_URL "http://steelph0enix.framework:51536/v1"
+set -gx LLAMA_BASE_URL "http://steelph0enix.framework:51580/v1"
 set -gx LLAMA_API_KEY "dummy"
 
 function llama-cpp-update
