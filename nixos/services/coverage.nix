@@ -9,6 +9,11 @@
 { ... }:
 
 {
+  # Publish target for the CI coverage job (steelph0enix writes via SSH deploy key)
+  boot.tmpfiles.rules = [
+    "d /srv/coverage 0755 steelph0enix users -"
+  ];
+
   services.nginx.virtualHosts."6970" = {
     listen = [ { port = 6970; addr = "0.0.0.0"; } ];
     locations."/".extraConfig = ''
