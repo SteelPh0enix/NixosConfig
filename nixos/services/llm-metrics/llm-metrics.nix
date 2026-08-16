@@ -58,11 +58,15 @@ in
       RemainAfterExit = true;
       # Runs as root without sandboxing, so it can read the gitignored
       # secrets from the repo (/etc/nixos is a symlink to it).
-      ExecStart = ''
-        ${pkgs.coreutils}/bin/install -d -m 0750 -o root -g grafana /var/lib/grafana-secrets
-        ${pkgs.coreutils}/bin/install -m 0640 -o root -g grafana /etc/nixos/secrets/grafana-admin-password ${adminPasswordTarget}
-        ${pkgs.coreutils}/bin/install -m 0640 -o root -g grafana /etc/nixos/secrets/grafana-secret-key ${secretKeyTarget}
-      '';
+      # NOTE: must be a list of commands. A multi-line string renders the
+      # extra lines as bare unit lines (no "ExecStart=" prefix), which
+      # systemd silently ignores with "Missing '='" - only the first line
+      # would run.
+      ExecStart = [
+        "${pkgs.coreutils}/bin/install -d -m 0750 -o root -g grafana /var/lib/grafana-secrets"
+        "${pkgs.coreutils}/bin/install -m 0640 -o root -g grafana /etc/nixos/secrets/grafana-admin-password ${adminPasswordTarget}"
+        "${pkgs.coreutils}/bin/install -m 0640 -o root -g grafana /etc/nixos/secrets/grafana-secret-key ${secretKeyTarget}"
+      ];
     };
   };
 
@@ -81,8 +85,8 @@ in
         admin_user = "admin";
         # file: provider - the actual secrets stay on disk (gitignored),
         # only these path strings end up in the Nix store.
-        admin_password = "file:${adminPasswordTarget}";
-        secret_key = "file:${secretKeyTarget}";
+        admin_password = "\$__file\{${adminPasswordTarget}\}";
+        secret_key = "\$__file\{${secretKeyTarget}\}";
       };
     };
     provision = {
