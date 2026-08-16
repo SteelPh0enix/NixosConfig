@@ -35,7 +35,7 @@ in
     enable = true;
     listenAddress = "127.0.0.1";
     globalConfig = {
-      scrape_interval = "30s";
+      scrape_interval = "5s";
     };
     scrapeConfigs = [
       {
@@ -51,7 +51,7 @@ in
         file_sd_configs = [
           {
             files = [ llamaTargetsFile ];
-            refresh_interval = "30s";
+            refresh_interval = "5s";
           }
         ];
       }
@@ -81,7 +81,7 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "5s";
-      OnUnitActiveSec = "15s";
+      OnUnitActiveSec = "5s";
       # systemd's default timer accuracy is 1min; lower it so the 15s
       # cadence is actually honored.
       AccuracySec = "1s";
