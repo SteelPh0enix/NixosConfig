@@ -42,28 +42,16 @@ in
         # Per-model metrics, served by the children the routers spawn.
         # Labels come from the file_sd file: server=<router>, model=<name>
         # (dashboards use {{server}} in their legends).
+        #
+        # No separate router-liveness job: the router's /health endpoint
+        # returns JSON (not scrapeable as metrics), and the children are
+        # the routers' subprocesses, so a dead router shows up as its
+        # llm-models targets going down.
         job_name = "llm-models";
         file_sd_configs = [
           {
             files = [ llamaTargetsFile ];
             refresh_interval = "30s";
-          }
-        ];
-      }
-      {
-        # Router liveness: /health is served by the router itself (its
-        # /metrics route is a proxy and would 400 on a plain scrape).
-        job_name = "llm-routers";
-        metrics_path = "/health";
-        static_configs = [
-          {
-            targets = [ "127.0.0.1:51580" ];
-            labels = { server = "llm-router"; };
-          }
-          {
-            # Host networking mode, so the port is reachable on localhost
-            targets = [ "127.0.0.1:51536" ];
-            labels = { server = "llm-router-rocm"; };
           }
         ];
       }
