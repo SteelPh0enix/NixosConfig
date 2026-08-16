@@ -272,7 +272,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "llamacpp:prompt_tokens_seconds * on() (llamacpp:requests_processing > bool 0)",
+          "expr": "sum by (server) (llamacpp:prompt_tokens_seconds) * on (server) (sum by (server) (llamacpp:requests_processing) > bool 0)",
           "legendFormat": "{{server}} - Prompt throughput",
           "range": true,
           "refId": "A"
@@ -336,7 +336,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "llamacpp:predicted_tokens_seconds * on() (llamacpp:requests_processing > bool 0)",
+          "expr": "sum by (server) (llamacpp:predicted_tokens_seconds) * on (server) (sum by (server) (llamacpp:requests_processing) > bool 0)",
           "legendFormat": "{{server}} - Generation throughput",
           "range": true,
           "refId": "A"
@@ -399,7 +399,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "llamacpp:n_busy_slots_per_decode * on() (llamacpp:requests_processing > bool 0)",
+          "expr": "sum by (server) (llamacpp:n_busy_slots_per_decode) * on (server) (sum by (server) (llamacpp:requests_processing) > bool 0)",
           "legendFormat": "{{server}} - Busy slots",
           "range": true,
           "refId": "A"
@@ -463,7 +463,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "llamacpp:n_tokens_max * on() (llamacpp:requests_processing > bool 0)",
+          "expr": "max by (server) (llamacpp:n_tokens_max) * on (server) (sum by (server) (llamacpp:requests_processing) > bool 0)",
           "legendFormat": "{{server}} - Largest context",
           "range": true,
           "refId": "A"
@@ -2065,7 +2065,7 @@
   "timezone": "browser",
   "title": "llama.cpp Monitoring",
   "uid": "llamacpp-monitoring",
-  "version": 2,
+  "version": 3,
   "weekStart": "",
   "description": "llama.cpp server metrics for llm-router (Vulkan, :51580) and llm-router-rocm (ROCm, :51536). Based on pecastro/grafana-dashboards (Grafana dashboard ID 25591); legend formats extended with the scrape-job 'server' label."
 }
