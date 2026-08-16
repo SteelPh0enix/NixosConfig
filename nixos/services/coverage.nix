@@ -10,7 +10,8 @@
 
 {
   # Publish target for the CI coverage job (steelph0enix writes via SSH deploy key)
-  boot.tmpfiles.rules = [
+  # (option moved from boot.tmpfiles to systemd.tmpfiles in current nixpkgs)
+  systemd.tmpfiles.rules = [
     "d /srv/coverage 0755 steelph0enix users -"
   ];
 
