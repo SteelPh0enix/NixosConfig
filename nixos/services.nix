@@ -342,11 +342,6 @@ EOF
     after = [ "dns-ready.target" ];
   };
 
-  services.tuned = {
-    enable = true;
-    ppdSupport = true;
-    settings = {
-      dynamic_tuning = true;
-    };
-  };
+  services.tuned.enable = true;
+  environment.etc."tuned/active_profile".text = "accelerator-performance";
 }
