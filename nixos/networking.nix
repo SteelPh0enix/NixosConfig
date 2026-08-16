@@ -10,7 +10,6 @@
       53 # PiHole DNS (Docker service)
       443 # HTTPS
       6969 # Forgejo (HTTP)
-      9090 # Prometheus
       9119 # Hermes Agent dashboard
       22137 # Forgejo (SSH)
       51520 # Hindsight API

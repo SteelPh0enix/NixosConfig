@@ -25,6 +25,7 @@
     ./services/llm-logs-web.nix
     ./services/llm-router.nix
     ./services/llm-router-rocm/llm-router-rocm.nix
+    ./services/llm-metrics/llm-metrics.nix
     ./services/minecraft-server.nix
     ./services/hindsight/hindsight.nix
     ./services/tei/tei.nix
