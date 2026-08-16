@@ -291,37 +291,41 @@ in
       frameworkCfg = config.services.gitea-actions-runner.instances.framework;
       # Same base config the module would generate (everything except the
       # server connection, which is appended at runtime from the token file).
-      baseConfig = (pkgs.formats.yaml { }).
-        generate "config.yaml" frameworkCfg.settings;
+      baseConfig = (pkgs.formats.yaml { }).generate "config.yaml" frameworkCfg.settings;
     in
     {
-      wants = [ "dns-ready.target" "forgejo.service" ];
-      after = [ "dns-ready.target" "forgejo.service" ];
+      wants = [
+        "dns-ready.target"
+        "forgejo.service"
+      ];
+      after = [
+        "dns-ready.target"
+        "forgejo.service"
+      ];
       serviceConfig = {
         SupplementaryGroups = [ "docker" ];
         Restart = lib.mkForce "no";
         # Replaces the module's deprecated registration step.
         ExecStartPre = lib.mkForce [
           (pkgs.writeShellScript "forgejo-runner-prepare-config" ''
-            set -euo pipefail
-            # File must contain: UUID=<runner uuid> and TOKEN=<runner token>
-            source /home/forgejo-runner/runner-token
-            mkdir -p /var/lib/gitea-runner/framework
-            {
-              cat ${baseConfig}
-              cat <<EOF
-server:
-  connections:
-    framework:
-      url: ${frameworkCfg.url}
-      uuid: ${"$" + "{UUID}"}
-      token: ${"$" + "{TOKEN}"}
-EOF
-            } > /var/lib/gitea-runner/framework/config.yaml
+                        set -euo pipefail
+                        # File must contain: UUID=<runner uuid> and TOKEN=<runner token>
+                        source /home/forgejo-runner/runner-token
+                        mkdir -p /var/lib/gitea-runner/framework
+                        {
+                          cat ${baseConfig}
+                          cat <<EOF
+            server:
+              connections:
+                framework:
+                  url: ${frameworkCfg.url}
+                  uuid: ${"$" + "{UUID}"}
+                  token: ${"$" + "{TOKEN}"}
+            EOF
+                        } > /var/lib/gitea-runner/framework/config.yaml
           '')
         ];
-        ExecStart = lib.mkForce
-          "${pkgs.forgejo-runner}/bin/forgejo-runner daemon --config /var/lib/gitea-runner/framework/config.yaml";
+        ExecStart = lib.mkForce "${pkgs.forgejo-runner}/bin/forgejo-runner daemon --config /var/lib/gitea-runner/framework/config.yaml";
       };
     };
 
@@ -343,5 +347,8 @@ EOF
   };
 
   services.tuned.enable = true;
-  environment.etc."tuned/active_profile".text = "accelerator-performance";
+  environment.etc."tuned/active_profile" = {
+    enable = true;
+    text = "accelerator-performance";
+  };
 }
