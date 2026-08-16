@@ -11,12 +11,25 @@ let
   # gitignored and must not be touched during (pure) evaluation.
   adminPasswordTarget = "/var/lib/grafana-secrets/admin-password";
   secretKeyTarget = "/var/lib/grafana-secrets/secret-key";
+
+  # Written by the llama-metrics-discover timer: a Prometheus file_sd file
+  # listing the child llama-server instances the routers have spawned for
+  # currently loaded models (their ports are random, so they must be
+  # discovered at runtime).
+  llamaTargetsFile = "/var/lib/llama-metrics/llama-targets.json";
 in
 {
   # -------------------------------------------------------------------
-  # Prometheus: scrapes the /metrics endpoints of both llama-server
-  # instances (both run with --metrics). Localhost only - Grafana on
-  # the same host is the sole consumer, so no firewall port is opened.
+  # Prometheus. Localhost only - Grafana on the same host is the sole
+  # consumer, so no firewall port is opened.
+  #
+  # The two llama-server instances run in multi-model router mode
+  # (--models-max/--models-preset): their own /metrics endpoint is a proxy
+  # that requires a ?model= parameter, so it cannot be scraped directly.
+  # When a model is loaded, the router spawns a child llama-server on a
+  # random port that serves plain /metrics. The llama-metrics-discover
+  # timer queries each router's /models endpoint and writes the loaded
+  # children into a file_sd file, which the llm-models job scrapes.
   # -------------------------------------------------------------------
   services.prometheus = {
     enable = true;
@@ -26,18 +39,27 @@ in
     };
     scrapeConfigs = [
       {
-        job_name = "llm-router";
-        static_configs = [
+        # Per-model metrics, served by the children the routers spawn.
+        # Labels come from the file_sd file: server=<router>, model=<name>
+        # (dashboards use {{server}} in their legends).
+        job_name = "llm-models";
+        file_sd_configs = [
           {
-            targets = [ "127.0.0.1:51580" ];
-            # Distinguishes the two servers in dashboards (legend: {{server}})
-            labels = { server = "llm-router"; };
+            files = [ llamaTargetsFile ];
+            refresh_interval = "30s";
           }
         ];
       }
       {
-        job_name = "llm-router-rocm";
+        # Router liveness: /health is served by the router itself (its
+        # /metrics route is a proxy and would 400 on a plain scrape).
+        job_name = "llm-routers";
+        metrics_path = "/health";
         static_configs = [
+          {
+            targets = [ "127.0.0.1:51580" ];
+            labels = { server = "llm-router"; };
+          }
           {
             # Host networking mode, so the port is reachable on localhost
             targets = [ "127.0.0.1:51536" ];
@@ -46,6 +68,36 @@ in
         ];
       }
     ];
+  };
+
+  # Refresh the file_sd targets every 15s so a newly loaded model is
+  # scraped shortly after its child comes up (and disappears when the
+  # model is unloaded).
+  systemd.services.llama-metrics-discover = {
+    description = "Discover loaded llama.cpp router models for Prometheus";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      # Invoke the Nix store python explicitly: the service runs with a
+      # minimal PATH, so the script's #!/usr/bin/env python3 shebang would
+      # not resolve.
+      ExecStart = [
+        "${pkgs.coreutils}/bin/install -d -m 0755 /var/lib/llama-metrics"
+        "${pkgs.python3}/bin/python3 ${./llama-targets-discover.py} ${llamaTargetsFile}"
+      ];
+    };
+  };
+
+  systemd.timers.llama-metrics-discover = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5s";
+      OnUnitActiveSec = "15s";
+      # systemd's default timer accuracy is 1min; lower it so the 15s
+      # cadence is actually honored.
+      AccuracySec = "1s";
+    };
   };
 
   # Installs the admin password where the file: provider can read it.
