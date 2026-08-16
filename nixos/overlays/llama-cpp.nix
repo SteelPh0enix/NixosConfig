@@ -4,7 +4,6 @@ final: prev: {
       llamaVersion = "4.2.0";
       useRocm = false;
       useVulkan = true;
-      useMpi = true;
     }).overrideAttrs
       (oldAttrs: {
         # Add 'cacert' to the build inputs so SSL certificates are available
