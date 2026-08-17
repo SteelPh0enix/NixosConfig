@@ -170,8 +170,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1786966179,
-        "narHash": "sha256-fafrnYC4teJ+OEEtX9UJUIEgsYXBmPenZvsNeHBvRXM=",
+        "lastModified": 1786967714,
+        "narHash": "sha256-vRWPW/Zz13NVGiDHeGjF+aLHNsps894eKJLtQ78NOmo=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -333,11 +333,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1786905522,
-        "narHash": "sha256-HVXhmCCH7nD2x3jwrzrDyOwB7LGXh6uw0Tx7h9TcNA8=",
+        "lastModified": 1786967124,
+        "narHash": "sha256-eS5qlIqjE+cTYsauzJuv7O87qv6TGvyS/1JJtUsTZFI=",
         "owner": "nix-community",
         "repo": "nixvim",
-        "rev": "b5d9e7d2cf02e322ff6ef780862951c2d8f22f1b",
+        "rev": "94fa51d8b7d734feef1b8db5bb2a8c67ddc5cd12",
         "type": "github"
       },
       "original": {
