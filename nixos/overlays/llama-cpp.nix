@@ -3,8 +3,7 @@ final: prev: {
     (prev.llamaPackages.llama-cpp.override {
       llamaVersion = "4.2.0";
       useRocm = true;
-      useVulkan = false;
-      useMpi = true;
+      rocmGpuTargets = "gfx1100";
     }).overrideAttrs
       (oldAttrs: {
         # Add 'cacert' to the build inputs so SSL certificates are available
