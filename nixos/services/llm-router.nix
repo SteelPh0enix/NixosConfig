@@ -3,8 +3,8 @@
 let
   llm-router-script = pkgs.writeShellScriptBin "llm-router" ''
     exec ${pkgs.llama-cpp}/bin/llama-server \
-      --models-dir /home/LLMs/llama-models/ \
-      --models-preset /home/LLMs/llama-models.ini \
+      --models-dir /home/LLMs/models/ \
+      --models-preset /home/LLMs/llama-server.ini \
       --host 0.0.0.0 \
       --port 51580 \
       --models-max 4 \
