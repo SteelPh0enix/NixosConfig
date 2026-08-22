@@ -15,7 +15,7 @@
     inkscape-with-extensions
     keepassxc
     krename
-    libreoffice-qt6-fresh
+    libreoffice
     # nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.freecad
     obsidian
     orca-slicer
