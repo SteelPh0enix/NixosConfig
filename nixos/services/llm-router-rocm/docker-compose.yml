@@ -4,16 +4,20 @@
 # which is where ROCm/HIP beats Vulkan on this APU. It serves the exact same
 # model fleet as the Vulkan llm-router (51580) via the same models.ini preset.
 #
-# Image: kyuz0's community "amd-strix-halo-toolboxes" container, built
-# specifically for the Radeon 8060S / gfx1151 (Strix Halo) iGPU. We use the
-# latest stable ROCm tag (rocm-7.14). This image bakes in a temporary upstream
-# workaround for llama.cpp issue #25992 (PR #25863) that prevents llama.cpp
-# from selecting ROCm host buffers for compute on integrated GPUs - this is
-# the root cause of the "broken output / no tool calls" you saw with the
-# stock NixOS ROCm build, and it is why this community image is reliable.
+# Image: built LOCALLY from https://github.com/kyuz0/amd-strix-halo-toolboxes
+# (toolboxes/Dockerfile.rocm-7.14), cloned to /home/LLMs/amd-strix-halo-toolboxes.
+# The Dockerfile builds llama.cpp `master` with GGML_HIP for gfx1151 (Strix
+# Halo) and bakes in a temporary upstream workaround for llama.cpp issue
+# #25992 (PR #25863) that prevents llama.cpp from selecting ROCm host buffers
+# for compute on integrated GPUs - the root cause of the "broken output / no
+# tool calls" you saw with the stock NixOS ROCm build.
+#
+# Rebuild with the `update-llama-cpp-rocm` fish function (nixos/init.fish).
+# NOTE: the image must exist on the SYSTEM docker daemon (/run/docker.sock) -
+# the service runs as root and does not see the user's rootless daemon.
 #
 # References:
-#   - https://github.com/kyuzo/amd-strix-halo-toolboxes  (rocm-7.14 tag)
+#   - https://github.com/kyuz0/amd-strix-halo-toolboxes  (toolboxes/Dockerfile.rocm-7.14)
 #   - llama.cpp discussion #23659 uses `docker pull ...:rocm-7.2.3`
 #   - llama.cpp issue #25992 (ROCm host-buffer inference failure on iGPU)
 #
@@ -24,7 +28,7 @@
 #     preset; do NOT disable them on Strix Halo.
 services:
   llm-router-rocm:
-    image: kyuz0/amd-strix-halo-toolboxes:rocm-7.14
+    image: llama-rocm-7.14:latest
     container_name: llm-router-rocm
     pull_policy: missing
     restart: unless-stopped

@@ -143,6 +143,32 @@ function serve-llm
         $argv
 end
 
+function update-llama-cpp-rocm --description "Rebuild the local llama.cpp ROCm 7.14 image from the latest amd-strix-halo-toolboxes"
+    # Builds against the SYSTEM docker daemon (sudo -> /run/docker.sock), the
+    # same daemon the llm-router-rocm systemd service runs on. The user's
+    # rootless daemon (DOCKER_HOST=unix:///run/user/1000/docker.sock) is NOT
+    # visible to the service, so the build must go through sudo.
+    set -l repo_dir /home/LLMs/amd-strix-halo-toolboxes
+    set -l image llama-rocm-7.14
+
+    if not test -d $repo_dir/.git
+        echo (set_color green)"Cloning amd-strix-halo-toolboxes into $repo_dir..."(set_color normal)
+        git clone https://github.com/kyuz0/amd-strix-halo-toolboxes.git $repo_dir; or return 1
+    end
+
+    echo (set_color green)"Pulling latest amd-strix-halo-toolboxes..."(set_color normal)
+    git -C $repo_dir pull --ff-only; or return 1
+
+    # --no-cache is mandatory: the `git clone llama.cpp master` step has no
+    # changing inputs, so a cached build would keep the old llama.cpp forever.
+    echo (set_color green)"Building $image:latest (llama.cpp master, ROCm 7.14, gfx1151)..."(set_color normal)
+    sudo docker build --no-cache -t $image:latest \
+        -f $repo_dir/toolboxes/Dockerfile.rocm-7.14 \
+        $repo_dir/toolboxes; or return 1
+
+    echo (set_color green)"Built: "(set_color normal)(sudo docker image inspect --format '{{.Id}}' $image:latest)
+end
+
 function update-services
     echo (set_color green)"Updating AnythingLLM..."(set_color normal)
     env -C ~/nixos-config/nixos/services/anything-llm sudo docker compose pull --policy always
@@ -157,8 +183,8 @@ function update-services
     sudo systemctl restart tei
 
     echo (set_color green)"Updating llama.cpp (ROCm)"(set_color normal)
-    env -C ~/nixos-config/nixos/services/llm-router-rocm sudo docker compose pull --policy always
-    sudo systemctl restart tei
+    update-llama-cpp-rocm; or return 1
+    sudo systemctl restart llm-router-rocm
 
     echo (set_color green)"Updating PiHole"(set_color normal)
     env -C ~/nixos-config/nixos/services/pihole sudo docker compose pull --policy always
