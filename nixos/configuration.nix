@@ -31,6 +31,7 @@
     ./services/tei/tei.nix
     ./services/web-extract/web-extract.nix
     ./services/coverage.nix
+    ./services/docs.nix
     ./shell.nix
     ./timers.nix
     ./users.nix
