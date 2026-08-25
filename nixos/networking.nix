@@ -22,6 +22,7 @@
       51541 # TEI (reranking)
       51545 # Web Extract (hermes-local-web-extract)
       6970 # Coverage report viewer (nginx, /srv/coverage)
+      6971 # Docs viewer (nginx, /srv/docs)
       # Few generic ports for one-shot/test stuff
       11111
       22222
