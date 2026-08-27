@@ -32,7 +32,7 @@ in
   # children into a file_sd file, which the llm-models job scrapes.
   # -------------------------------------------------------------------
   services.prometheus = {
-    enable = true;
+    enable = false;
     listenAddress = "127.0.0.1";
     globalConfig = {
       scrape_interval = "5s";
@@ -62,6 +62,7 @@ in
   # scraped shortly after its child comes up (and disappears when the
   # model is unloaded).
   systemd.services.llama-metrics-discover = {
+    enable = false;
     description = "Discover loaded llama.cpp router models for Prometheus";
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
@@ -78,6 +79,7 @@ in
   };
 
   systemd.timers.llama-metrics-discover = {
+    enable = false;
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "5s";
@@ -90,6 +92,7 @@ in
 
   # Installs the admin password where the file: provider can read it.
   systemd.services.grafana-secrets = {
+    enable = false;
     description = "Install Grafana admin password for the file: provider";
     wantedBy = [ "grafana.service" ];
     before = [ "grafana.service" ];
@@ -114,7 +117,7 @@ in
   # Grafana: serves the llama.cpp monitoring dashboard on :51555.
   # -------------------------------------------------------------------
   services.grafana = {
-    enable = true;
+    enable = false;
     openFirewall = true;
     settings = {
       server = {

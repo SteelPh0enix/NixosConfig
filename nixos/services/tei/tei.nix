@@ -4,7 +4,7 @@
   systemd.services = {
     "tei" = {
       description = "HuggingFace Text Embeddings Inference service (embeddings + reranker)";
-      enable = true;
+      enable = false;
       enableStrictShellChecks = true;
 
       serviceConfig = {
