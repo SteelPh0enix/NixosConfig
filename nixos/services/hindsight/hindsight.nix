@@ -4,7 +4,7 @@
   systemd.services = {
     "hindsight" = {
       description = "Hindsight memory service";
-      enable = true;
+      enable = false;
       enableStrictShellChecks = true;
 
       serviceConfig = {

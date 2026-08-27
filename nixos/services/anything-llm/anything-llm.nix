@@ -4,7 +4,7 @@
   systemd.services = {
     "anything-llm" = {
       description = "AnythingLLM service";
-      enable = true;
+      enable = false;
       enableStrictShellChecks = true;
 
       serviceConfig = {

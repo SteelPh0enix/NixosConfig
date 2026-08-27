@@ -1,6 +1,7 @@
 { pkgs, ... }:
 {
   systemd.services.minecraft-server = {
+    enable = false;
     description = "Minecraft Server (OC 1.21.11)";
     after = [
       "network.target"
