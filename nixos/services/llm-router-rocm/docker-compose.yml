@@ -76,7 +76,7 @@ services:
       - --host
       - 0.0.0.0
       - --port
-      - "51536"
+      - "51537"
       - --models-max
       - "4"
       - --webui
@@ -84,7 +84,3 @@ services:
       - --props
       - --slots
       - --perf
-      - --offline
-      - --jinja
-      - --gpu-layers
-      - "all"
