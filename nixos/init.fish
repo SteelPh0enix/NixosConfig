@@ -75,81 +75,13 @@ function remote-cp --description "Compresses, sends, and decompresses a director
     echo "Done."
 end
 
-# LLM functions
-
-function serve-llm
-    set -l llama_port 51536
-    set -l context_length 0
-    argparse h/help 'm/model=' 'p/port=' 'c/context=' -- $argv
-    or return 1
-
-    if set -q _flag_help
-        echo "Usage: serve-llm -m/--model=<path to GGUF file> -p/--port=<port, optional, $llama_port by default> -c/--context=<context length, optional, 0 (max context) by default>"
-        return 2
-    end
-
-    if not set -q _flag_model
-        echo "Error: model path is required!" >&2
-        return 3
-    end
-
-    set -l model_path $_flag_model
-    set -l model_name (basename $model_path .gguf)
-
-    if not test -e "$model_path"
-        echo "Error: Model $model_path does not exist!" >&2
-        return 4
-    end
-
-    if set -q _flag_port
-        set llama_port $_flag_port
-    end
-
-    if set -q _flag_context
-        set context_length $_flag_context
-    end
-
-    if test "$context_length" -lt 0
-        echo "Error: context length must be >= 0!" >&2
-        return 5
-    end
-
-    if test "$context_length" -gt 0
-        echo "Serving $model_name with $context_length tokens of context on port $llama_port, additional flags: $argv"
-    else
-        echo "Serving $model_name with maximum available context on port $llama_port, additional flags: $argv"
-    end
-
-    llama-server \
-        --ctx-size $context_length \
-        --model $model_path \
-        --alias $model_name \
-        --mlock \
-        --fit on \
-        --log-colors on \
-        --offline \
-        --warmup \
-        --host 0.0.0.0 \
-        --port $llama_port \
-        --webui \
-        --metrics \
-        --props \
-        --slots \
-        --models-max 1 \
-        --parallel 1 \
-        --flash-attn on \
-        --gpu-layers all \
-        --direct-io \
-        $argv
-end
-
 function update-llama-cpp-rocm --description "Rebuild the local llama.cpp ROCm 7.14 image from the latest amd-strix-halo-toolboxes"
     # Builds against the SYSTEM docker daemon (sudo -> /run/docker.sock), the
     # same daemon the llm-router-rocm systemd service runs on. The user's
     # rootless daemon (DOCKER_HOST=unix:///run/user/1000/docker.sock) is NOT
     # visible to the service, so the build must go through sudo.
     set -l repo_dir /home/LLMs/amd-strix-halo-toolboxes
-    set -l image llama-rocm-7.14
+    set -l image llama-rocm
 
     if not test -d $repo_dir/.git
         echo (set_color green)"Cloning amd-strix-halo-toolboxes into $repo_dir..."(set_color normal)
@@ -161,26 +93,26 @@ function update-llama-cpp-rocm --description "Rebuild the local llama.cpp ROCm 7
 
     # --no-cache is mandatory: the `git clone llama.cpp master` step has no
     # changing inputs, so a cached build would keep the old llama.cpp forever.
-    echo (set_color green)"Building $image:latest (llama.cpp master, ROCm 7.14, gfx1151)..."(set_color normal)
+    echo (set_color green)"Building $image:latest (llama.cpp master, ROCm 10.0, gfx1151)..."(set_color normal)
     sudo docker build --no-cache -t $image:latest \
-        -f $repo_dir/toolboxes/Dockerfile.rocm-7.14 \
+        -f $repo_dir/toolboxes/Dockerfile.rocm-10.0 \
         $repo_dir/toolboxes; or return 1
 
     echo (set_color green)"Built: "(set_color normal)(sudo docker image inspect --format '{{.Id}}' $image:latest)
 end
 
 function update-services
-    echo (set_color green)"Updating AnythingLLM..."(set_color normal)
-    env -C ~/nixos-config/nixos/services/anything-llm sudo docker compose pull --policy always
-    sudo systemctl restart anything-llm
-
-    echo (set_color green)"Updating Hindsight"(set_color normal)
-    env -C ~/nixos-config/nixos/services/hindsight sudo docker compose pull --policy always
-    sudo systemctl restart hindsight
-
-    echo (set_color green)"Updating TEI (embeddings + reranker)"(set_color normal)
-    env -C ~/nixos-config/nixos/services/tei sudo docker compose pull --policy always
-    sudo systemctl restart tei
+    # echo (set_color green)"Updating AnythingLLM..."(set_color normal)
+    # env -C ~/nixos-config/nixos/services/anything-llm sudo docker compose pull --policy always
+    # sudo systemctl restart anything-llm
+    #
+    # echo (set_color green)"Updating Hindsight"(set_color normal)
+    # env -C ~/nixos-config/nixos/services/hindsight sudo docker compose pull --policy always
+    # sudo systemctl restart hindsight
+    #
+    # echo (set_color green)"Updating TEI (embeddings + reranker)"(set_color normal)
+    # env -C ~/nixos-config/nixos/services/tei sudo docker compose pull --policy always
+    # sudo systemctl restart tei
 
     echo (set_color green)"Updating llama.cpp (ROCm)"(set_color normal)
     update-llama-cpp-rocm; or return 1
