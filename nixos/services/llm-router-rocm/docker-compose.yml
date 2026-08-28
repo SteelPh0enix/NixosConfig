@@ -79,9 +79,12 @@ services:
       - "51536"
       - --models-max
       - "4"
-      - --load-mode
-      - mlock
       - --webui
       - --metrics
       - --props
       - --slots
+      - --perf
+      - --offline
+      - --jinja
+      - --gpu-layers
+      - "all"
