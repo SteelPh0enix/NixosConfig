@@ -83,7 +83,6 @@
       pkgs.obs-studio-plugins.obs-mute-filter
       pkgs.obs-studio-plugins.obs-markdown
       pkgs.obs-studio-plugins.obs-gstreamer
-      pkgs.obs-studio-plugins.obs-dvd-screensaver
     ];
   };
 
