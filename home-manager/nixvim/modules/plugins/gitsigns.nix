@@ -1,0 +1,4 @@
+{ ... }:
+{
+  plugins.gitsigns.enable = true;
+}
