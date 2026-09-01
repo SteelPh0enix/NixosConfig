@@ -257,11 +257,6 @@
     keymaps = {
       # Files / grep
       "<leader>ff" = "files";
-      # cwd = "%" -> start in the directory of the current file
-      "<leader>fd" = {
-        action = "files";
-        settings.cwd = "%";
-      };
       "<leader>fg" = "live_grep";
       "<leader>fr" = "oldfiles";
       "<leader>fb" = "buffers";
