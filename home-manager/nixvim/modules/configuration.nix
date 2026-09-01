@@ -19,6 +19,7 @@
     ./plugins/nvim-tree.nix
     ./plugins/render-markdown.nix
     ./plugins/rustaceanvim.nix
+    ./plugins/todo-comments.nix
     ./plugins/treesitter.nix
     ./plugins/web-devicons.nix
   ];
