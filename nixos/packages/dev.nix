@@ -37,7 +37,9 @@
     nixd
     nixfmt
     nixpkgs-review
+    openspec
     openssl
+    pi-coding-agent
     pkg-config
     pnpm
     python314
