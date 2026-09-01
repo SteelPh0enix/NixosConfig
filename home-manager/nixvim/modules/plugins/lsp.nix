@@ -79,22 +79,34 @@
         "<leader>cf" = "format";
       };
 
-      # Anything that is not a plain `vim.lsp.buf` call
+      # Anything that is not a plain `vim.lsp.buf` call.
+      #
+      # nvim-lspconfig's `:LspStart`/`:LspStop`/`:LspRestart`/`:LspInfo` do not exist on
+      # Nvim >= 0.11 (plugin/lspconfig.lua returns early as soon as core's `:lsp` is
+      # defined), hence Neovim's own `:lsp` subcommands (:help :lsp-enable):
+      #   :lsp stop      stop clients attached to the current buffer
+      #   :lsp restart   restart those clients (errors if none are attached)
+      #   :lsp enable|disable [name]  toggle a config for current + future buffers
+      #
+      # `:lsp enable` is deliberately NOT mapped: without an explicit server name it
+      # enables any config registered for the filetype, including Neovim's built-in
+      # ones - bare `:lsp enable` attached `nil_ls` in a Nix buffer. To re-attach after
+      # `:lsp stop`, firing FileType again is enough (verified), which is what <leader>ls does.
       extra = [
         {
           key = "<leader>ls";
-          action = "<Cmd>LspStart<CR>";
-          options.desc = "Start LSP";
+          action = "<Cmd>doautocmd FileType<CR>";
+          options.desc = "Attach LSP servers to this buffer";
         }
         {
           key = "<leader>lx";
-          action = "<Cmd>LspStop<CR>";
-          options.desc = "Stop LSP";
+          action = "<Cmd>lsp stop<CR>";
+          options.desc = "Stop LSP clients of this buffer";
         }
         {
           key = "<leader>lR";
-          action = "<Cmd>LspRestart<CR>";
-          options.desc = "Restart LSP";
+          action = "<Cmd>lsp restart<CR>";
+          options.desc = "Restart LSP clients of this buffer";
         }
       ];
     };

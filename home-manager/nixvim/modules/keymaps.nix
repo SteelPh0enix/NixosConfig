@@ -57,6 +57,16 @@
       options.desc = "Previous buffer";
     }
 
+    # --- LSP status ---
+    # Global on purpose: the `<leader>l{s,x,R}` client controls live in plugins/lsp.nix
+    # and only exist once a client has attached (LspAttach), which is exactly when
+    # figuring out "why is nothing attached" is useless. `:LspInfo` is gone in 0.11+.
+    {
+      key = "<leader>li";
+      action = "<Cmd>checkhealth vim.lsp<CR>";
+      options.desc = "LSP health";
+    }
+
     # --- Diagnostics ---
     {
       key = "<leader>d";
