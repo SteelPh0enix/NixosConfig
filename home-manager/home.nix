@@ -1,7 +1,4 @@
-{
-  nixvim,
-  ...
-}:
+{ ... }:
 {
   home = {
     username = "steelph0enix";
@@ -12,7 +9,6 @@
   programs.home-manager.enable = true;
 
   imports = [
-    nixvim.homeModules.nixvim
     ./shell.nix
     ./packages.nix
     ./fonts.nix

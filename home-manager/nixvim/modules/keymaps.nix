@@ -15,6 +15,11 @@
   #   - LSP buffer mappings:   plugins/lsp.nix        (attached per-buffer)
   #   - fzf-lua pickers:       plugins/fzf-lua.nix
   #   - file tree toggle:      plugins/nvim-tree.nix
+  #
+  # Neovim already provides, unconditionally: `]d`/`[d` (diagnostics), `]q`/`[q`
+  # (quickfix), `]l`/`[l` + `]L`/`[L` (location list), `gra`/`grn`/`grr`/`gri`/`grt`/
+  # `grx`/`gO` (LSP), `gc` (comment). `K` (hover) is set per-buffer on LspAttach.
+  # Only map what is actually missing from that list.
   keymaps = [
     # --- Save / Close ---
     {
@@ -28,39 +33,35 @@
       options.desc = "Save file";
     }
     {
+      key = "<leader>w";
+      action = "<Cmd>w<CR>";
+      options.desc = "Save file";
+    }
+    {
       key = "<leader>q";
-      action = "<Cmd>q<CR>";
+      action = "<Cmd>confirm bdelete<CR>";
       options.desc = "Close buffer";
     }
 
+    # --- Buffer navigation ---
+    # Not <S-H>/<S-L>: Neovim cannot tell `h` from `<S-h>`, so those would clobber
+    # the native H/L (jump to first/last line of the window).
+    {
+      key = "<leader>bn";
+      action = "<Cmd>bnext<CR>";
+      options.desc = "Next buffer";
+    }
+    {
+      key = "<leader>bp";
+      action = "<Cmd>bprevious<CR>";
+      options.desc = "Previous buffer";
+    }
+
     # --- Diagnostics ---
-    # `vim.diagnostic.goto_next/prev` are deprecated in Nvim 0.12; `jump` is the replacement.
-    {
-      key = "]d";
-      action.__raw = "function() vim.diagnostic.jump({ count = 1, float = true }) end";
-      options.desc = "Next diagnostic";
-    }
-    {
-      key = "[d";
-      action.__raw = "function() vim.diagnostic.jump({ count = -1, float = true }) end";
-      options.desc = "Previous diagnostic";
-    }
     {
       key = "<leader>d";
       action.__raw = "function() vim.diagnostic.open_float() end";
       options.desc = "Line diagnostics";
-    }
-
-    # --- Quickfix navigation ---
-    {
-      key = "]l";
-      action = "<Cmd>cnext<CR>";
-      options.desc = "Next quickfix item";
-    }
-    {
-      key = "[l";
-      action = "<Cmd>cprev<CR>";
-      options.desc = "Previous quickfix item";
     }
 
     # --- Clear search highlight ---
