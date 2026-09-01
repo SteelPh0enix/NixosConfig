@@ -1,9 +1,11 @@
 # Static coverage reports, published by Forgejo CI (tar over SSH from the
 # coverage job in SteelPh0enix/llama-server-api).
 #
+# Same scheme as the docs viewer: only the latest build is kept, each publish
+# replaces the project's report in place (no per-sha history).
+#
 # Layout under /srv/coverage:
-#   llama-server-api/<sha>/{html,lcov.info}
-#   llama-server-api/latest -> llama-server-api/<newest sha>
+#   <project>/{html,lcov.info}
 #
 # Browse at http://steelph0enix.framework:6970/
 { ... }:
