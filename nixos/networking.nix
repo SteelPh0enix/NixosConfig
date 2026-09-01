@@ -25,7 +25,6 @@
 
       # 51540 # TEI (embedding)
       # 51541 # TEI (reranking)
-      # 51545 # Web Extract (hermes-local-web-extract)
 
       # Few generic ports for one-shot/test stuff
       11111

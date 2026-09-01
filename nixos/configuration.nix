@@ -29,7 +29,6 @@
     ./services/minecraft-server.nix
     ./services/hindsight/hindsight.nix
     ./services/tei/tei.nix
-    ./services/web-extract/web-extract.nix
     ./services/coverage.nix
     ./services/docs.nix
     ./shell.nix
