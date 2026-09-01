@@ -2,9 +2,6 @@
 {
   # ---- Neovim options ----
   opts = {
-    encoding = "utf-8";
-    langmenu = "en_US";
-
     tabstop = 2;
     shiftwidth = 2;
     softtabstop = 0;
@@ -24,7 +21,6 @@
     number = true;
     relativenumber = true;
     cursorline = true;
-    cursorcolumn = false;
     colorcolumn = "80,100,120";
 
     splitbelow = true;
