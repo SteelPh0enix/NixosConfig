@@ -59,8 +59,11 @@
         cpp = [ "clang-format" ];
         rust = [ "rustfmt" ];
 
-        # Drop `ruff_format` if/when `plugins.lsp.servers.ruff` is enabled: the built-in
-        # `ruff server` does lint + format + autofix in one process.
+        # Kept even though `plugins.lsp.servers.ruff` is now enabled (the ruff server formats
+        # too): with `lsp_format = "fallback"` only ONE of them runs - the CLI here, the LSP
+        # only where no CLI formatter resolves. Same binary, same config discovery, and
+        # formatting keeps working in a buffer with no client attached.
+        # Prefer the server? Delete `ruff_format` below and `<leader>cf` falls through to it.
         python = [ "ruff_format" ];
 
         sh = [ "shfmt" ];
