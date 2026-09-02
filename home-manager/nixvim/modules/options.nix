@@ -17,11 +17,23 @@
     smartcase = true;
     wildmode = "list:longest,list:full";
 
+    # `:grep` / `:lg` go through ripgrep: same engine (and same .gitignore handling) as
+    # fzf-lua's live_grep and todo-comments' search.command, so the three agree on hits.
+    # `--smart-case` pairs with `ignorecase`/`smartcase` above; `%f:%l:%c:%m` matches
+    # rg's `file:line:col:message`, the second pattern covers rg lines without a column.
+    grepprg = "rg --vimgrep --smart-case";
+    grepformat = "%f:%l:%c:%m,%f:%l:%m";
+
     termguicolors = true;
     number = true;
     relativenumber = true;
     cursorline = true;
-    colorcolumn = "80,100,120";
+    # No global `colorcolumn`: the per-filetype guides in `autocmds.nix` mirror the actual
+    # formatter configs (rustfmt 100, ruff 88, clang-format 80/120, nixfmt 100).
+
+    # Touch/yank with the mouse without giving up the keyboard selections.
+    # "a" = all modes (Nvim's own default is "nvi"), including the command-line window.
+    mouse = "a";
 
     splitbelow = true;
     splitright = true;
@@ -46,6 +58,22 @@
     # Prompt instead of silently dropping an unsaved buffer on `:q`/`:enew`/`:bnext` conflicts.
     confirm = true;
 
+    # ---- Files / external tools ----
+    # Reload a buffer that changed on disk (nixfmt in another shell, `git checkout`, codegen)
+    # when it has no unsaved changes; the `FileChangedShellPost` autocmd in `autocmds.nix`
+    # is what makes that reload visible instead of silent.
+    autoread = true;
+
+    # `:diffthis` / `nvim -d`: histogram is much better on moved code blocks, and
+    # `vertical` puts the two windows side by side without needing `-d`.
+    # `internal` uses Nvim's own diff engine (no external `diff` binary in the wrapper).
+    diffopt = [
+      "internal"
+      "algorithm:histogram"
+      "indent-heuristic"
+      "vertical"
+    ];
+
     # ---- Cursor / scrolling ----
     scrolloff = 8; # keep context above/below the cursor
     sidescrolloff = 4; # ... and horizontally (only visible with `nowrap`/long lines)
@@ -66,7 +94,11 @@
     breakindent = true;
 
     # ---- Wildmenu / completion ----
-    wildignore = "node_modules/**,.git/**,*.o,*.obj,result";
+    # Build artefacts and VCS internals: these otherwise pollute `:find`, `:browse` and
+    # tab-completion. (fzf-lua's `:Files` already honours .gitignore; this is the native side.)
+    wildignore =
+      "node_modules/**,.git/**,result/**,target/**,build/**,_build/**,.venv/**,__pycache__/**"
+      + ",*.o,*.obj,*.so,*.rlib";
     wildignorecase = true;
     # nvim-cmp sets its own completeopt for insert mode; this covers native completion
     # (and drops Nvim's default `popup`, which overlaps cmp's own documentation window).

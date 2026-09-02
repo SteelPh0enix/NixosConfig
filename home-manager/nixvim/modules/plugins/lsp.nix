@@ -2,8 +2,19 @@
 {
   # ---- LSP ----
 
-  # nixd calls this through the LSP `textDocument/formatting` request.
-  extraPackages = [ pkgs.nixfmt ];
+  # External binaries that LSP servers shell out to *at runtime* - they are looked up on
+  # the nvim process PATH, so they have to be in the wrapper even though nixvim already
+  # puts the servers themselves there (clang-tools, nixd, bash-language-server, ...).
+  #   nixfmt     - nixd `textDocument/formatting` (`settings.formatting.command`)
+  #   shellcheck - bash-language-server diagnostics; without it `scripts/*.sh` get none
+  #   shfmt      - bash-language-server formatting
+  # (conform-nvim/nvim-lint also pull shfmt/shfmt+shellcheck via autoInstall, same
+  #  derivations, so this is belt-and-braces for the LSP path alone.)
+  extraPackages = [
+    pkgs.nixfmt
+    pkgs.shellcheck
+    pkgs.shfmt
+  ];
 
   # Signature float while typing arguments. Also covers the case where the
   # insert-mode `<C-s>` save mapping shadows Neovim's default `<C-S>` signature help.
@@ -76,7 +87,10 @@
       lspBuf = {
         "gd" = "definition";
         "gD" = "declaration";
-        "<leader>cf" = "format";
+        # `<leader>cf` moved to plugins/conform-nvim.nix: it is a global
+        # `require('conform').format()` now (CLI formatter with LSP fallback) instead of
+        # `vim.lsp.buf.format`, which was a no-op in every filetype without a formatting
+        # client (python/bash/fish/json). LSP-only formatting is still on `<leader>cF`.
       };
 
       # Anything that is not a plain `vim.lsp.buf` call.
