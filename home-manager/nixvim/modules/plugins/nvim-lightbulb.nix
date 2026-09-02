@@ -27,6 +27,12 @@
       # created and the bulb never shows unless this is flipped.
       autocmd.enabled = true;
 
+      # Upstream default is 200 and `setup()` does `if autocmd.updatetime > 0 then
+      # vim.opt.updatetime = it end` - which runs *after* NixVim's `vim.opt` block and
+      # silently clobbers the global `updatetime = 300` from options.nix.
+      # Negative = leave `updatetime` alone.
+      autocmd.updatetime = -1;
+
       # Nerd Font glyph instead of the 2-column 💡 emoji (BerkeleyMono Nerd Font).
       sign.text = "󰌶";
     };
