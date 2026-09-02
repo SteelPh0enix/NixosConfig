@@ -23,7 +23,58 @@
   plugins.lsp = {
     enable = true;
 
-    servers.clangd.enable = true;
+    # ---- C / C++ ----
+    # clangd reads almost all of its knobs from argv (or from a `.clangd` YAML in the repo).
+    # Its LSP settings object carries very little by comparison - lspconfig types it as
+    # `{ clangd = { fallbackFlags, inactiveRegions, ... } }` - and nixvim does not namespace
+    # clangd at all, so `cmd` below is the right place. The binary comes from `pkgs.clang-tools`
+    # via the server's `package` (-> wrapper PATH), same as before.
+    servers.clangd = {
+      enable = true;
+
+      cmd = [
+        "clangd"
+        # Index the project in the background -> cross-file completion/goto in trees
+        # bigger than the one clangd parses on demand (llama.cpp et al).
+        "--background-index"
+        # tidy diagnostics *through* clangd. Deliberate: adding `c`/`cpp` -> clangtidy to
+        # plugins.lint would publish the same checks twice (see lint.nix).
+        "--clang-tidy"
+        "--completion-style=detailed"
+        # No `<algorithm>` appearing in a header you never included.
+        "--header-insertion=never"
+        # Without .clang-format, clangd's own formatting falls back to *nothing* instead of
+        # LLVM style, so `<leader>cF` (LSP-only) leaves foreign projects alone.
+        # Note the asymmetry: `<leader>cf` prefers conform's `clang-format` CLI (lsp_format =
+        # "fallback"), and that binary has no such switch - it still applies LLVM style when no
+        # .clang-format is found. Remove `c`/`cpp` from conform's formatters_by_ft if you want
+        # "no file without an explicit style gets touched".
+        "--fallback-style=none"
+        # `-j` stays unset: clangd defaults to all cores, and a literal here would just
+        # be a machine-specific cap.
+        # Cross-compiling / a compiler that is not on PATH additionally needs
+        #   "--query-driver=/path/to/g++"
+      ];
+
+      # Root = where the compilation database (and the style/tidy config clangd should read)
+      # lives. Spelled out rather than inherited from lspconfig because `rootMarkers` REPLACES
+      # the list (`vim.lsp.config` deep-merges tables, but a list key is overwritten, not
+      # appended) - the plan's 3-item version would have silently dropped `.clang-format`,
+      # `.clang-tidy`, `.clangd` and `configure.ac`, all of which lspconfig 2.11 ships.
+      rootMarkers = [
+        "compile_commands.json"
+        "compile_flags.txt"
+        ".clangd"
+        ".clang-tidy"
+        ".clang-format"
+        "configure.ac"
+        ".git" # last: single .c files inside a repo still get a stable root
+      ];
+      # Getting a compile_commands.json there: `bear -- make` (bear is in nixos/packages/dev.nix)
+      # or `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, then symlink `build/compile_commands.json` into
+      # the source root - clangd only searches the root itself. (`plugins.cmake-tools`, tier C,
+      # automates that symlink via `cmake_soft_link_compile_commands`.)
+    };
 
     # Nix. Option docs/completion are resolved against the eval of this very flake;
     # home-manager is wired in as a NixOS module here (no standalone
@@ -69,10 +120,49 @@
       };
 
       bashls.enable = true; # scripts/
+      # (bashls shells out to shellcheck/shfmt - those come from `extraPackages` above.
+      #  If autodetection ever picks the wrong shell: settings.exec.shell = "/run/current-system/sw/bin/bash";)
+
+      # ---- Python: two clients on purpose ----
+      # basedpyright = types (and it never formats - `<leader>cf` still needs conform or ruff).
+      # ruff         = lint + format + autofix, i.e. the rule engine that `ruff check`/`ruff format`
+      #              run on CI, now with on-type diagnostics instead of on-write.
       basedpyright.enable = true; # nixos/services/llm-logs-server (pyright itself is unfree)
+
+      # `ruff` = the built-in `ruff server` (>= 0.5.3). NOT `ruff_lsp`, which is deprecated
+      # upstream and a separate python process speaking `ruff-lsp`'s private protocol.
+      # Consequence: `plugins.lint.lintersByFt.python = [ "ruff" ]` is removed in lint.nix,
+      # for the same reason shellcheck/clangtidy are not there.
+      ruff.enable = true;
+
+      # NOTE on basedpyright settings: nixvim does *not* namespace this server (unlike `nixd`,
+      # `Lua`, `pylsp`, `rust-analyzer`, `yaml`), so anything under `settings` has to be written
+      # as `settings.basedpyright.analysis.*` by hand. Left empty deliberately:
+      #   * `typeCheckingMode` - basedpyright's own default is "recommended", not "standard"
+      #     (that is pyright's), so pinning "standard" here would silently *relax* checks.
+      #   * `useLibraryCodeForTypes` - lspconfig's own comment says explicit values override
+      #     per-project config, and LSP settings beat `pyproject.toml`/[tool.basedpyright]
+      #     outright: whatever is set here applies to every project.
+      # Per-project strictness belongs in pyproject.toml / pyrightconfig.json.
+
       jsonls.enable = true; # flake.lock, dashboards/*.json
       yamlls.enable = true; # docker-compose.yml
       marksman.enable = true; # markdown, pairs with render-markdown
+
+      # ---- CMake / TOML ----
+      # CMakeLists.txt + *.cmake: completion for command/variable/target names, hover for
+      # `${var}` expansion. `cmake` (the older server) is a different, weaker implementation.
+      neocmake.enable = true;
+      # Every .toml: Cargo.toml, pyproject.toml, ruff.toml, wezterm.lua's neighbours.
+      # It also implements textDocument/formatting; conform's `taplo` CLI still wins there
+      # (`lsp_format = "fallback"`), this is for the schema-aware completion + diagnostics.
+      taplo.enable = true;
+
+      # ---- Fish: deliberately no server ----
+      # `pkgs.fish-lsp` exists and nixvim knows it (`servers.fish_lsp`), but fish_indent
+      # (conform) + `fish -n` (lint.nix) + the fish treesitter parser already cover format,
+      # syntax errors and highlighting. fish-lsp is young and moves fast; re-visit if you
+      # start missing rename/goto on config.fish functions.
     };
 
     # Parameter names/types from clangd, option info from nixd.
@@ -107,6 +197,19 @@
       # ones - bare `:lsp enable` attached `nil_ls` in a Nix buffer. To re-attach after
       # `:lsp stop`, firing FileType again is enough (verified), which is what <leader>ls does.
       extra = [
+        {
+          # clangd's private `textDocument/switchSourceHeader` request. No native equivalent
+          # (`vim.lsp.buf` has nothing for it), but nvim-lspconfig's own `lsp/clangd.lua`
+          # registers a buffer-local `:LspClangdSwitchSourceHeader` in its on_attach - verified:
+          #   nvim --headless -c 'echo globpath(&rtp,"lsp/clangd.lua")'  -> lspconfig/lsp/clangd.lua
+          # so no extra plugin is needed. (plugins.clangd-extensions would only add `:ClangdAST`,
+          # `:ClangdOpenOutputFile`, `:ClangdMemoryUsage` - enable it if you want those.)
+          # Like the command it calls, this map is buffer-local on LspAttach and E492s in
+          # buffers where clangd is not the client.
+          key = "<leader>ch";
+          action = "<Cmd>LspClangdSwitchSourceHeader<CR>";
+          options.desc = "Switch source/header (clangd buffers only)";
+        }
         {
           key = "<leader>ls";
           action = "<Cmd>doautocmd FileType<CR>";

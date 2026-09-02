@@ -17,6 +17,7 @@
     ./plugins/lint.nix
     ./plugins/lsp.nix
     ./plugins/lualine.nix
+    ./plugins/nix-develop.nix
     ./plugins/nvim-autopairs.nix
     ./plugins/nvim-lightbulb.nix
     ./plugins/nvim-tree.nix
