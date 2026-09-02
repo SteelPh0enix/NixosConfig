@@ -2,9 +2,9 @@
 {
   # ---- nvim-lint (external linters) ----
   # Fills the gaps LSP leaves open here: `fish -n` for fish (no fish server enabled),
-  # statix + deadnix for Nix (nixd only reports parse/semantic errors), ruff for Python
-  # (basedpyright is a type checker). Shell scripts are deliberately *not* here - see the
-  # bashls note inside `lintersByFt` below.
+  # statix + deadnix for Nix (nixd only reports parse/semantic errors).
+  # Shell scripts and Python are deliberately *not* here - see the two notes inside
+  # `lintersByFt` below.
   #
   # `autoInstall` resolves each name in `lintersByFt` to a nix package
   # (nvim-lint/packages.nix, else `pkgs.<name>`) and puts it in the nvim wrapper's PATH.
@@ -25,7 +25,14 @@
         "statix"
         "deadnix"
       ]; # nixd reports parse/semantic errors only, never these
-      python = [ "ruff" ]; # basedpyright is a type checker; ruff adds the lint rules
+
+      # NOT python -> ruff, same story as shellcheck below: `plugins.lsp.servers.ruff` is now
+      # enabled, and the built-in `ruff server` runs the same rule engine with the same config
+      # discovery as `ruff check` - nvim-lint would republish those diagnostics with a worse
+      # lifecycle (BufWritePost only, vs on-change) and without the LSP quickfix/code-action
+      # plumbing. basedpyright stays complementary (types, not style).
+      # To hand linting back to nvim-lint: `plugins.lsp.servers.ruff.enable = false;` and
+      # re-add `python = [ "ruff" ];` here.
 
       # NOT sh/bash -> shellcheck, even though it is the obvious entry:
       # adding shellcheck to the wrapper (lsp.nix, §1.1) means bash-language-server
@@ -40,7 +47,8 @@
       # If you ever want nvim-lint to own it instead, disable the server side with
       # `plugins.lsp.servers.bashls.settings.shellcheckPath = "";` and re-add it above.
       #
-      # Also c/cpp -> clangtidy, same reasoning: clangd with `--clang-tidy` (§2.1).
+      # And again for c/cpp -> clangtidy: clangd already runs with `--clang-tidy` (its `cmd` in
+      # lsp.nix), so it publishes the tidy diagnostics itself.
       # c = [ "clangtidy" ];
       # cpp = [ "clangtidy" ];
     };
