@@ -13,17 +13,19 @@
     gimp
     heroic
     inkscape-with-extensions
+    jellyfin-desktop
     keepassxc
     krename
     libreoffice
-    # nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.freecad
     obsidian
+    openlogi
     orca-slicer
     prismlauncher
     proton-vpn
     protonup-qt
     qbittorrent-enhanced
     quodlibet-xine-full
+    solaar
     spotify
     teams-for-linux
     teamspeak6-client
@@ -32,14 +34,6 @@
     winetricks
     xournalpp
     zenmap
-
-    (jellyfin-media-player.overrideAttrs (old: {
-      nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-      postInstall = (old.postInstall or "") + ''
-        wrapProgram $out/bin/jellyfin-desktop \
-          --set QT_QPA_PLATFORM xcb
-      '';
-    }))
   ];
 
   programs.git = {
