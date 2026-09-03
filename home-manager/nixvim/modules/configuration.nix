@@ -12,6 +12,7 @@
     # Plugins (one file per plugin; keep in alphabetical order)
     ./plugins/cmp.nix
     ./plugins/conform-nvim.nix
+    ./plugins/dap.nix
     ./plugins/fzf-lua.nix
     ./plugins/gitsigns.nix
     ./plugins/lint.nix
