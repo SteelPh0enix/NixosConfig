@@ -18,7 +18,6 @@
     krename
     libreoffice
     obsidian
-    openlogi
     orca-slicer
     prismlauncher
     proton-vpn
