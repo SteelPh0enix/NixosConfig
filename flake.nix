@@ -33,6 +33,11 @@
       url = "github:nix-community/nixvim";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    openlogi = {
+      url = "github:AprilNEA/OpenLogi";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -42,6 +47,7 @@
       home-manager,
       nix-index-database,
       nixvim,
+      openlogi,
       ...
     }@inputs:
     let
@@ -57,6 +63,7 @@
             { _module.args = inputs; }
             ./nixos/configuration.nix
             nix-index-database.nixosModules.nix-index
+            openlogi.nixosModules.default
             home-manager.nixosModules.home-manager
             {
               home-manager.backupFileExtension = "hmgr.backup";

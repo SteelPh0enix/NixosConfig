@@ -107,4 +107,6 @@
   };
 
   qt.enable = true;
+
+  programs.openlogi.enable = true;
 }
