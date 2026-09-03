@@ -66,12 +66,19 @@ in
       # (plugins/by-name/rustaceanvim/settings-options.nix).
       tools.executor = "termopen";
 
-      # `dap.adapter` left at its default. Resolved on this machine (rustaceanvim 9.2.0,
-      # lua/rustaceanvim/config/internal.lua): no `codelldb` on PATH -> it checks `lldb-dap`
-      # before `lldb-vscode`, and pkgs.lldb 21.1.8 ships `/run/current-system/sw/bin/lldb-dap`,
-      # so the default becomes an *executable* adapter named "lldb". In other words Rust
-      # debugging needs no codelldb - `:RustLsp debuggables` starts working the moment
-      # plugins.dap exists (tier C). C/C++ still needs one (dap-lldb), which is tier C as well.
+      # `dap.adapter` left at its default - and that default is now *satisfied* rather
+      # than hoped for (rustaceanvim 9.2.0, lua/rustaceanvim/config/internal.lua): with no
+      # `codelldb` on PATH it probes `lldb-dap` before `lldb-vscode` and yields an
+      # *executable* adapter named "lldb"; if that probe fails it returns `false` and
+      # `:RustLsp debuggables` refuses to run even though an adapter exists. Two lines in
+      # plugins/dap.nix take care of it:
+      #   * `extraPackages = [ pkgs.lldb ]`  -> `lldb-dap` resolvable by name, probe succeeds;
+      #   * `plugins.dap.adapters.executables.lldb` -> `dap.adapters.lldb` is non-nil, and
+      #     dap.lua only assigns its own when the key is nil
+      #     (`if dap.adapters[adapter_key] == nil`), so debuggables run through the
+      #     store-pinned binary from dap.nix.
+      # Verified with the built wrapper: lldb-dap answers `initialize`, reports `stopped`,
+      # terminates cleanly - the same adapter the c/cpp configurations use.
     };
   };
 
@@ -98,7 +105,7 @@ in
           end
           map('<leader>rt', '<Cmd>RustLsp testables<CR>', 'Run testables')
           map('<leader>rr', '<Cmd>RustLsp runnables<CR>', 'Run runnables')
-          map('<leader>rd', '<Cmd>RustLsp debuggables<CR>', 'Debug debuggables (needs nvim-dap)')
+          map('<leader>rd', '<Cmd>RustLsp debuggables<CR>', 'Debug debuggables (nvim-dap + lldb-dap)')
           map('<leader>rp', '<Cmd>RustLsp parentModule<CR>', 'Open parent module')
           map('<leader>re', '<Cmd>RustLsp expandMacro<CR>', 'Expand macro (recursive)')
           map('<leader>rc', '<Cmd>RustLsp codeAction<CR>', 'Grouped code actions')
