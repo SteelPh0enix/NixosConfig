@@ -15,6 +15,7 @@
   #   - LSP buffer mappings:   plugins/lsp.nix        (attached per-buffer)
   #   - fzf-lua pickers:       plugins/fzf-lua.nix
   #   - file tree toggle:      plugins/nvim-tree.nix
+  #   - debug controls:        plugins/dap.nix        (<leader>d*)
   #
   # Neovim already provides, unconditionally: `]d`/`[d` (diagnostics), `]q`/`[q`
   # (quickfix), `]l`/`[l` + `]L`/`[L` (location list), `gra`/`grn`/`grr`/`gri`/`grt`/
@@ -68,8 +69,14 @@
     }
 
     # --- Diagnostics ---
+    # <leader>d -> <leader>dd: the bare <leader>d prefix belongs to nvim-dap now
+    # (plugins/dap.nix). A mapping on the prefix *and* on <leader>dX means the bare
+    # <leader>d waits out `timeoutlen` before firing - worst possible for the
+    # "peek at this error" case, which wants to be instant.
+    # Neovim's own `<C-W>d` does the same thing natively - drop this map and use that
+    # if the extra chord is not worth it. `]d`/`[d` jump, <leader>sd (fzf) lists all.
     {
-      key = "<leader>d";
+      key = "<leader>dd";
       action.__raw = "function() vim.diagnostic.open_float() end";
       options.desc = "Line diagnostics";
     }
