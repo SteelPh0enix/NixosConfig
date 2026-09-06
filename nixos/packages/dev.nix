@@ -45,7 +45,7 @@
     python314Packages.pytest
     python314Packages.pyusb
     ruff
-    texliveFull
+    # texliveFull
     uv
     uv-sort
     valgrind
