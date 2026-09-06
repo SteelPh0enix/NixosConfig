@@ -11,10 +11,18 @@ alias eh "$EDITOR ."
 alias cpr "cp -r"
 alias rbt "sudo systemctl reboot"
 alias cfge "code ~/nixos-config"
-alias docker-here "docker run --rm -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)"
-alias docker-here-shell "docker run --rm -it -v $PWD:$PWD -w $PWD -u $(id -u):$(id -g)"
-alias docker-here-rocm "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm"
-alias docker-here-shell-rocm "docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm -it"
+# docker-here*: run a container in $PWD, mounted at the same path. -shell* keeps a
+# TTY, -rocm* passes the GPU nodes through.
+#
+# Deliberately no -u $(id -u):$(id -g): we are on rootless docker, where container
+# root *is* our host uid - so files written into $PWD stay ours. Forcing our uid
+# instead maps to an unmapped subuid: $PWD turns unwritable, there is no passwd
+# entry (getpass.getuser() then dies inside torch) and HOME falls back to /, which
+# leaves transformers/huggingface caches unwriteable.
+alias docker-here 'docker run --rm -v $PWD:$PWD -w $PWD'
+alias docker-here-shell 'docker run --rm -it -v $PWD:$PWD -w $PWD'
+alias docker-here-rocm 'docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm -v $PWD:$PWD -w $PWD'
+alias docker-here-shell-rocm 'docker run --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --rm -it -v $PWD:$PWD -w $PWD'
 alias rcp "rsync --archive --recursive --mkpath --verbose --progress --human-readable"
 alias rcpc "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable"
 
