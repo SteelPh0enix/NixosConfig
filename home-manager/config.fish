@@ -66,13 +66,13 @@ end
 
 function os-rebuild
     echo (set_color yellow)"Rebuilding NixOS for main PC..."(set_color normal)
-    nh os boot ~/nixos-config --hostname steelph0enix-pc --update --keep-going
+    nh os boot ~/nixos-config --hostname steelph0enix-pc --keep-going
     echo (set_color green)"System rebuild complete."(set_color normal)
 end
 
 function os-rebuild-switch
     echo (set_color yellow)"Rebuilding NixOS for main PC and switching to new build..."(set_color normal)
-    nh os switch ~/nixos-config --hostname steelph0enix-pc --update --keep-going
+    nh os switch ~/nixos-config --hostname steelph0enix-pc --keep-going
     echo (set_color green)"System rebuild complete, switched to new build."(set_color normal)
 end
 
@@ -82,8 +82,10 @@ function os-update
     # 1. Update llama.cpp
     llama-cpp-update; or return 1
 
-    # 2. Rebuild System
-    os-rebuild; or return 1
+    # 2. Update and rebuild system
+    echo (set_color yellow)"Rebuilding NixOS for main PC..."(set_color normal)
+    nh os boot ~/nixos-config --hostname steelph0enix-pc --update --keep-going
+    echo (set_color green)"System rebuild complete."(set_color normal)
 
     # 3. Commit changes
     echo (set_color blue)"Committing flake.lock..."(set_color normal)
