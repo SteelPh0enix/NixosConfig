@@ -9,7 +9,7 @@
     };
     virtualbox.host = {
       enable = true;
-      enableKvm = false;
+      enableKvm = true;
       enableExtensionPack = true;
       enableHardening = true;
       addNetworkInterface = false;

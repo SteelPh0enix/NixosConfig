@@ -6,9 +6,8 @@
 {
   imports = [
     ./dev.nix
-    ./system.nix
     ./media.nix
-    ./apps.nix
+    ./system.nix
   ];
 
   nixpkgs.overlays = [
@@ -46,10 +45,7 @@
   programs.fzf.fuzzyCompletion = true;
   programs.fzf.keybindings = true;
 
-  programs.gnupg.agent = {
-    enable = true;
-    enableBrowserSocket = true;
-  };
+  programs.gnupg.agent.enable = true;
 
   programs.java = {
     package = pkgs.javaPackages.compiler.temurin-bin.jdk-25;

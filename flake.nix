@@ -19,6 +19,8 @@
       url = "github:e-tho/ucodenix";
     };
 
+    # Externally managed checkout (updated by `llama-cpp-update`, see home-manager/config.fish).
+    # Deliberately unpinned: the working tree *is* the input, `nix flake update llama-cpp` is a no-op.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
     nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";

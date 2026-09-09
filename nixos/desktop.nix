@@ -11,40 +11,24 @@
   services.displayManager.autoLogin.enable = true;
   services.displayManager.autoLogin.user = "steelph0enix";
 
-  environment.systemPackages = with pkgs; [
-    hardinfo2
-    kdePackages.filelight
-    kdePackages.isoimagewriter
-    kdePackages.kaccounts-integration
-    kdePackages.kaccounts-providers
-    kdePackages.kcalc
-    kdePackages.kcharselect
-    kdePackages.kclock
-    kdePackages.kcolorchooser
-    kdePackages.kdenetwork-filesharing
-    kdePackages.kdeplasma-addons
-    kdePackages.kdialog
-    kdePackages.kidentitymanagement
-    kdePackages.kio-admin
-    kdePackages.kio-extras
-    kdePackages.kio-fuse
-    kdePackages.kio-gdrive
-    kdePackages.ksystemlog
-    kdePackages.kweather
-    kdePackages.phonon-vlc
-    kdePackages.plasma-wayland-protocols
-    kdePackages.sddm-kcm
-    kdePackages.signon-kwallet-extension
-    kdePackages.signond
-    kdePackages.sweeper
-    kdePackages.wayland
-    kdePackages.wayland-protocols
-    kdePackages.xdg-desktop-portal-kde
-    kdiff3
-    vlc
-    wayland-utils
-    wl-clipboard
-    xclip
+  # Only the Plasma bits that have to sit in the system profile: KIO slaves and Dolphin/
+  # System-Settings plugins are registered through the merged profile, signond is a D-Bus
+  # service. The session itself (kwin, plasma-workspace, kio-{admin,extras,fuse}, phonon-vlc,
+  # kdeplasma-addons, xdg-desktop-portal-kde, ...) is installed by services.desktopManager.plasma6,
+  # and the apps (kcalc, filelight, vlc, ...) live in home-manager/packages.nix.
+  environment.systemPackages = with pkgs.kdePackages; [
+    kaccounts-integration
+    kaccounts-providers
+    kdenetwork-filesharing
+    kdialog
+    kidentitymanagement
+    kio-gdrive
+    plasma-wayland-protocols
+    sddm-kcm
+    signon-kwallet-extension
+    signond
+    wayland
+    wayland-protocols
   ];
 
   qt.platformTheme = "kde";

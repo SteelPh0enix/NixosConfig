@@ -1,4 +1,6 @@
 final: prev: {
+  # Built from the local checkout (flake input `llama-cpp`), see `llama-cpp-update` in
+  # home-manager/config.fish. ROCm stays off; the GPU is offloaded through Vulkan.
   llama-cpp =
     (prev.llamaPackages.llama-cpp.override {
       llamaVersion = "4.2.0";
@@ -6,22 +8,21 @@ final: prev: {
       useRocm = false;
       rocmGpuTargets = "gfx1100";
     }).overrideAttrs
-      (oldAttrs: {
-        # Add 'cacert' to the build inputs so SSL certificates are available
-        nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ prev.cacert ];
+      (
+        _finalAttrs: prevAttrs: {
+          # Add 'cacert' to the build inputs so SSL certificates are available
+          nativeBuildInputs = (prevAttrs.nativeBuildInputs or [ ]) ++ [ prev.cacert ];
 
-        # Tell CMake/Curl where to find the certificates
-        SSL_CERT_FILE = "${prev.cacert}/etc/ssl/certs/ca-bundle.crt";
+          # Tell CMake/Curl where to find the certificates
+          SSL_CERT_FILE = "${prev.cacert}/etc/ssl/certs/ca-bundle.crt";
 
-        # Allow -march=native. The gcc wrapper strips this by default (NIX_ENFORCE_NO_NATIVE=1)
-        # because it's impure — but for llama.cpp we actually want it, since the build runs on
-        # our own CPU and we want full AVX-512 / AMX feature detection at compile time.
-        NIX_ENFORCE_NO_NATIVE = false;
-
-        # Enable GGML native CPU optimizations (-march=native) so ggml-cpu picks up
-        # all CPU features (AVX-512, AMX, AVX-VNNI, etc.) automatically.
-        cmakeFlags = builtins.map (
-          flag: if builtins.match ".*GGML_NATIVE.*" flag != null then "-DGGML_NATIVE:BOOL=ON" else flag
-        ) oldAttrs.cmakeFlags;
-      });
+          # CPU tuning without `-march=native`: that flag needs the cc-wrapper's purity guard
+          # (NIX_ENFORCE_NO_NATIVE) off and lets one derivation hash hide different binaries, so
+          # a closure copied to another CPU can SIGILL. These flags pin the same instruction set
+          # (Zen 3 = x86-64-v3: AVX2/FMA/F16C/BMI2) plus this CPU's scheduling - reproducible and
+          # shareable. Upstream already builds the ggml-cpu kernels with `-mavx2` and runtime
+          # dispatch (GGML_NATIVE=OFF); this additionally tunes everything else.
+          NIX_CFLAGS_COMPILE = "-march=x86-64-v3 -mtune=znver3";
+        }
+      );
 }

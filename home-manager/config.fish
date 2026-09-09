@@ -87,9 +87,15 @@ function os-update
     nh os boot ~/nixos-config --hostname steelph0enix-pc --update --keep-going
     echo (set_color green)"System rebuild complete."(set_color normal)
 
-    # 3. Commit changes
+    # 3. Commit flake.lock, but only if the update actually changed it (`git commit` with nothing
+    # staged exits 1, which used to abort the function with an error).
     echo (set_color blue)"Committing flake.lock..."(set_color normal)
-    git -C ~/nixos-config add flake.lock && git -C ~/nixos-config commit -m 'os update'
+    git -C ~/nixos-config add flake.lock
+    if git -C ~/nixos-config diff --cached --quiet
+        echo (set_color yellow)"flake.lock unchanged - nothing to commit."(set_color normal)
+    else
+        git -C ~/nixos-config commit -m 'os update'
+    end
     echo (set_color green)"=== OS Update done! ==="(set_color normal)
 end
 

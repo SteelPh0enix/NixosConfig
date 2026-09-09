@@ -1,35 +1,53 @@
 { pkgs, ... }:
 {
-  home.packages = with pkgs; [
-    discord
-    drawio
-    dxvk
-    element-desktop
-    freecad
-    gimp
-    heroic
-    inkscape-with-extensions
-    jellyfin-desktop
-    keepassxc
-    krename
-    libreoffice
-    obsidian
-    orca-slicer
-    prismlauncher
-    proton-vpn
-    protonup-qt
-    qbittorrent-enhanced
-    quodlibet-xine-full
-    solaar
-    spotify
-    teams-for-linux
-    teamspeak6-client
-    ungoogled-chromium
-    winePackages.stagingFull
-    winetricks
-    xournalpp
-    zenmap
-  ];
+  # Per-user applications only - environment.systemPackages would put them in every profile,
+  # root included. The KDE/Plasma ones come from pkgs.kdePackages at the bottom.
+  home.packages =
+    with pkgs;
+    [
+      discord
+      drawio
+      dxvk
+      element-desktop
+      freecad
+      gimp
+      hardinfo2
+      heroic
+      inkscape-with-extensions
+      jellyfin-desktop
+      kdiff3
+      keepassxc
+      krename
+      libreoffice
+      obsidian
+      orca-slicer
+      prismlauncher
+      proton-vpn
+      protonup-qt
+      qbittorrent-enhanced
+      quodlibet-xine-full
+      solaar
+      spotify
+      teams-for-linux
+      teamspeak6-client
+      ungoogled-chromium
+      vlc
+      winePackages.stagingFull
+      winetricks
+      xournalpp
+      zenmap
+    ]
+    ++ (with pkgs.kdePackages; [
+      filelight
+      isoimagewriter
+      kcalc
+      kcharselect
+      kclock
+      kcolorchooser
+      ksystemlog
+      kweather
+      sweeper
+    ]);
 
   programs.git = {
     enable = true;
@@ -46,7 +64,6 @@
       core.editor = "nvim";
       merge.ff = true;
       rerere.enabled = true;
-      safe.directory = "*";
       pull.rebase = true;
       push = {
         autoSetupRemote = true;
@@ -93,14 +110,14 @@
         npm-check
         openssl.dev
         pkg-config
-        pkgs.clang-tools
-        pkgs.cmake
-        pkgs.git-lfs
-        pkgs.gitFull
-        pkgs.ninja
-        pkgs.ruff
-        pkgs.uv
-        pkgs.uv-sort
+        clang-tools
+        cmake
+        git-lfs
+        gitFull
+        ninja
+        ruff
+        uv
+        uv-sort
         rustup
         sqlite
         wget

@@ -1,37 +1,32 @@
 { pkgs, ... }:
 {
+  # Admin, hardware and generic CLI utilities (archives, conversion, network, monitoring,
+  # clipboard). Per-user applications live in home-manager/packages.nix, build tooling and
+  # package managers in dev.nix. `curl findutils gawk gnugrep gnused gnutar rsync strace which
+  # xz zstd` are deliberately absent: NixOS puts them in the system profile by itself.
   environment.systemPackages = with pkgs; [
+    btop-rocm
     bzip3
-    cifs-utils
-    cpupower-gui
-    curl
+    cifs-utils # imperative SMB mounts
     dmidecode
     dnsutils
     docker-buildx
     exfatprogs
     fastfetch
-    figlet
     file
-    findutils
     flac
-    gawk
-    gnugrep
-    gnused
-    gnutar
     gparted
     hdparm
-    icu
-    inetutils
-    jq
+    inetutils # ping
+    jq # glue for `curl ... | jq`
     llama-cpp
-    lm_sensors
     lsof
     ltrace
     mc
     minicom
     ncdu
+    nerd-font-patcher
     nh
-    nix-output-monitor
     nmap
     ntfs3g
     p7zip
@@ -42,25 +37,20 @@
     radeontop
     rar
     remmina
-    rsync
     socat
     sshfs
-    strace
     sysstat
-    tcpdump
+    tcpdump # setcap wrapper from programs.tcpdump + the `pcap` group
     traceroute
     tree
     uhubctl
     unrar
-    unzip
     usbutils
-    uv
-    vkd3d
+    wayland-utils # wayland-info
     wget
-    which
-    wireguard-tools
-    xz
+    wl-clipboard
+    xclip
     zip
-    zstd
+    unzip
   ];
 }
