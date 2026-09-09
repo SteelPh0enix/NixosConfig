@@ -323,6 +323,15 @@ in
     defaultWindowManager = "xfce4-session";
   };
 
-  services.tuned.enable = true;
-  environment.etc."tuned/active_profile".text = "accelerator-performance";
+  # Owns the CPU governor (`powerManagement.cpuFreqGovernor` would lose to tuned anyway).
+  # Pinned to `accelerator-performance`: tuned cannot switch profiles on load, so there is no
+  # power-saving fallback. Empty `recommend` rule always matches -> daemon start and
+  # `tuned-adm auto` both land on it. `ppdSupport = false` because tuned-ppd applies the
+  # power-profiles-daemon default profile on start, which would move us off it.
+  services.tuned = {
+    enable = true;
+    ppdSupport = false;
+    settings.dynamic_tuning = true;
+    recommend.accelerator-performance = { };
+  };
 }
