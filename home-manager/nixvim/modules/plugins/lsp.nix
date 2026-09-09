@@ -70,8 +70,8 @@
         "configure.ac"
         ".git" # last: single .c files inside a repo still get a stable root
       ];
-      # Getting a compile_commands.json there: `bear -- make` (bear is in nixos/packages/dev.nix)
-      # or `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, then symlink `build/compile_commands.json` into
+      # Getting a compile_commands.json there: `bear -- make` or
+      # `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, then symlink `build/compile_commands.json` into
       # the source root - clangd only searches the root itself. (`plugins.cmake-tools`, tier C,
       # automates that symlink via `cmake_soft_link_compile_commands`.)
     };
@@ -88,13 +88,13 @@
         nixpkgs.expr = ''(builtins.getFlake "/home/steelph0enix/nixos-config").inputs.nixpkgs { }'';
 
         options = {
-          nixos.expr = ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."RX-78-FPC".options'';
+          nixos.expr = ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."steelph0enix-pc".options'';
 
           # home-manager is wired in as a NixOS module (no standalone
           # homeConfigurations output), so its declarations come from the
           # `home-manager.users` submodule of the system config.
           "home-manager".expr =
-            ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."RX-78-FPC".options.home-manager.users.type.getSubOptions []'';
+            ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."steelph0enix-pc".options.home-manager.users.type.getSubOptions []'';
         };
 
         formatting.command = [ "nixfmt" ];
