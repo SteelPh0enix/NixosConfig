@@ -2,7 +2,8 @@ final: prev: {
   llama-cpp =
     (prev.llamaPackages.llama-cpp.override {
       llamaVersion = "4.2.0";
-      useRocm = true;
+      useVulkan = true;
+      useRocm = false;
       rocmGpuTargets = "gfx1100";
     }).overrideAttrs
       (oldAttrs: {
@@ -19,10 +20,8 @@ final: prev: {
 
         # Enable GGML native CPU optimizations (-march=native) so ggml-cpu picks up
         # all CPU features (AVX-512, AMX, AVX-VNNI, etc.) automatically.
-        cmakeFlags = builtins.map (flag:
-          if builtins.match ".*GGML_NATIVE.*" flag != null
-          then "-DGGML_NATIVE:BOOL=ON"
-          else flag
+        cmakeFlags = builtins.map (
+          flag: if builtins.match ".*GGML_NATIVE.*" flag != null then "-DGGML_NATIVE:BOOL=ON" else flag
         ) oldAttrs.cmakeFlags;
       });
 }
