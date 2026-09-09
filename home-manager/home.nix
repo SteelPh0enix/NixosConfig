@@ -9,6 +9,7 @@
   programs.home-manager.enable = true;
 
   imports = [
+    ./options.nix
     ./shell.nix
     ./packages.nix
     ./fonts.nix
