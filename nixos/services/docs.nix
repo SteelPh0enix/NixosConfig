@@ -19,7 +19,12 @@
   ];
 
   services.nginx.virtualHosts."6971" = {
-    listen = [ { port = 6971; addr = "0.0.0.0"; } ];
+    listen = [
+      {
+        port = 6971;
+        addr = "0.0.0.0";
+      }
+    ];
     locations."/".extraConfig = ''
       root /srv/docs;
       index index.html;

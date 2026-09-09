@@ -18,7 +18,12 @@
   ];
 
   services.nginx.virtualHosts."6970" = {
-    listen = [ { port = 6970; addr = "0.0.0.0"; } ];
+    listen = [
+      {
+        port = 6970;
+        addr = "0.0.0.0";
+      }
+    ];
     locations."/".extraConfig = ''
       root /srv/coverage;
       index index.html;

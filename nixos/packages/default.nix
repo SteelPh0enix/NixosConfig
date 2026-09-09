@@ -6,21 +6,16 @@
 {
   imports = [
     ./dev.nix
-    ./system.nix
     ./media.nix
-    ./apps.nix
+    ./system.nix
   ];
 
   nixpkgs.overlays = [
     inputs.rust-overlay.overlays.default
     inputs.nix-cachyos-kernel.overlays.pinned
-    (import ../overlays/freecad.nix)
     inputs.llama-cpp.overlays.default
     (import ../overlays/llama-cpp.nix)
   ];
-
-  # systemd.packages = with pkgs; [ lact ];
-  # systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
   programs.appimage = {
     enable = true;
@@ -44,10 +39,7 @@
   programs.fzf.fuzzyCompletion = true;
   programs.fzf.keybindings = true;
 
-  programs.gnupg.agent = {
-    enable = true;
-    enableBrowserSocket = true;
-  };
+  programs.gnupg.agent.enable = true;
 
   programs.java = {
     package = pkgs.javaPackages.compiler.temurin-bin.jdk-25;
@@ -57,9 +49,7 @@
 
   programs.less.enable = true;
   programs.nix-ld.enable = true;
-  programs.npm = {
-    enable = true;
-  };
+  programs.npm.enable = true;
   programs.screen.enable = true;
 
   programs.tcpdump.enable = true;

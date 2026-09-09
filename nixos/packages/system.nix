@@ -1,38 +1,31 @@
 { pkgs, inputs, ... }:
 {
   environment.systemPackages = with pkgs; [
+    inputs.compose2nix.packages.${pkgs.stdenv.hostPlatform.system}.default
     ascii-image-converter
     bindfs
+    btop-rocm
     boxes
     bzip3
     cifs-utils
     cowsay
     cpupower-gui
-    curl
     dmidecode
     dnsutils
     docker-buildx
+    espeak
     exfatprogs
     eza
     fastfetch
     fd
     figlet
     file
-    findutils
     flac
-    fzf
-    gawk
-    gnugrep
-    gnused
-    gnutar
     gparted
     hdparm
-    icu
     inetutils
-    inputs.compose2nix.packages.x86_64-linux.default
     jp2a
     jq
-    libdisplay-info
     libnatpmp
     libva-utils
     llama-cpp
@@ -42,10 +35,11 @@
     mc
     minicom
     ncdu
+    nerd-font-patcher
     nh
-    nix-output-monitor
     nmap
     ntfs3g
+    nix-output-monitor
     p7zip
     parallel-full
     parted
@@ -55,28 +49,24 @@
     rar
     remmina
     ripgrep
-    rsync
     rust-motd
     socat
+    sqlite
     sshfs
-    strace
+    steam-tui
+    steamcmd
     sysstat
     tcpdump
     toilet
     traceroute
     tree
-    tree
     uhubctl
     unrar
     unzip
     usbutils
-    uv
-    vkd3d
+    weechat
     wget
-    which
-    wireguard-tools
-    xz
+    zenity
     zip
-    zstd
   ];
 }

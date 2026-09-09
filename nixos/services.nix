@@ -35,6 +35,12 @@ let
         last-run
     }
   '';
+
+  # Services that resolve names during startup wait for the check below.
+  dnsWait = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
+  };
 in
 {
   # Create dns-ready.target for services that depend on DNS resolution
@@ -80,6 +86,13 @@ in
       exit 1
     '';
   };
+
+  systemd.services.flaresolverr = dnsWait;
+  systemd.services.forgejo = dnsWait;
+  systemd.services.jackett = dnsWait;
+  systemd.services.jellyfin = dnsWait;
+  systemd.services.qbittorrent = dnsWait;
+  systemd.services.xrdp = dnsWait;
 
   services.printing.enable = true;
   services.blueman.enable = true;
@@ -133,15 +146,9 @@ in
 
   services.jellyfin = {
     enable = true;
-    package = pkgs.jellyfin;
     openFirewall = true;
     user = "jellyfin";
     group = "users";
-  };
-
-  systemd.services."jellyfin" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
   };
 
   services.qbittorrent = {
@@ -161,33 +168,16 @@ in
     ];
   };
 
-  systemd.services."qbittorrent" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
-  };
-
   services.jackett = {
     enable = true;
-    package = pkgs.jackett;
     openFirewall = true;
     port = 8889;
   };
 
-  systemd.services."jackett" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
-  };
-
   services.flaresolverr = {
     enable = true;
-    package = pkgs.flaresolverr;
     openFirewall = true;
     port = 8890;
-  };
-
-  systemd.services."flaresolverr" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
   };
 
   # --- Nginx (static hosting; vhosts defined in services/*.nix) ---
@@ -238,11 +228,6 @@ in
         DISABLE_REGISTRATION = true;
       };
     };
-  };
-
-  systemd.services."forgejo" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
   };
 
   # --- Forgejo Actions runner ---
@@ -329,25 +314,15 @@ in
     };
 
   services.xrdp = {
-    package = pkgs.xrdp;
     enable = true;
     openFirewall = true;
     port = 3389;
     audio = {
-      package = pkgs.pulseaudio-module-xrdp;
       enable = true;
     };
     defaultWindowManager = "xfce4-session";
   };
 
-  systemd.services."xrdp" = {
-    wants = [ "dns-ready.target" ];
-    after = [ "dns-ready.target" ];
-  };
-
   services.tuned.enable = true;
-  environment.etc."tuned/active_profile" = {
-    enable = true;
-    text = "accelerator-performance";
-  };
+  environment.etc."tuned/active_profile".text = "accelerator-performance";
 }
