@@ -13,10 +13,6 @@
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
   };
 
-  networking.nameservers = [
-    "10.69.69.69"
-  ];
-
   services.blueman.enable = true;
   services.gvfs.enable = true;
 
