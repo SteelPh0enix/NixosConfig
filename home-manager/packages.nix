@@ -192,8 +192,6 @@
     };
   };
 
-  # Only the package: the ls/la aliases live in config.fish, and the module's own aliases
-  # would go through programs.fish, which is not enabled here.
   programs.eza.enable = true;
 
   programs.gh.enable = true;

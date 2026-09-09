@@ -69,7 +69,6 @@
     KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0660", OWNER="steelph0enix"
   '';
 
-  # force RADV (VK_ICD_FILENAMES would hide every other ICD)
   environment.variables.AMD_VULKAN_ICD = "RADV";
 
   security.rtkit.enable = true;

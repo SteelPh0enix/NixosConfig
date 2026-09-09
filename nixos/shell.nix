@@ -1,7 +1,6 @@
 { ... }:
 {
   environment.sessionVariables = {
-    # Nixvim's nvim (home-manager/nixvim/default.nix).
     EDITOR = "nvim";
     VISUAL = "nvim";
     BROWSER = "firefox";
