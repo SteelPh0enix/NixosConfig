@@ -9,14 +9,11 @@
     dnsutils
     docker-buildx
     exfatprogs
-    eza
     fastfetch
-    fd
     figlet
     file
     findutils
     flac
-    fzf
     gawk
     gnugrep
     gnused
@@ -45,7 +42,6 @@
     radeontop
     rar
     remmina
-    ripgrep
     rsync
     socat
     sshfs

@@ -5,7 +5,6 @@
     VISUAL = "code";
     BROWSER = "firefox";
     TERMINAL = "wezterm";
-    OPENAI_BASE_URL = "http://steelph0enix.framework:51536/v1";
     PI_EXTENSION_SEARXNG_INSTANCE = "https://search.steelph0enix.dev/";
     PI_OFFLINE = "1";
     PI_SKIP_VERSION_CHECK = "1";

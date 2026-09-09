@@ -1,8 +1,4 @@
-{
-  pkgs,
-  # nixpkgs-previous,
-  ...
-}:
+{ pkgs, ... }:
 {
   home.packages = with pkgs; [
     discord
@@ -179,10 +175,6 @@
       "Shift+S" = "script-binding uosc/subtitles";
     };
   };
-
-  programs.ripgrep.enable = true;
-
-  programs.fd.enable = true;
 
   programs.eza = {
     enable = true;

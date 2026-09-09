@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-previous.url = "github:NixOS/nixpkgs/e2587caef70cea85dd97d7daab492899902dbf5d";
 
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
@@ -13,11 +12,6 @@
 
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nix-ai-tools = {
-      url = "github:numtide/nix-ai-tools";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -60,7 +54,6 @@
             inherit inputs outputs;
           };
           modules = [
-            { _module.args = inputs; }
             ./nixos/configuration.nix
             nix-index-database.nixosModules.nix-index
             openlogi.nixosModules.default
@@ -69,9 +62,7 @@
               home-manager.backupFileExtension = "hmgr.backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = inputs // {
-                inherit nixvim;
-              };
+              home-manager.extraSpecialArgs = inputs;
               home-manager.users.steelph0enix = import ./home-manager/home.nix;
             }
           ];

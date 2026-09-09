@@ -1,27 +1,18 @@
 { pkgs, ... }:
 {
-  users.groups = {
-    steelph0enix = { };
-    pcap = { };
-    # wireshark = { };
-    docker = { };
-    vboxusers = { };
-    plugdev = { };
-  };
+  # Needed by the udev rules in hardware.nix (GROUP="plugdev").
+  users.groups.plugdev = { };
 
   users.users.steelph0enix = {
     home = "/home/steelph0enix";
     isNormalUser = true;
     extraGroups = [
-      "steelph0enix"
-      "users"
       "wheel"
       "video"
       "audio"
       "networkmanager"
       "render"
       "pcap"
-      # "wireshark"
       "docker"
       "vboxusers"
       "plugdev"
