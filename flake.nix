@@ -52,11 +52,16 @@
       openlogi,
       ...
     }@inputs:
+    let
+      # Single source of truth: the flake output name, networking.hostName, and therefore
+      # what `nh os` auto-detects as --hostname.
+      hostId = "steelph0enix-pc";
+    in
     {
       nixosConfigurations = {
-        steelph0enix-pc = nixpkgs.lib.nixosSystem {
+        ${hostId} = nixpkgs.lib.nixosSystem {
           specialArgs = {
-            inherit inputs;
+            inherit inputs hostId;
           };
           modules = [
             ./nixos/configuration.nix
@@ -67,7 +72,9 @@
               home-manager.backupFileExtension = "hmgr.backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = inputs;
+              home-manager.extraSpecialArgs = inputs // {
+                inherit hostId;
+              };
               home-manager.users.steelph0enix = import ./home-manager/home.nix;
             }
           ];

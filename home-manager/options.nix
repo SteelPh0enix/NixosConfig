@@ -1,12 +1,6 @@
 { lib, config, ... }:
 {
   options.my = {
-    nixosHostId = lib.mkOption {
-      type = lib.types.str;
-      default = "steelph0enix-pc";
-      description = "NixOS system name; mirrors networking.hostName and the flake output attribute.";
-    };
-
     nixosConfigRepoPath = lib.mkOption {
       type = lib.types.str;
       default = "${config.home.homeDirectory}/nixos-config";

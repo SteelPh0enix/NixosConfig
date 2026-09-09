@@ -1,7 +1,12 @@
-{ inputs, pkgs, ... }:
+{
+  inputs,
+  hostId,
+  pkgs,
+  ...
+}:
 {
   networking.networkmanager.enable = true;
-  networking.hostName = "steelph0enix-pc";
+  networking.hostName = hostId;
 
   networking.firewall = {
     enable = true;

@@ -1,6 +1,11 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  hostId,
+  ...
+}:
 let
-  inherit (config.my) nixosHostId nixosConfigRepoPath;
+  inherit (config.my) nixosConfigRepoPath;
 
   say = color: msg: "echo (set_color ${color})\"${msg}\"(set_color normal)";
 
@@ -12,9 +17,11 @@ let
       operation
       nixosConfigRepoPath
       "--hostname"
-      nixosHostId
+      hostId
       flags
     ];
+
+  guardHost = "__os-host-guard; or return 1";
 
   dockerRun =
     flags:
@@ -91,10 +98,21 @@ in
         '';
       };
 
+      __os-host-guard = {
+        description = "Abort host-specific helpers unless running on ${hostId}";
+        body = ''
+          if test (hostname) != ${hostId}
+              ${say "red" "Refusing: this configuration is for ${hostId}, this host is $(hostname)."}
+              return 1
+          end
+        '';
+      };
+
       os-rebuild = {
         description = "Build the NixOS system configuration";
         body = ''
-          ${say "yellow" "Rebuilding NixOS for ${nixosHostId}..."}
+          ${guardHost}
+          ${say "yellow" "Rebuilding NixOS for ${hostId}..."}
           ${nhOs "boot" "--keep-going"}
           ${say "green" "System rebuild complete."}
         '';
@@ -103,7 +121,8 @@ in
       os-rebuild-switch = {
         description = "Build and switch to a new NixOS system configuration";
         body = ''
-          ${say "yellow" "Rebuilding NixOS for ${nixosHostId} and switching to new build..."}
+          ${guardHost}
+          ${say "yellow" "Rebuilding NixOS for ${hostId} and switching to new build..."}
           ${nhOs "switch" "--keep-going"}
           ${say "green" "System rebuild complete, switched to new build."}
         '';
@@ -112,11 +131,12 @@ in
       os-update = {
         description = "Update llama.cpp and the flake inputs, rebuild, commit flake.lock";
         body = ''
+          ${guardHost}
           ${say "magenta" "=== Starting OS Update Sequence ==="}
 
           llama-cpp-update; or return 1
 
-          ${say "yellow" "Rebuilding NixOS for ${nixosHostId}..."}
+          ${say "yellow" "Rebuilding NixOS for ${hostId}..."}
           ${nhOs "boot" "--update --keep-going"}
           ${say "green" "System rebuild complete."}
 
