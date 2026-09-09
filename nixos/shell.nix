@@ -5,7 +5,6 @@
     VISUAL = "nvim";
     BROWSER = "firefox";
     TERMINAL = "wezterm";
-    PI_EXTENSION_SEARXNG_INSTANCE = "https://search.steelph0enix.dev/";
     PI_OFFLINE = "1";
     PI_SKIP_VERSION_CHECK = "1";
     PI_TELEMETRY = "0";
