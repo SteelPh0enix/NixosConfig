@@ -9,6 +9,7 @@
     docker-buildx
     exfatprogs
     fastfetch
+    fd
     file
     flac
     gparted
@@ -33,6 +34,7 @@
     radeontop
     rar
     remmina
+    ripgrep
     socat
     sshfs
     sysstat

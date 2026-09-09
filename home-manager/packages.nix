@@ -192,7 +192,13 @@
     };
   };
 
-  programs.eza.enable = true;
+  programs.eza = {
+    enable = true;
+    icons = "always";
+    git = true;
+    # -g list group, -M show mount details. Shell integration maps `ls` onto eza.
+    extraOptions = [ "-gM" ];
+  };
 
   programs.gh.enable = true;
   programs.gh.gitCredentialHelper.enable = true;

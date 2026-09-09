@@ -1,6 +1,6 @@
 final: prev: {
   # Built from the local checkout (flake input `llama-cpp`), see `llama-cpp-update` in
-  # home-manager/config.fish. ROCm stays off; the GPU is offloaded through Vulkan.
+  # home-manager/shell.nix. ROCm stays off; the GPU is offloaded through Vulkan.
   llama-cpp =
     (prev.llamaPackages.llama-cpp.override {
       llamaVersion = "4.2.0";
