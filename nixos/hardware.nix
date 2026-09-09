@@ -6,7 +6,6 @@
   boot.kernelParams = [
     "microcode.amd_sha_check=off"
     "amd_pstate=active"
-    "amdgpu.ppfeaturemask=0xffffffff"
     "amdgpu.gpu_recovery=1"
     "amdgpu.gfx_off=0"
     "amdgpu.runpm=0"
