@@ -26,8 +26,4 @@ in
   home.packages = [
     nvim
   ];
-
-  # Set as default editor for git, etc.
-  home.sessionVariables.EDITOR = "${nvim}/bin/nvim";
-
 }

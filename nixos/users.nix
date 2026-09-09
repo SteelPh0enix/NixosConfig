@@ -13,6 +13,7 @@
       "networkmanager"
       "render"
       "pcap"
+      "wireshark"
       "docker"
       "vboxusers"
       "plugdev"

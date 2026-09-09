@@ -69,9 +69,8 @@
     KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="35d8", ATTRS{idProduct}=="011d", MODE="0660", OWNER="steelph0enix"
   '';
 
-  # force RADV
+  # force RADV (VK_ICD_FILENAMES would hide every other ICD)
   environment.variables.AMD_VULKAN_ICD = "RADV";
-  environment.variables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/radeon_icd.x86_64.json";
 
   security.rtkit.enable = true;
 
@@ -126,15 +125,10 @@
     };
   };
 
-  powerManagement.cpuFreqGovernor = "performance";
-
   boot.kernel.sysctl = {
     "vm.swappiness" = 10;
     "vm.vfs_cache_pressure" = 50;
     "kernel.sched_cfs_bandwidth_slice_us" = 3000;
-    "kernel.sched_latency_ns" = 1000000;
-    "kernel.sched_min_granularity_ns" = 100000;
-    "kernel.sched_wakeup_granularity_ns" = 200000;
     "net.core.netdev_max_backlog" = 65536;
     "net.ipv4.tcp_fastopen" = 3;
   };

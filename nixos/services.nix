@@ -21,11 +21,24 @@
   services.blueman.enable = true;
   services.gvfs.enable = true;
 
+  # Owns the CPU governor (`powerManagement.cpuFreqGovernor` would lose to tuned anyway).
   services.tuned = {
     enable = true;
     ppdSupport = true;
     settings = {
       dynamic_tuning = true;
+    };
+
+    # Default profile: `desktop`. `recommend` covers `tuned-adm auto`; the DE power-profile
+    # slider goes through tuned-ppd, which speaks PPD names - hence `balanced` -> `desktop`.
+    recommend.desktop = { };
+    ppdSettings = {
+      main.default = "balanced";
+      profiles = {
+        power-saver = "powersave";
+        balanced = "desktop";
+        performance = "throughput-performance";
+      };
     };
   };
 

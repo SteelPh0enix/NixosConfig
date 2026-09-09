@@ -88,13 +88,13 @@
         nixpkgs.expr = ''(builtins.getFlake "/home/steelph0enix/nixos-config").inputs.nixpkgs { }'';
 
         options = {
-          nixos.expr = ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."RX-78-FPC".options'';
+          nixos.expr = ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."steelph0enix-pc".options'';
 
           # home-manager is wired in as a NixOS module (no standalone
           # homeConfigurations output), so its declarations come from the
           # `home-manager.users` submodule of the system config.
           "home-manager".expr =
-            ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."RX-78-FPC".options.home-manager.users.type.getSubOptions []'';
+            ''(builtins.getFlake "/home/steelph0enix/nixos-config").nixosConfigurations."steelph0enix-pc".options.home-manager.users.type.getSubOptions []'';
         };
 
         formatting.command = [ "nixfmt" ];
