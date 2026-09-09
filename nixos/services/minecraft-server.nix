@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  config,
+  lib,
+  ...
+}:
 {
   systemd.services.minecraft-server = {
     enable = false;
@@ -32,5 +37,7 @@
     '';
   };
 
-  networking.firewall.allowedTCPPorts = [ 26969 ];
+  networking.firewall.allowedTCPPorts =
+    lib.optionals config.systemd.services.minecraft-server.enable
+      [ 26969 ];
 }

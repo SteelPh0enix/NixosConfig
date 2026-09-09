@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Pinned fallback for packages whose current build is unusable (see nixos/services/samba.nix).
     nixpkgs-previous.url = "github:NixOS/nixpkgs/d407951447dcd00442e97087bf374aad70c04cea";
 
     home-manager.url = "github:nix-community/home-manager/master";
@@ -16,15 +17,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-ai-tools = {
-      url = "github:numtide/nix-ai-tools";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     ucodenix = {
       url = "github:e-tho/ucodenix";
     };
 
+    # Externally managed checkout (updated by `llama-cpp-update`, see home-manager/shell.nix).
+    # Deliberately unpinned: the working tree *is* the input, `nix flake update llama-cpp` is a no-op.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
     compose2nix = {
@@ -42,24 +40,23 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       home-manager,
       nix-index-database,
-      nixvim,
       ...
     }@inputs:
     let
-      inherit (self) outputs;
+      # Single source of truth: the flake output name, networking.hostName, and therefore
+      # what `nh os` auto-detects as --hostname.
+      hostId = "RX-78-FPC";
     in
     {
       nixosConfigurations = {
-        RX-78-FPC = nixpkgs.lib.nixosSystem {
+        ${hostId} = nixpkgs.lib.nixosSystem {
           specialArgs = {
-            inherit inputs outputs;
+            inherit inputs hostId;
           };
           modules = [
-            { _module.args = inputs; }
             ./nixos/configuration.nix
             nix-index-database.nixosModules.nix-index
             home-manager.nixosModules.home-manager
@@ -67,7 +64,9 @@
               home-manager.backupFileExtension = "hmgr.backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = inputs // { inherit nixvim; };
+              home-manager.extraSpecialArgs = inputs // {
+                inherit hostId;
+              };
               home-manager.users.steelph0enix = import ./home-manager/home.nix;
             }
           ];

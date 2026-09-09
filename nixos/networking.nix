@@ -1,6 +1,7 @@
+{ hostId, ... }:
 {
   networking.networkmanager.enable = true;
-  networking.hostName = "RX-78-FPC";
+  networking.hostName = hostId;
 
   networking.firewall = {
     enable = true;
@@ -22,9 +23,6 @@
       51537 # LLM Router (ROCm)
       51580 # LLM Router (Vulkan) log web interface
       51581 # LLM Router (ROCm) log web interface
-
-      # 51540 # TEI (embedding)
-      # 51541 # TEI (reranking)
 
       # Few generic ports for one-shot/test stuff
       11111

@@ -1,9 +1,8 @@
-{ pkgs, nixpkgs-previous, ... }:
+{ pkgs, inputs, ... }:
 {
   services.samba = {
     enable = true;
-    # package = pkgs.sambaFull;
-    package = nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.sambaFull;
+    package = inputs.nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.sambaFull;
     openFirewall = true;
     nsswins = true;
     usershares.enable = true;

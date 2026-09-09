@@ -15,7 +15,7 @@
     ./mounts.nix
     ./networking.nix
     ./nix.nix
-    ./packages/default.nix
+    ./packages
     ./services.nix
     ./services/open-webui/open-webui.nix
     ./services/anything-llm/anything-llm.nix
@@ -34,6 +34,6 @@
     ./shell.nix
     ./timers.nix
     ./users.nix
-    ./virtualization.nix
+    ./virtualisation.nix
   ];
 }
