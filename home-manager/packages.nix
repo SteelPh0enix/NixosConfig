@@ -118,7 +118,7 @@
 
       config.color_scheme = 'Afterglow (Gogh)'
       config.font_size = 10.5
-      config.font = wezterm.font_with_fallback { 'BerkeleyMono Nerd Font Mono' }
+      config.font = wezterm.font_with_fallback { 'Berkeley Mono', 'Symbols Nerd Font Mono' }
       config.initial_cols = 120
       config.initial_rows = 30
       config.enable_wayland = true

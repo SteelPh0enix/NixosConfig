@@ -32,6 +32,13 @@
       url = "github:AprilNEA/OpenLogi";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
+    # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
+    berkeleyMono = {
+      url = "path:/home/steelph0enix/nixos-nonfree/berkeley-mono";
+      flake = false;
+    };
   };
 
   outputs =

@@ -33,7 +33,7 @@
       # Negative = leave `updatetime` alone.
       autocmd.updatetime = -1;
 
-      # Nerd Font glyph instead of the 2-column 💡 emoji (BerkeleyMono Nerd Font).
+      # Nerd Font glyph instead of the 2-column 💡 emoji (Symbols Nerd Font Mono fallback).
       sign.text = "󰌶";
     };
   };

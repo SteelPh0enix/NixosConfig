@@ -12,6 +12,7 @@
     ./shell.nix
     ./packages.nix
     ./fonts.nix
+    ./nonfree-fonts.nix
     ./nixvim
   ];
 }

@@ -1,5 +1,18 @@
 {
   "nodes": {
+    "berkeleyMono": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788956571,
+        "narHash": "sha256-s2J2plqD9tAgeBFNMeEo+3yTG+oQ3IDJchMXdZHiknI=",
+        "path": "/home/steelph0enix/nixos-nonfree/berkeley-mono",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/steelph0enix/nixos-nonfree/berkeley-mono",
+        "type": "path"
+      }
+    },
     "cpu-microcodes": {
       "flake": false,
       "locked": {
@@ -274,11 +287,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1788867147,
-        "narHash": "sha256-kiY1jrasiKX7arGvyyQQJgUcboJr+i5BLaCcRrQlA7o=",
+        "lastModified": 1788953984,
+        "narHash": "sha256-mHJ/uDdMNB6CcWc0OJ689cQW3q03W3Usy13JkBOF+2k=",
         "owner": "AprilNEA",
         "repo": "OpenLogi",
-        "rev": "a8d714a267041e75b41e298b69939d127ba146a5",
+        "rev": "5855e592c1b9e5bc45a89d77ec1f4b66b1eda14d",
         "type": "github"
       },
       "original": {
@@ -289,6 +302,7 @@
     },
     "root": {
       "inputs": {
+        "berkeleyMono": "berkeleyMono",
         "home-manager": "home-manager",
         "llama-cpp": "llama-cpp",
         "nix-cachyos-kernel": "nix-cachyos-kernel",
