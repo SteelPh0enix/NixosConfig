@@ -1,5 +1,3 @@
-# General utils
-
 function remote-cp --description "Compresses, sends, and decompresses a directory to a remote server via scp."
     # --- Check for required commands ---
     if not command -v 7z >/dev/null
@@ -73,20 +71,4 @@ function remote-cp --description "Compresses, sends, and decompresses a director
     # --- Cleanup ---
     rm -f "$archive_name"
     echo "Done."
-end
-
-# LLM functions
-
-function llm-router
-    llama-server \
-        --models-dir /mnt/SSD/LLMs/llama-models/ \
-        --models-preset /mnt/SSD/LLMs/llama-models.ini \
-        --host 0.0.0.0 \
-        --port 51536 \
-        --models-max 1 \
-        --load-mode mlock \
-        --webui \
-        --metrics \
-        --props \
-        --slots
 end

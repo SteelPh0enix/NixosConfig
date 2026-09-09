@@ -28,7 +28,8 @@ alias rcpc "rsync --archive --recursive --mkpath --compress --verbose --progress
 
 set -Ux llama_cpp_repo_path "/home/steelph0enix/llama.cpp"
 set -Ux llama_cpp_venv_path "$llama_cpp_repo_path/.venv"
-set -gx PATH "/home/steelph0enix/.npm/bin:/home/steelph0enix/.local/bin:$PATH"
+# -P keeps this the only source of truth ($PATH directly, no universal fish_user_paths state).
+fish_add_path -P "$HOME/.npm/bin" "$HOME/.local/bin"
 
 function llama-cpp-update
     echo (set_color green)"Directory: $llama_cpp_repo_path"(set_color normal)

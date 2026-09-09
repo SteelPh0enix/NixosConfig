@@ -89,7 +89,6 @@
 
   programs.vscode = {
     enable = true;
-    mutableExtensionsDir = true;
     package = pkgs.vscode.fhsWithPackages (
       ps: with ps; [
         automake
@@ -193,12 +192,9 @@
     };
   };
 
-  programs.eza = {
-    enable = true;
-    enableFishIntegration = true;
-    icons = "always";
-    git = true;
-  };
+  # Only the package: the ls/la aliases live in config.fish, and the module's own aliases
+  # would go through programs.fish, which is not enabled here.
+  programs.eza.enable = true;
 
   programs.gh.enable = true;
   programs.gh.gitCredentialHelper.enable = true;

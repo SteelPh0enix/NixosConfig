@@ -6,7 +6,6 @@ final: prev: {
       llamaVersion = "4.2.0";
       useVulkan = true;
       useRocm = false;
-      rocmGpuTargets = "gfx1100";
     }).overrideAttrs
       (
         _finalAttrs: prevAttrs: {

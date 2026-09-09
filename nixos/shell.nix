@@ -12,7 +12,6 @@
     PI_TELEMETRY = "0";
   };
 
-  programs.fish.shellInit = builtins.readFile ./init.fish;
   programs.nix-index.enable = true;
   programs.nix-index.enableFishIntegration = true;
   programs.nix-index-database.comma.enable = true;

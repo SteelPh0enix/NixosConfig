@@ -1,14 +1,14 @@
 { pkgs, ... }:
 let
-  # Both debug adapters come from packages this machine already installs via
-  # `nixos/packages/dev.nix` (`lldb` -> bin/lldb-dap, `gdb`), so the wrapper points at
-  # store paths that exist on disk anyway. Absolute paths rather than bare names:
+  # Both adapters are pulled into the nvim wrapper by this file: `lldb` through
+  # `extraPackages` below (rustaceanvim needs it resolvable by name), `gdb` through the
+  # store path embedded in `adapters`. Absolute paths rather than bare names:
   # nvim-dap spawns them through jobstart(), and a store path cannot be shadowed by
   # whatever $PATH the terminal that launched nvim happened to have.
   #
   # Why lldb-dap and not codelldb (which is what the review doc suggested):
   #   * `pkgs.lldb`'s lldb-dap is free, upstream (LLVM's own adapter), version-matched
-  #     to the `lldb` CLI used for the manual escape hatch, and already on this system.
+  #     to the `lldb` CLI used for the manual escape hatch.
   #     Verified here: `printf 'Content-Length: ...\r\n\r\n{"command":"initialize",...}'
   #     | lldb-dap` -> initialize response with the cpp_catch/cpp_throw filters.
   #   * codelldb is only reachable through `pkgs.vscode-extensions.vadimcn.vscode-lldb`

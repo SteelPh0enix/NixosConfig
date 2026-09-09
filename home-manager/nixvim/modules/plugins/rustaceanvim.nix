@@ -1,9 +1,9 @@
 { pkgs, ... }:
 let
   # Same derivation `nixos/packages/dev.nix` installs - see rust-toolchain.nix for why there is
-  # exactly one. rustc here is 1.98.0; nixpkgs' standalone `rust-analyzer` is the 2026-08-03
-  # release, i.e. older than the proc-macro server that ships in the toolchain's `rustc`
-  # component (`$(rustc --print sysroot)/libexec/rust-analyzer-proc-macro-srv`).
+  # exactly one: nixpkgs' standalone `rust-analyzer` trails the toolchain release, so its view of
+  # the proc-macro protocol can be older than the server in the toolchain's `rustc` component
+  # (`$(rustc --print sysroot)/libexec/rust-analyzer-proc-macro-srv`).
   rust = import ../../../../rust-toolchain.nix { inherit pkgs; };
 in
 {
@@ -16,12 +16,10 @@ in
   # This is a top-level option, not a `plugins.rustaceanvim.*` one - `plugins.<name>.package`
   # would replace the *vim plugin*, not the server.
   # No closure cost: the toolchain is already installed via nixos/packages/dev.nix.
-  # PATH precedence, measured on the built wrapper: nixvim's own rust-analyzer used to be the
-  # only hit (`which -a rust-analyzer` -> ...rust-analyzer-2026-08-03/bin/rust-analyzer), and
-  # dependencies land *after* conform's tools, so `rustfmt` still resolves to conform's
-  # rustfmt-1.97.1 - the same binary rust-analyzer and `<leader>cf` would call, so formatting
-  # stays self-consistent inside nvim (1.97.1 formatter with a 1.98.0 server is fine; rustfmt's
-  # CLI is stable). `cargo`/`rustc` point at this very toolchain either way.
+  # PATH precedence, measured on the built wrapper: dependencies land *after* conform's tools, so
+  # `rustfmt` still resolves to conform's own - the same binary rust-analyzer and `<leader>cf`
+  # call, so formatting stays self-consistent inside nvim (rustfmt's CLI is stable across minor
+  # releases). `cargo`/`rustc` point at this very toolchain either way.
   dependencies.rust-analyzer.package = rust;
 
   # ---- Rust ----

@@ -70,8 +70,8 @@
         "configure.ac"
         ".git" # last: single .c files inside a repo still get a stable root
       ];
-      # Getting a compile_commands.json there: `bear -- make` (bear is in nixos/packages/dev.nix)
-      # or `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, then symlink `build/compile_commands.json` into
+      # Getting a compile_commands.json there: `bear -- make` or
+      # `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, then symlink `build/compile_commands.json` into
       # the source root - clangd only searches the root itself. (`plugins.cmake-tools`, tier C,
       # automates that symlink via `cmake_soft_link_compile_commands`.)
     };

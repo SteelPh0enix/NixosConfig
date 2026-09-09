@@ -45,7 +45,6 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       home-manager,
       nix-index-database,
@@ -53,14 +52,11 @@
       openlogi,
       ...
     }@inputs:
-    let
-      inherit (self) outputs;
-    in
     {
       nixosConfigurations = {
         steelph0enix-pc = nixpkgs.lib.nixosSystem {
           specialArgs = {
-            inherit inputs outputs;
+            inherit inputs;
           };
           modules = [
             ./nixos/configuration.nix
