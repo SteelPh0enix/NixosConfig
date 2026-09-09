@@ -10,7 +10,7 @@ alias e "$EDITOR"
 alias eh "$EDITOR ."
 alias cpr "cp -r"
 alias rbt "sudo systemctl reboot"
-alias cfge "code ~/nixos-config"
+alias cfge "$EDITOR ~/nixos-config"
 # docker-here*: run a container in $PWD, mounted at the same path. -shell* keeps a
 # TTY, -rocm* passes the GPU nodes through.
 #
@@ -27,7 +27,6 @@ alias rcp "rsync --archive --recursive --mkpath --verbose --progress --human-rea
 alias rcpc "rsync --archive --recursive --mkpath --compress --verbose --progress --human-readable"
 
 set -Ux llama_cpp_repo_path "/home/steelph0enix/llama.cpp"
-set -Ux llama_cpp_venv_path "$llama_cpp_repo_path/.venv"
 # -P keeps this the only source of truth ($PATH directly, no universal fish_user_paths state).
 fish_add_path -P "$HOME/.npm/bin" "$HOME/.local/bin"
 
@@ -35,34 +34,6 @@ function llama-cpp-update
     echo (set_color green)"Directory: $llama_cpp_repo_path"(set_color normal)
     echo (set_color blue)"Pulling updates..."(set_color normal)
     git -C $llama_cpp_repo_path pull; or return 1
-end
-
-function llama-cpp-venv-create
-    echo (set_color green)"Creating venv for llama.cpp in $llama_cpp_venv_path..."
-    uv venv -c -p 3.14 --color auto --no-config $llama_cpp_venv_path
-    llama-cpp-venv-activate
-
-    echo (set_color blue)"Installing/updating packages..."
-    uv pip install --upgrade pip wheel setuptools transformers numpy torch --prerelease=allow --index-strategy unsafe-best-match
-
-    pushd $llama_cpp_repo_path/gguf-py
-    uv pip install --upgrade .
-    popd
-
-    echo (set_color blue)"Done!"
-end
-
-function llama-cpp-venv-activate
-    echo (set_color green)"Activating llama.cpp venv..."
-    source "$llama_cpp_venv_path/bin/activate.fish"
-    echo (set_color blue)"Done!"
-end
-
-function llama-cpp-hf-to-gguf -a model_path gguf_path
-    set -l script_path "$llama_cpp_repo_path/convert_hf_to_gguf.py"
-
-    llama-cpp-venv-activate
-    python $script_path --outfile $gguf_path --outtype auto $model_path
 end
 
 function os-rebuild
