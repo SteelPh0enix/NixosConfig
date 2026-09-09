@@ -6,7 +6,6 @@
   boot.kernelParams = [
     "microcode.amd_sha_check=off"
     "amd_pstate=active"
-    "amdgpu.ppfeaturemask=0xffffffff"
     "amdgpu.gpu_recovery=1"
     "amdgpu.gfx_off=0"
     "amdgpu.runpm=0"
@@ -49,9 +48,7 @@
     };
   };
 
-  # force RADV
   environment.variables.AMD_VULKAN_ICD = "RADV";
-  environment.variables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/radeon_icd.x86_64.json";
 
   security.rtkit.enable = true;
 
@@ -106,15 +103,10 @@
     };
   };
 
-  powerManagement.cpuFreqGovernor = "performance";
-
   boot.kernel.sysctl = {
     "vm.swappiness" = 10;
     "vm.vfs_cache_pressure" = 50;
     "kernel.sched_cfs_bandwidth_slice_us" = 3000;
-    "kernel.sched_latency_ns" = 1000000;
-    "kernel.sched_min_granularity_ns" = 100000;
-    "kernel.sched_wakeup_granularity_ns" = 200000;
     "net.core.netdev_max_backlog" = 65536;
     "net.ipv4.tcp_fastopen" = 3;
   };
