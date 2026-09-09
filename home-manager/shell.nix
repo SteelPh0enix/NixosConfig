@@ -33,7 +33,7 @@ let
       ]
     );
 
-  rocmFlags = [
+  gpuFlags = [
     "--device"
     "/dev/kfd"
     "--device"
@@ -67,15 +67,15 @@ in
       cfge = "$EDITOR ${nixosConfigRepoPath}";
 
       # Run a container in $PWD, mounted at the same path. `-shell*` keeps a TTY,
-      # `-rocm*` passes the GPU nodes through.
+      # `-gpu*` passes the GPU nodes through.
       #
       # Deliberately no `-u $(id -u):$(id -g)`: on rootless docker container root *is* our host
       # uid, so files written into $PWD stay ours. Forcing our uid instead maps to an unmapped
       # subuid: $PWD turns unwritable, there is no passwd entry, and HOME falls back to /.
       docker-here = dockerRun [ ];
       docker-here-shell = dockerRun [ "-it" ];
-      docker-here-rocm = dockerRun rocmFlags;
-      docker-here-shell-rocm = dockerRun (rocmFlags ++ [ "-it" ]);
+      docker-here-gpu = dockerRun gpuFlags;
+      docker-here-shell-gpu = dockerRun (gpuFlags ++ [ "-it" ]);
 
       rcp = "rsync ${rsyncFlags}";
       rcpc = "rsync ${rsyncFlags} --compress";
@@ -122,7 +122,6 @@ in
 
           ${say "blue" "Committing flake.lock..."}
           git -C ${nixosConfigRepoPath} add flake.lock
-          # `git commit` with nothing staged exits 1, which would abort the function.
           if git -C ${nixosConfigRepoPath} diff --cached --quiet
               ${say "yellow" "flake.lock unchanged - nothing to commit."}
           else
