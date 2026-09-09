@@ -12,7 +12,7 @@
 # for compute on integrated GPUs - the root cause of the "broken output / no
 # tool calls" you saw with the stock NixOS ROCm build.
 #
-# Rebuild with the `update-llama-cpp-rocm` fish function (nixos/init.fish).
+# Rebuild with the `update-llama-cpp-rocm` fish function (home-manager/shell.nix).
 # NOTE: the image must exist on the SYSTEM docker daemon (/run/docker.sock) -
 # the service runs as root and does not see the user's rootless daemon.
 #
