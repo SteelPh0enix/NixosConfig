@@ -1,11 +1,8 @@
-{
-  pkgs,
-  nix-ai-tools,
-  ...
-}:
+{ pkgs, ... }:
 {
   home.packages = with pkgs; [
     keepassxc
+    obsidian
     proton-vpn
     quodlibet-xine-full
     ungoogled-chromium
@@ -14,7 +11,6 @@
 
   programs.vscode = {
     enable = true;
-    mutableExtensionsDir = true;
     package = pkgs.vscode.fhsWithPackages (
       ps: with ps; [
         automake
@@ -109,7 +105,6 @@
     };
   };
 
-
   programs.git = {
     enable = true;
     lfs = {
@@ -125,7 +120,6 @@
       core.editor = "nvim";
       merge.ff = true;
       rerere.enabled = true;
-      safe.directory = "*";
       pull.rebase = true;
       push = {
         autoSetupRemote = true;
@@ -147,17 +141,6 @@
         overrideGpg = true;
       };
     };
-  };
-
-  programs.ripgrep.enable = true;
-
-  programs.fd.enable = true;
-
-  programs.eza = {
-    enable = true;
-    enableFishIntegration = true;
-    icons = "always";
-    git = true;
   };
 
   programs.gh.enable = true;
