@@ -176,10 +176,6 @@ in
       update-services = {
         description = "Update the container-based services (llama.cpp ROCm image, PiHole)";
         body = ''
-          ${say "green" "Updating llama.cpp (ROCm)"}
-          update-llama-cpp-rocm; or return 1
-          sudo systemctl restart llm-router-rocm
-
           ${say "green" "Updating PiHole"}
           env -C ${piholeComposeDir} sudo docker compose pull --policy always
           sudo systemctl restart pihole
