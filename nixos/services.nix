@@ -1,16 +1,15 @@
 {
   inputs,
-  hostId,
   pkgs,
+  settings,
   ...
 }:
 {
   networking.networkmanager.enable = true;
-  networking.hostName = hostId;
+  networking.hostName = settings.hostId;
 
   networking.firewall = {
     enable = true;
-    allowPing = true;
     # llama-server (docker) API
     allowedTCPPorts = [ 51536 ];
     # Strict reverse path filtering. Use "loose" if asymmetric routing ever shows up (tunnels).
@@ -50,7 +49,7 @@
       X11Forwarding = false;
       PermitRootLogin = "no";
       PasswordAuthentication = false;
-      AllowUsers = [ "steelph0enix" ];
+      AllowUsers = [ settings.userName ];
       LogLevel = "VERBOSE";
     };
   };

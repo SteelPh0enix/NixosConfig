@@ -23,7 +23,6 @@
     minicom
     ncdu
     nerd-font-patcher
-    nh
     nmap
     ntfs3g
     p7zip

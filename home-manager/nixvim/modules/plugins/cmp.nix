@@ -41,9 +41,8 @@
         "<C-d>" = "cmp.mapping.scroll_docs(-4)";
         "<C-f>" = "cmp.mapping.scroll_docs(4)";
         "<C-e>" = "cmp.mapping.close()";
-        # Tab walks the completion menu first, then the placeholders of the snippet
-        # that was just confirmed. nvim-cmp expands LSP snippets with Neovim's own
-        # snippet engine (`vim.snippet`), so no extra plugin is needed for this.
+        # Menu first, then snippet placeholders. nvim-cmp uses Neovim's own `vim.snippet`,
+        # so no extra snippet engine is needed.
         "<Tab>" = # lua
           ''
             cmp.mapping(function(fallback)

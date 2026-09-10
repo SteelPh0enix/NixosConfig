@@ -19,8 +19,10 @@
       url = "github:e-tho/ucodenix";
     };
 
-    # Externally managed checkout (updated by `llama-cpp-update`, see home-manager/shell.nix).
+    # Externally managed checkout (updated by the `llama-cpp-update` script).
     # Deliberately unpinned: the working tree *is* the input, `nix flake update llama-cpp` is a no-op.
+    # Literal path required here - flake input URLs are read syntactically. Keep in sync with
+    # settings.llamaCppPath.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
     nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
@@ -53,15 +55,18 @@
       ...
     }@inputs:
     let
-      # Single source of truth: the flake output name, networking.hostName, and therefore
-      # what `nh os` auto-detects as --hostname.
-      hostId = "steelph0enix-pc";
+      settings = import ./nix/settings.nix;
+      # settings.hostId is also networking.hostName, which is what `nh os` autodetects.
+      inherit (settings) hostId;
     in
     {
       nixosConfigurations = {
         ${hostId} = nixpkgs.lib.nixosSystem {
           specialArgs = {
-            inherit inputs hostId;
+            inherit
+              inputs
+              settings
+              ;
           };
           modules = [
             ./nixos/configuration.nix
@@ -73,12 +78,33 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.extraSpecialArgs = inputs // {
-                inherit hostId;
+                inherit settings;
               };
-              home-manager.users.steelph0enix = import ./home-manager/home.nix;
+              home-manager.users.${settings.userName} = import ./home-manager/home.nix;
             }
           ];
         };
       };
+
+      # Same toolchain as the system profile and VS Code's FHS environment; `:NixDevelop` in
+      # Neovim loads this shell.
+      devShells.x86_64-linux.default =
+        let
+          pkgs = import nixpkgs {
+            system = "x86_64-linux";
+            config = import ./nix/nixpkgs-config.nix;
+            overlays = import ./nix/overlays.nix inputs;
+          };
+        in
+        pkgs.mkShellNoCC {
+          packages = import ./nix/dev-tools.nix pkgs ++ [
+            pkgs.nixd
+            pkgs.nix-index
+            pkgs.shellcheck
+            pkgs.shfmt
+            pkgs.statix
+            pkgs.deadnix
+          ];
+        };
     };
 }

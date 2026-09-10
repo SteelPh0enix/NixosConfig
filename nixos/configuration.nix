@@ -13,6 +13,7 @@
     ./hardware.nix
     ./locale.nix
     ./nix.nix
+    ./nixpkgs.nix
     ./packages
     ./services.nix
     ./shell.nix

@@ -1,5 +1,7 @@
-{ pkgs, ... }:
+{ pkgs, settings, ... }:
 {
+  # Wayland-only session, but Plasma still reads services.xserver.xkb (its layout is what
+  # `environment.etc."X11/xkb"` and SDDM are built from).
   services.xserver.enable = true;
   services.xserver.videoDrivers = [ "amdgpu" ];
 
@@ -9,7 +11,7 @@
 
   # Enable automatic login for the user.
   services.displayManager.autoLogin.enable = true;
-  services.displayManager.autoLogin.user = "steelph0enix";
+  services.displayManager.autoLogin.user = settings.userName;
 
   # Only the Plasma bits that have to sit in the system profile: KIO slaves and Dolphin/
   # System-Settings plugins are registered through the merged profile, signond is a D-Bus

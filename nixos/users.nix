@@ -1,10 +1,10 @@
-{ pkgs, ... }:
+{ pkgs, settings, ... }:
 {
   # Needed by the udev rules in hardware.nix (GROUP="plugdev").
   users.groups.plugdev = { };
 
-  users.users.steelph0enix = {
-    home = "/home/steelph0enix";
+  users.users.${settings.userName} = {
+    home = "/home/${settings.userName}";
     isNormalUser = true;
     extraGroups = [
       "audio"
@@ -24,8 +24,8 @@
     ];
   };
 
+  # Primary shell; `programs.fish.enable` (nixos/packages) is what puts it in /etc/shells.
   users.defaultUserShell = pkgs.fish;
-  nix.settings.trusted-users = [ "steelph0enix" ];
 
   security.pam.loginLimits = [
     {

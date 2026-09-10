@@ -1,173 +1,171 @@
 {
-  config,
+  pkgs,
   lib,
-  hostId,
+  settings,
   ...
 }:
 let
-  inherit (config.my) nixosConfigRepoPath;
+  inherit (settings) repoPath llamaCppPath;
 
-  say = color: msg: "echo (set_color ${color})\"${msg}\"(set_color normal)";
+  # ANSI status lines: `printf` instead of fish's `set_color`, so any shell renders them.
+  # `'' ''` strings keep backslashes literal, which is exactly what printf needs here.
+  say = sgr: message: ''printf '\033[1;${sgr}m%s\033[0m\n' ${lib.escapeShellArg message}'';
+  error = say "31";
+  warning = say "38;5;208"; # orange
+  info = say "34";
+  success = say "32";
 
-  nhOs =
-    operation: flags:
-    lib.concatStringsSep " " [
-      "nh"
-      "os"
-      operation
-      nixosConfigRepoPath
-      "--hostname"
-      hostId
-      flags
-    ];
-
-  guardHost = "__os-host-guard; or return 1";
-
-  dockerRun =
-    flags:
-    lib.concatStringsSep " " (
-      [
-        "docker"
-        "run"
-        "--rm"
-      ]
-      ++ flags
-      ++ [
-        "-v"
-        "$PWD:$PWD"
-        "-w"
-        "$PWD"
-      ]
-    );
-
-  gpuFlags = [
-    "--device"
-    "/dev/kfd"
-    "--device"
-    "/dev/dri"
-    "--security-opt"
-    "seccomp=unconfined"
-  ];
+  # POSIX-sh scripts instead of fish functions: they also work from `nvim :!`, systemd-run,
+  # a non-interactive ssh session and any other shell.
+  script =
+    name: description: text:
+    pkgs.writeShellApplication {
+      inherit name text;
+      runtimeInputs = [
+        pkgs.nh
+        pkgs.git
+      ];
+      meta.description = description;
+    };
 
   rsyncFlags = "--archive --recursive --mkpath --verbose --progress --human-readable";
 in
 {
-  # ~/.local/bin comes from xdg.binHome (needs xdg.enable); ~/.npm/bin is the global npm
-  # prefix bin - `programs.npm` sets the prefix but never touches PATH.
+  # Fish stays the login shell; nothing below depends on it. This option is what makes
+  # `home.shellAliases` reach fish at all.
+  programs.fish.enable = true;
+
+  # Exports the XDG_* session variables; ~/.local/bin itself goes into PATH system-wide
+  # (environment.localBinInPath), which also covers shells home-manager does not configure.
   xdg.enable = true;
-  xdg.localBinInPath = true;
+
+  # ~/.npm/bin: programs.npm sets the global prefix to ~/.npm but never adds its bin to PATH.
   home.sessionPath = [ "$HOME/.npm/bin" ];
 
-  home.sessionVariables.LLAMA_CPP_REPO_PATH = config.my.llamaCppRepoPath;
-
-  programs.fish = {
-    enable = true;
-
-    shellAliases = {
-      l = "ls -lh";
-      la = "ls -alh";
-      # `lg` comes from programs.lazygit's own fish integration.
-      e = "$EDITOR";
-      eh = "$EDITOR .";
-      cpr = "cp -r";
-      rbt = "sudo systemctl reboot";
-      cfge = "$EDITOR ${nixosConfigRepoPath}";
-
-      # Run a container in $PWD, mounted at the same path. `-shell*` keeps a TTY,
-      # `-gpu*` passes the GPU nodes through.
-      #
-      # Deliberately no `-u $(id -u):$(id -g)`: on rootless docker container root *is* our host
-      # uid, so files written into $PWD stay ours. Forcing our uid instead maps to an unmapped
-      # subuid: $PWD turns unwritable, there is no passwd entry, and HOME falls back to /.
-      docker-here = dockerRun [ ];
-      docker-here-shell = dockerRun [ "-it" ];
-      docker-here-gpu = dockerRun gpuFlags;
-      docker-here-shell-gpu = dockerRun (gpuFlags ++ [ "-it" ]);
-
-      rcp = "rsync ${rsyncFlags}";
-      rcpc = "rsync ${rsyncFlags} --compress";
-    };
-
-    functions = {
-      llama-cpp-update = {
-        description = "Pull the latest llama.cpp checkout";
-        body = ''
-          ${say "green" "Directory: $LLAMA_CPP_REPO_PATH"}
-          ${say "blue" "Pulling updates..."}
-          git -C $LLAMA_CPP_REPO_PATH pull; or return 1
-        '';
-      };
-
-      __os-host-guard = {
-        description = "Abort host-specific helpers unless running on ${hostId}";
-        body = ''
-          if test (hostname) != ${hostId}
-              ${say "red" "Refusing: this configuration is for ${hostId}, this host is $(hostname)."}
-              return 1
-          end
-        '';
-      };
-
-      os-rebuild = {
-        description = "Build the NixOS system configuration";
-        body = ''
-          ${guardHost}
-          ${say "yellow" "Rebuilding NixOS for ${hostId}..."}
-          ${nhOs "boot" "--keep-going"}
-          ${say "green" "System rebuild complete."}
-        '';
-      };
-
-      os-rebuild-switch = {
-        description = "Build and switch to a new NixOS system configuration";
-        body = ''
-          ${guardHost}
-          ${say "yellow" "Rebuilding NixOS for ${hostId} and switching to new build..."}
-          ${nhOs "switch" "--keep-going"}
-          ${say "green" "System rebuild complete, switched to new build."}
-        '';
-      };
-
-      os-update = {
-        description = "Update llama.cpp and the flake inputs, rebuild, commit flake.lock";
-        body = ''
-          ${guardHost}
-          ${say "magenta" "=== Starting OS Update Sequence ==="}
-
-          llama-cpp-update; or return 1
-
-          ${say "yellow" "Rebuilding NixOS for ${hostId}..."}
-          ${nhOs "boot" "--update --keep-going"}
-          ${say "green" "System rebuild complete."}
-
-          ${say "blue" "Committing flake.lock..."}
-          git -C ${nixosConfigRepoPath} add flake.lock
-          if git -C ${nixosConfigRepoPath} diff --cached --quiet
-              ${say "yellow" "flake.lock unchanged - nothing to commit."}
-          else
-              git -C ${nixosConfigRepoPath} commit -m 'os update'
-          end
-          ${say "green" "=== OS Update done! ==="}
-        '';
-      };
-
-      os-clean = {
-        description = "Garbage-collect and optimise the Nix store";
-        body = ''
-          ${say "yellow" "Running NixOS cleanup..."}
-          nh clean all --optimise
-          ${say "green" "System Clean Complete."}
-        '';
-      };
-
-      os-check = {
-        description = "Verify and repair the Nix store";
-        body = ''
-          ${say "yellow" "Running NixOS store check/fix..."}
-          sudo nix-store --verify --check-contents --repair
-          ${say "green" "NixOS store check/fix complete!"}
-        '';
-      };
-    };
+  # Simple, shell-independent aliases. eza's own integration already provides
+  # ls/ll/la/lt/lla, so only `l` is added here - on purpose through `ls`, so it keeps eza's
+  # icons/--git/extraOptions.
+  home.shellAliases = {
+    l = "ls -lh";
+    e = "$EDITOR";
+    eh = "$EDITOR .";
+    cpr = "cp -r";
+    rbt = "sudo systemctl reboot";
+    cfge = "$EDITOR ${repoPath}";
+    rcp = "rsync ${rsyncFlags}";
+    rcpc = "rsync ${rsyncFlags} --compress";
   };
+
+  home.packages =
+    let
+      dockerHere = pkgs.writeShellApplication {
+        name = "docker-here";
+        runtimeInputs = [ pkgs.docker ];
+        meta.description = "Run a container with $PWD mounted at the same path";
+        text = ''
+          usage() {
+            cat <<'EOF'
+          docker-here - run a container against the current directory
+
+          Usage: docker-here [OPTIONS] IMAGE [ARG...]
+
+            -s, --shell   interactive run (-it), image command defaults to the image's shell
+            -g, --gpu     pass through the AMD GPU nodes and disable the seccomp profile
+            -h, --help    show this help
+
+          $PWD is mounted at the same path inside the container and used as the workdir.
+
+          Examples:
+            docker-here alpine ls -l
+            docker-here --shell python:3.14
+            docker-here --shell --gpu ollama/ollama
+          EOF
+          }
+
+          tty=( )
+          gpu=( )
+
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -s | --shell) tty=( -it ) ;;
+              -g | --gpu) gpu=( --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined ) ;;
+              -h | --help) usage; exit 0 ;;
+              --) shift; break ;;
+              -*)
+                printf 'docker-here: unknown option: %s\n' "$1" >&2
+                usage >&2
+                exit 2
+                ;;
+              *) break ;;
+            esac
+            shift
+          done
+
+          if [ "$#" -eq 0 ]; then
+            usage >&2
+            exit 2
+          fi
+
+          # Deliberately no `-u $(id -u):$(id -g)`: on rootless docker, container root *is* our
+          # host uid, so files written into $PWD stay ours. Forcing our uid instead maps to an
+          # unmapped subuid: $PWD turns unwritable and HOME falls back to /.
+          exec docker run --rm "''${tty[@]}" "''${gpu[@]}" -v "$PWD:$PWD" -w "$PWD" "$@"
+        '';
+      };
+
+      llamaCppUpdate = script "llama-cpp-update" "Pull the latest llama.cpp checkout" ''
+        dir="''${LLAMA_CPP_REPO_PATH:-${llamaCppPath}}"
+        if [ ! -d "$dir/.git" ]; then
+          ${error "No llama.cpp checkout found"}
+          exit 1
+        fi
+        if ! git -C "$dir" diff --quiet; then
+          ${warning "Uncommitted changes in the llama.cpp checkout - the pull may conflict."}
+        fi
+        ${info "Pulling llama.cpp updates..."}
+        git -C "$dir" pull
+        ${success "llama.cpp updated."}
+      '';
+    in
+    [
+      dockerHere
+      llamaCppUpdate
+
+      (script "os-rebuild" "Build the NixOS system configuration" ''
+        ${info "Rebuilding NixOS..."}
+        nh os boot --keep-going
+        ${success "System rebuild complete."}
+      '')
+
+      (script "os-rebuild-switch" "Build and switch to a new NixOS system configuration" ''
+        ${info "Rebuilding NixOS and switching to the new build..."}
+        nh os switch --keep-going
+        ${success "System rebuild complete, switched to new build."}
+      '')
+
+      # `--commit-lock-file` is handled by `nix flake update` itself and no-ops when the
+      # lock file did not change.
+      (script "os-update" "Update llama.cpp and the flake inputs, rebuild, commit flake.lock" ''
+        ${info "=== Starting OS Update Sequence ==="}
+        llama-cpp-update
+        ${info "Rebuilding NixOS with updated inputs..."}
+        nh os boot --update --commit-lock-file --keep-going
+        ${success "=== OS Update done! ==="}
+      '')
+
+      # Generations are already reaped daily by `programs.nh.clean`; this is the on-demand
+      # variant, which also drops gcroots. No --optimise: auto-optimise-store covers it.
+      (script "os-clean" "Garbage-collect the Nix store and prune gcroots" ''
+        ${info "Running NixOS cleanup..."}
+        nh clean all
+        ${success "System clean complete."}
+      '')
+
+      # `nix store verify` has no --repair yet, so this one stays on the old CLI.
+      (script "os-check" "Verify and repair the Nix store" ''
+        ${info "Running NixOS store check/fix..."}
+        sudo nix-store --verify --check-contents --repair
+        ${success "NixOS store check/fix complete!"}
+      '')
+    ];
 }

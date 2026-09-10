@@ -12,7 +12,7 @@ let
   # Bootstrap on a fresh machine:
   #   1. put BerkeleyMono-{Regular,Bold,Oblique,Bold-Oblique}.ttf into ~/nixos-nonfree/berkeley-mono/
   #   2. nix flake update berkeleyMono                  # re-locks the content
-  #   3. nixos-rebuild switch --flake .#steelph0enix-pc
+  #   3. os-rebuild-switch                              # or: nh os switch
   berkeleyMonoPkg = pkgs.stdenvNoCC.mkDerivation {
     pname = "berkeley-mono";
     version = "2.004";

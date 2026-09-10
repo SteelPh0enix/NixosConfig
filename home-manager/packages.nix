@@ -61,7 +61,6 @@
         email = "wojciech_olech@hotmail.com";
         signingkey = "141DE12C7B2F574B";
       };
-      core.editor = "nvim";
       merge.ff = true;
       rerere.enabled = true;
       pull.rebase = true;
@@ -89,40 +88,37 @@
 
   programs.vscode = {
     enable = true;
+    # FHS env for the language plugins: shared build tools from nix/dev-tools.nix plus the
+    # per-language bits.
     package = pkgs.vscode.fhsWithPackages (
-      ps: with ps; [
-        automake
+      ps:
+      import ../../nix/dev-tools.nix ps
+      ++ (with ps; [
+        clang-tools
         curl
         eslint
-        gcc15
         gdb
-        gnumake
+        git-lfs
+        gitFull
         icu
         lldb
         llvmPackages.clang-unwrapped
         lua
         luajit
         nixd
-        nixfmt
         nixpkgs-review
         nodejs
         npm-check
         openssl.dev
         pkg-config
-        clang-tools
-        cmake
-        git-lfs
-        gitFull
-        ninja
         ruff
-        uv
-        uv-sort
         rustup
         sqlite
+        uv-sort
         wget
         yarn
         zlib
-      ]
+      ])
     );
   };
 
@@ -155,9 +151,10 @@
   programs.mpv = {
     enable = true;
 
+    # `package` instead of `programs.mpv.scripts`: the two are mutually exclusive and the
+    # unwrapped overrides below are needed too. waylandSupport already defaults to on.
     package = pkgs.mpv.override {
       mpv-unwrapped = pkgs.mpv-unwrapped.override {
-        waylandSupport = true;
         jackaudioSupport = true;
         ffmpeg = pkgs.ffmpeg-full;
       };

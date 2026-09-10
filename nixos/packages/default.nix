@@ -1,24 +1,10 @@
-{
-  pkgs,
-  inputs,
-  ...
-}:
+{ pkgs, ... }:
 {
   imports = [
     ./dev.nix
     ./media.nix
     ./system.nix
   ];
-
-  nixpkgs.overlays = [
-    inputs.rust-overlay.overlays.default
-    inputs.nix-cachyos-kernel.overlays.pinned
-    inputs.llama-cpp.overlays.default
-    (import ../overlays/llama-cpp.nix)
-  ];
-
-  systemd.packages = with pkgs; [ lact ];
-  systemd.services.lactd.wantedBy = [ "multi-user.target" ];
 
   programs.appimage = {
     enable = true;
@@ -30,16 +16,14 @@
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
 
-  programs.direnv = {
-    enable = true;
-    enableFishIntegration = true;
-    nix-direnv.enable = true;
-  };
+  # nix-direnv and every shell integration default to true.
+  programs.direnv.enable = true;
 
   programs.evince.enable = true;
 
   programs.firefox.enable = true;
 
+  # Login shell (users.defaultUserShell); also what puts fish into /etc/shells.
   programs.fish.enable = true;
 
   programs.fzf.fuzzyCompletion = true;

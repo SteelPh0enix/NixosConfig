@@ -1,16 +1,11 @@
 { ... }:
 {
-  # ---- Nvim-tree (file explorer) ----
   plugins.nvim-tree = {
     enable = true;
 
-    settings = {
-      # Track the buffer you are currently in: the tree expands/highlights the
-      # open file when you switch buffers.
-      # nixpkgs ships nvim-tree.lua 1.18 from the maintained nvim-tree org, where
-      # this key is still `update_focused_file` (`filesystem.follow` is neo-tree).
-      update_focused_file.enable = true;
-    };
+    # Expand/highlight the tree on the currently open file. nixpkgs ships nvim-tree 1.18,
+    # where the key is still `update_focused_file` (`filesystem.follow` is neo-tree).
+    settings.update_focused_file.enable = true;
   };
 
   keymaps = [
