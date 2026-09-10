@@ -92,7 +92,7 @@
     # per-language bits.
     package = pkgs.vscode.fhsWithPackages (
       ps:
-      import ../../nix/dev-tools.nix ps
+      import ../nix/dev-tools.nix ps
       ++ (with ps; [
         clang-tools
         curl
