@@ -42,6 +42,11 @@
 
       notification.enable_daemon = true; # Noctalia owns org.freedesktop.Notifications
 
+      # DisplayPort panels expose nothing under /sys/class/backlight, so the brightness keys and the
+      # bar widget need DDC/CI: Noctalia shells out to `ddcutil` (systemPackages) over /dev/i2c-*
+      # (hardware.i2c). Without it: `noctalia msg brightness-up` -> "brightness control unavailable".
+      brightness.enable_ddcutil = true;
+
       # Session lock: ext-session-lock-v1, unlock through PAM service "login" (hardcoded, so it uses
       # the service NixOS already ships; passwords go through the setuid unix_chkpwd helper,
       # fingerprint would need fprintd). There is no non-PAM fallback, so test SUPER+L on the very

@@ -5,7 +5,7 @@ local ipc = "noctalia msg "
 
 -- applications and shell surfaces
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd(terminal), { description = "Terminal" })
-hl.bind("CTRL ALT + T", hl.dsp.exec_cmd(terminal), { description = "Terminal (Plasma habit)" })
+hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal), { description = "Terminal (Plasma habit)" })
 hl.bind(mod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Launcher" })
 hl.bind(mod .. " + E", hl.dsp.exec_cmd(fileManager), { description = "File manager" })
 hl.bind(mod .. " + S", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"), { description = "Control center" })

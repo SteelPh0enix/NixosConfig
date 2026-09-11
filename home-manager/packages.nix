@@ -12,7 +12,7 @@
     gimp
     hardinfo2
     heroic
-    imv # image/* default (xdg.mimeApps)
+    imv # image default (xdg.mimeApps)
     inkscape-with-extensions
     jellyfin-desktop
     keepassxc
@@ -29,7 +29,6 @@
     teams-for-linux
     teamspeak6-client
     ungoogled-chromium
-    vlc
     winePackages.stagingFull
     winetricks
     xournalpp

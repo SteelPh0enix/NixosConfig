@@ -11,15 +11,20 @@
       "inode/directory" = "thunar.desktop";
       "application/pdf" = "org.gnome.Evince.desktop";
       "text/plain" = "nvim.desktop"; # Terminal=true, so terminal-exec opens it in wezterm
-      "image/*" = "imv.desktop";
-      "video/*" = [
-        "mpv.desktop"
-        "vlc.desktop"
-      ];
-      "audio/*" = [
-        "vlc.desktop"
-        "io.github.quodlibet.QuodLibet.desktop"
-      ];
+      # Wildcard keys (`image/*`) are ignored for DEFAULTS by both xdg-mime and glib, and the
+      # fallback is then the first claimant in the profile's mimeinfo.cache. Spell out the types.
+      "image/png" = "imv.desktop";
+      "image/jpeg" = "imv.desktop";
+      "image/gif" = "imv.desktop";
+      "image/webp" = "imv.desktop";
+      "image/bmp" = "imv.desktop";
+      "image/svg+xml" = "imv.desktop";
+      "video/mp4" = "mpv.desktop";
+      "video/x-matroska" = "mpv.desktop";
+      "video/webm" = "mpv.desktop";
+      "audio/mpeg" = "io.github.quodlibet.QuodLibet.desktop";
+      "audio/flac" = "io.github.quodlibet.QuodLibet.desktop";
+      "audio/ogg" = "io.github.quodlibet.QuodLibet.desktop";
       # thunar-archive-plugin drives whatever handles these
       "application/zip" = "org.gnome.FileRoller.desktop";
       "application/x-7z-compressed" = "org.gnome.FileRoller.desktop";

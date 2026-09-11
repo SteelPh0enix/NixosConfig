@@ -4,6 +4,7 @@
     btop-rocm
     bzip3
     cifs-utils
+    ddcutil # DDC/CI brightness; Noctalia shells out to it (hardware.i2c)
     dmidecode
     dnsutils
     docker-buildx

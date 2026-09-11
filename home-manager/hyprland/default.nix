@@ -41,7 +41,7 @@
         cursor = {
           no_warps = true;
           hide_on_key_press = true;
-          min_refresh_rate = 48; # VRR floor while the cursor moves in fullscreen; set per panel
+          min_refresh_rate = 48; # both panels bottom out at 48 Hz; keeps the cursor smooth in VRR
         };
         misc = {
           disable_hyprland_logo = true;
@@ -50,22 +50,40 @@
           mouse_move_enables_dpms = true;
           key_press_enables_dpms = true;
           font_family = "Berkeley Mono"; # it is `misc`, not `general`
-          vrr = 3; # 0 off / 1 on / 2 fullscreen / 3 fullscreen + video|game
+          vrr = 1; # 0 off / 1 always / 2 fullscreen / 3 fullscreen + video|game; per output below
         };
         ecosystem.no_update_news = true; # nixpkgs decides when Hyprland updates
         ecosystem.no_donation_nag = true;
       };
 
-      # The catch-all (`output = ""`, upstream's own default rule) stays first; per-output rules
-      # from `hyprctl monitors` are appended below it and override/merge field by field (see
-      # https://wiki.hypr.land/Configuring/Basics/Monitor-Rules/). mode/position/scale are STRING
-      # fields in the Lua API; `scale = "auto"` becomes a fixed number for a HiDPI panel.
+      # The catch-all (`output = ""`, upstream's own default rule) stays first, so a display that
+      # is not listed below still comes up; per-output rules are appended and override/merge field
+      # by field (see https://wiki.hypr.land/Configuring/Basics/Monitor-Rules/). mode/position/scale
+      # are STRING fields in the Lua API.
+      # Acer VG270U P (DP-1, primary/central) sits at the origin, Dell S2722DC (DP-2) off its left.
+      # Both modes are spelled out (DP-2's preferred mode is 60 Hz); Hyprland picks the
+      # closest mode within ~1 Hz, so 144/75 mean the panels' real 143.999/74.983 ones.
+      # Neither panel is HiDPI, so scale stays 1. `vrr = true` arms the output; `misc.vrr` decides when.
       monitor = [
         {
           output = "";
           mode = "preferred";
           position = "auto";
           scale = "auto";
+        }
+        {
+          output = "DP-1";
+          mode = "2560x1440@144";
+          position = "0x0";
+          scale = "1";
+          vrr = true;
+        }
+        {
+          output = "DP-2";
+          mode = "2560x1440@75";
+          position = "-2560x0";
+          scale = "1";
+          vrr = true;
         }
       ];
 
