@@ -109,11 +109,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789144075,
-        "narHash": "sha256-zD31BI5PqEdLRCSdtlwlbAOPCdmg6sFW+/fmGRSeG3I=",
+        "lastModified": 1789150619,
+        "narHash": "sha256-Vsgv5atXkGWOOdLOL8oQLnZSGt1h140synPfFdwbyjU=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "61b08afca39cc9afe69a47cdd82fbb305899b106",
+        "rev": "e4345d5ae8aa1def34378d2a60ac5e6e4c8fd7c1",
         "type": "github"
       },
       "original": {
@@ -129,8 +129,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1789150241,
-        "narHash": "sha256-7qnC28IcqUErmDEOJySJB9vdDZnOL3RG6hFzAgpejEw=",
+        "lastModified": 1789151081,
+        "narHash": "sha256-beL9eqqHQUMtsIvQYIqRBfVgl7I7Gvt1fwOWc3deRaE=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
