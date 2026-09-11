@@ -81,6 +81,13 @@
       options.desc = "Line diagnostics";
     }
 
+    {
+      mode = "t";
+      key = "<Esc>";
+      action = "<C-\\><C-n>";
+      options.desc = "Exit terminal input mode";
+    }
+
     # --- Clear search highlight ---
     {
       key = "<Esc>";
