@@ -73,12 +73,15 @@
     localNetworkGameTransfers.openFirewall = true;
     extest.enable = true;
     dedicatedServer.openFirewall = true;
-    gamescopeSession.enable = true;
     extraPackages = with pkgs; [
       gamescope
       javaPackages.compiler.temurin-bin.jdk-25
     ];
   };
+
+  # No Big Picture console session; gamescope stays for per-process use. It was enabled
+  # implicitly by programs.steam.gamescopeSession, so it must be named explicitly now.
+  programs.gamescope.enable = true;
 
   qt.enable = true;
 
