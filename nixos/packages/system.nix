@@ -14,6 +14,7 @@
     flac
     gparted
     hdparm
+    hyprpicker # colour picker
     inetutils
     jq
     llama-cpp
@@ -28,6 +29,7 @@
     p7zip
     parallel-full
     parted
+    pavucontrol # per-application mixing (Plasma's volume control is gone)
     pciutils
     psmisc
     radeontop
@@ -44,9 +46,9 @@
     unrar
     usbutils
     wayland-utils
+    wdisplays # GUI monitor layout (Hyprland implements wlr-output-management)
     wget
     wl-clipboard
-    xclip
     zip
     unzip
   ];

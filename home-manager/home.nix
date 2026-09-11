@@ -13,6 +13,9 @@
     ./packages.nix
     ./fonts.nix
     ./nonfree-fonts.nix
+    ./hyprland
     ./nixvim
+    ./theming.nix
+    ./xdg.nix
   ];
 }

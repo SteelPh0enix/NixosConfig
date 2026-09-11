@@ -95,6 +95,9 @@ in
     overdrive.enable = true; # also what LACT uses to change clocks/voltages
   };
 
+  # /dev/i2c-* + i2c-dev, so DDC/CI brightness control works (Noctalia's brightness keys).
+  hardware.i2c.enable = true;
+
   # Installs lact, its systemd.packages units, and wants lactd at multi-user.target.
   services.lact.enable = true;
 

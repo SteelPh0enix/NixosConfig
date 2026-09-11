@@ -17,7 +17,7 @@
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
   };
 
-  services.blueman.enable = true;
+  # No blueman-applet: Noctalia talks to BlueZ directly (bluetooth widget, `bluetooth-*` IPC).
   services.gvfs.enable = true;
 
   # Owns the CPU governor (`powerManagement.cpuFreqGovernor` would lose to tuned anyway).

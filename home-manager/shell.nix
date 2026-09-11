@@ -140,6 +140,18 @@ in
       (script "os-rebuild-switch" "Build and switch to a new NixOS system configuration" ''
         ${info "Rebuilding NixOS and switching to the new build..."}
         nh os switch --keep-going
+        # Hyprland does not watch its config (misc.disable_autoreload) and home-manager's own
+        # reload hook is compiled out while `package = null`.
+        # Only works from inside the session (needs HYPRLAND_INSTANCE_SIGNATURE); from a TTY
+        # there is nothing to reload through, so warn instead of failing silently.
+        if pgrep -x Hyprland > /dev/null 2>&1; then
+          if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+            ${info "Reloading Hyprland config..."}
+            hyprctl reload full-reset || ${warning "Hyprland reload failed; run 'hyprctl reload full-reset' in the session"}
+          else
+            ${warning "Not in a Hyprland session - run 'hyprctl reload full-reset' there after logging in."}
+          fi
+        fi
         ${success "System rebuild complete, switched to new build."}
       '')
 

@@ -7,10 +7,10 @@
 
   imports = [
     ./boot.nix
-    ./desktop.nix
     ./fonts.nix
     ./hardware-configuration.nix
     ./hardware.nix
+    ./hyprland.nix
     ./locale.nix
     ./nix.nix
     ./nixpkgs.nix

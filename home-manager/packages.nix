@@ -1,53 +1,40 @@
 { pkgs, ... }:
 {
   # Per-user applications only - environment.systemPackages would put them in every profile,
-  # root included. The KDE/Plasma ones come from pkgs.kdePackages at the bottom.
-  home.packages =
-    with pkgs;
-    [
-      discord
-      drawio
-      dxvk
-      element-desktop
-      freecad
-      gimp
-      hardinfo2
-      heroic
-      inkscape-with-extensions
-      jellyfin-desktop
-      kdiff3
-      keepassxc
-      krename
-      libreoffice
-      obsidian
-      orca-slicer
-      prismlauncher
-      proton-vpn
-      protonup-qt
-      qbittorrent-enhanced
-      quodlibet-xine-full
-      solaar
-      spotify
-      teams-for-linux
-      teamspeak6-client
-      ungoogled-chromium
-      vlc
-      winePackages.stagingFull
-      winetricks
-      xournalpp
-      zenmap
-    ]
-    ++ (with pkgs.kdePackages; [
-      filelight
-      isoimagewriter
-      kcalc
-      kcharselect
-      kclock
-      kcolorchooser
-      ksystemlog
-      kweather
-      sweeper
-    ]);
+  # root included.
+  home.packages = with pkgs; [
+    discord
+    drawio
+    dxvk
+    element-desktop
+    file-roller # archive default; thunar-archive-plugin drives it
+    freecad
+    gimp
+    hardinfo2
+    heroic
+    imv # image/* default (xdg.mimeApps)
+    inkscape-with-extensions
+    jellyfin-desktop
+    keepassxc
+    libreoffice
+    obsidian
+    orca-slicer
+    prismlauncher
+    proton-vpn
+    protonup-qt
+    qbittorrent-enhanced
+    quodlibet-xine-full
+    solaar
+    spotify
+    teams-for-linux
+    teamspeak6-client
+    ungoogled-chromium
+    vlc
+    winePackages.stagingFull
+    winetricks
+    xournalpp
+    zenmap
+  ];
 
   programs.git = {
     enable = true;

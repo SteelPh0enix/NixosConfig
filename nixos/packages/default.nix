@@ -26,6 +26,9 @@
   # Login shell (users.defaultUserShell); also what puts fish into /etc/shells.
   programs.fish.enable = true;
 
+  # sshfs and the AppImage binfmt handler both need the setuid fusermount3.
+  programs.fuse.enable = true;
+
   programs.fzf.fuzzyCompletion = true;
   programs.fzf.keybindings = true;
 
@@ -43,6 +46,16 @@
   programs.screen.enable = true;
   programs.ssh.startAgent = true;
   programs.tcpdump.enable = true;
+
+  # Dolphin leaves with plasma6. System-wide so volman/D-Bus/udisks2 integration works
+  # (programs.thunar is a NixOS option; home-manager has no equivalent).
+  programs.thunar = {
+    enable = true;
+    plugins = with pkgs; [
+      thunar-archive-plugin
+      thunar-volman
+    ];
+  };
 
   programs.obs-studio = {
     enable = true;
@@ -86,4 +99,7 @@
   qt.enable = true;
 
   programs.openlogi.enable = true;
+
+  # The Hyprland module enables xdg.portal itself and adds its own portal.
+  xdg.portal.xdgOpenUsePortal = true;
 }
