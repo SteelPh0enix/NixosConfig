@@ -29,8 +29,7 @@
         };
         decoration = {
           rounding = 4;
-          dim_inactive = true;
-          dim_strength = 0.2;
+          dim_inactive = false;
         };
         input.kb_layout = "pl"; # binds use the first layout; digits are unmodified on `pl`
         # int, not bool (0 nothing / 1 previous ws / also-when-moving). `hyprctl getoption
