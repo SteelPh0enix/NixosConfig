@@ -1,9 +1,30 @@
 {
   inputs,
+  lib,
   pkgs,
   settings,
   ...
 }:
+let
+  # Noctalia's power slider talks to the power-profiles-daemon API, which tuned-ppd maps onto
+  # these three tuned profiles; nothing else can be selected.
+  selectableProfiles = {
+    power-saver = "powersave";
+    balanced = "desktop";
+    performance = "throughput-performance";
+  };
+
+  # tuned's audio plugin re-enables HDA autosuspend (`timeout=10`) on every profile activation,
+  # which makes the speakers buzz a few seconds after audio stops. Shadowing the profiles in
+  # /etc/tuned/profiles wins over the ones shipped with tuned (later `profile_dirs` entry is
+  # searched first) and keeps audio power management off for good.
+  noAudioPmProfile =
+    name:
+    pkgs.runCommand "tuned-${name}-no-audio-pm.conf" { } ''
+      cat ${pkgs.tuned}/lib/tuned/profiles/${name}/tuned.conf > $out
+      printf '\n[audio]\ntimeout=0\nreset_controller=false\n' >> $out
+    '';
+in
 {
   networking.networkmanager.enable = true;
   networking.hostName = settings.hostId;
@@ -31,13 +52,14 @@
     # Default profile: `desktop`. `recommend` covers `tuned-adm auto`; the DE power-profile
     # slider goes through tuned-ppd, which speaks PPD names - hence `balanced` -> `desktop`.
     recommend.desktop = { };
+    # `battery_detection = false` and an empty `battery` map: nothing outside those three is reachable.
     ppdSettings = {
-      main.default = "balanced";
-      profiles = {
-        power-saver = "powersave";
-        balanced = "desktop";
-        performance = "throughput-performance";
+      main = {
+        default = "balanced";
+        battery_detection = false;
       };
+      profiles = selectableProfiles;
+      battery = { };
     };
   };
 
@@ -80,6 +102,18 @@
     browsed.enable = false; # would otherwise default to services.avahi.enable
     cups-pdf.enable = true;
   };
+
+  environment.etc =
+    lib.mapAttrs' (
+      _: name: lib.nameValuePair "tuned/profiles/${name}/tuned.conf" { source = noAudioPmProfile name; }
+    ) selectableProfiles
+    // {
+      # `powersave` runs ${i:PROFILE_DIR}/script.sh, which now resolves to the shadowing profile dir.
+      "tuned/profiles/powersave/script.sh" = {
+        source = "${pkgs.tuned}/lib/tuned/profiles/powersave/script.sh";
+        mode = "0755";
+      };
+    };
 
   services.flatpak.enable = true;
   services.fstrim.enable = true;

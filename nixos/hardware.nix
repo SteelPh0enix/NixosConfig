@@ -84,6 +84,10 @@ in
     "amdgpu.tmz=0"
     "amdgpu.noretry=0"
     "split_lock_detect=off"
+    # HDA autosuspend = audible buzzing on the analog output. tuned keeps it off afterwards, these
+    # cover the window before tuned activates a profile (see services.nix).
+    "snd-hda-intel.power_save=0"
+    "snd-hda-intel.power_save_controller=N"
   ];
 
   hardware.enableRedistributableFirmware = true;
