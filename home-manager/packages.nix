@@ -114,7 +114,10 @@
       local wezterm = require('wezterm')
       local config = wezterm.config_builder()
 
-      config.color_scheme = 'Afterglow (Gogh)'
+      -- Noctalia's wezterm template regenerates ~/.config/wezterm/colors/Noctalia.toml (wezterm
+      -- auto-loads that dir). Once this line names the scheme, apply.sh skips rewriting this
+      -- store-owned file; its final `touch` still logs a harmless warning per palette change.
+      config.color_scheme = "Noctalia"
       config.font_size = 11
       config.font = wezterm.font_with_fallback { 'Berkeley Mono', 'Symbols Nerd Font Mono' }
       config.initial_cols = 120
@@ -122,10 +125,6 @@
       config.enable_wayland = true
       config.scrollback_lines = 20000
       config.enable_scroll_bar = true
-
-      config.colors = {
-        scrollbar_thumb = '#8810ff',
-      }
 
       return config'';
   };
