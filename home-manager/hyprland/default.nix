@@ -53,7 +53,7 @@
           mouse_move_enables_dpms = true;
           key_press_enables_dpms = true;
           font_family = "Berkeley Mono"; # it is `misc`, not `general`
-          vrr = 1; # 0 off / 1 always / 2 fullscreen / 3 fullscreen + video|game; per output below
+          vrr = 3; # 0 off / 1 always / 2 fullscreen / 3 fullscreen + video|game; per output below
         };
         ecosystem.no_update_news = true; # nixpkgs decides when Hyprland updates
         ecosystem.no_donation_nag = true;
