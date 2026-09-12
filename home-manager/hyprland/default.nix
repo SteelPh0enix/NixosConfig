@@ -21,17 +21,16 @@
       # values is the single hl.config call (no hl.general / hl.input / hl.misc).
       config = {
         general = {
-          gaps_in = 6;
-          gaps_out = 12; # default 20
-          border_size = 2; # default 1
+          gaps_in = 3;
+          gaps_out = 12;
           resize_on_border = true;
           col.active_border = "rgba(33ccffee)";
           col.inactive_border = "rgba(595959aa)";
         };
         decoration = {
-          rounding = 8; # default 0; blur and shadows are on by default
+          rounding = 4;
           dim_inactive = true;
-          dim_strength = 0.3; # default 0.5
+          dim_strength = 0.2;
         };
         input.kb_layout = "pl"; # binds use the first layout; digits are unmodified on `pl`
         # int, not bool (0 nothing / 1 previous ws / also-when-moving). `hyprctl getoption

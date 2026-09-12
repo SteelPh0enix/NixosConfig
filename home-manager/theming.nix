@@ -21,7 +21,7 @@
   # gtk3 platform theme: Qt derives its palette from the GTK theme above, so one theme drives both.
   qt = {
     enable = true;
-    platformTheme = "gtk3";
+    platformTheme.name = "gtk3";
   };
 
   home.pointerCursor = {
