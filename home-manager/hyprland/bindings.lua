@@ -3,6 +3,10 @@ local terminal = "wezterm"
 local fileManager = "thunar"
 local ipc = "noctalia msg "
 
+-- Untuned animations inherit the built-in global default (speed 8 = 800 ms); snappier workspace slide.
+hl.curve("almostLinear", { type = "bezier", points = { {0.5, 0.5}, {0.75, 1} } })
+hl.animation({ leaf = "workspaces", enabled = true, speed = 2, bezier = "almostLinear" })
+
 -- applications and shell surfaces
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd(terminal), { description = "Terminal" })
 hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal), { description = "Terminal (Plasma habit)" })

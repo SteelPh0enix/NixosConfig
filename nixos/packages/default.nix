@@ -16,6 +16,10 @@
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
 
+  # D-Bus thumbnailer service (org.freedesktop.thumbnails.Thumbnailer). programs.thunar does not
+  # pull it in, so without this Thunar shows generic icons for everything.
+  services.tumbler.enable = true;
+
   # nix-direnv and every shell integration default to true.
   programs.direnv.enable = true;
 

@@ -31,6 +31,7 @@
         decoration = {
           rounding = 8; # default 0; blur and shadows are on by default
           dim_inactive = true;
+          dim_strength = 0.3; # default 0.5
         };
         input.kb_layout = "pl"; # binds use the first layout; digits are unmodified on `pl`
         # int, not bool (0 nothing / 1 previous ws / also-when-moving). `hyprctl getoption
