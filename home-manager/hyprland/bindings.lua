@@ -4,12 +4,11 @@ local fileManager = "thunar"
 local ipc = "noctalia msg "
 
 -- Untuned animations inherit the built-in global default (speed 8 = 800 ms); snappier workspace slide.
-hl.curve("almostLinear", { type = "bezier", points = { {0.5, 0.5}, {0.75, 1} } })
+hl.curve("almostLinear", { type = "bezier", points = { { 0.5, 0.5 }, { 0.75, 1 } } })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 2, bezier = "almostLinear" })
 
 -- applications and shell surfaces
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd(terminal), { description = "Terminal" })
-hl.bind("CTRL + ALT + T", hl.dsp.exec_cmd(terminal), { description = "Terminal (Plasma habit)" })
 hl.bind(mod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Launcher" })
 hl.bind(mod .. " + E", hl.dsp.exec_cmd(fileManager), { description = "File manager" })
 hl.bind(mod .. " + S", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"), { description = "Control center" })
@@ -36,9 +35,13 @@ hl.bind(mod .. " + right", hl.dsp.focus({ direction = "right" }))
 
 -- workspaces 1-10 (SUPER+0 = 10), SHIFT = move window
 for i = 1, 10 do
-  local key = i % 10
-  hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = i }), { description = "Workspace " .. i })
-  hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }), { description = "Move to workspace " .. i })
+	local key = i % 10
+	hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = i }), { description = "Workspace " .. i })
+	hl.bind(
+		mod .. " + SHIFT + " .. key,
+		hl.dsp.window.move({ workspace = i }),
+		{ description = "Move to workspace " .. i }
+	)
 end
 hl.bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
@@ -61,8 +64,16 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(ipc .. "brightness-down"), { lo
 -- screenshots (Noctalia captures via wlr-screencopy; output policy in the Noctalia config). There
 -- is no annotate IPC verb; screenshot-fullscreen takes pick | monitor | all.
 hl.bind("Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot: region" })
-hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot: focused monitor" })
-hl.bind("CTRL + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen pick"), { description = "Screenshot: pick monitor" })
+hl.bind(
+	"SHIFT + Print",
+	hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"),
+	{ description = "Screenshot: focused monitor" }
+)
+hl.bind(
+	"CTRL + Print",
+	hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen pick"),
+	{ description = "Screenshot: pick monitor" }
+)
 
 -- drag / resize (these two dispatchers need the mouse flag)
 hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
