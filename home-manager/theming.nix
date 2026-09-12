@@ -3,7 +3,10 @@
   # GTK and cursor theme for the session: nothing else writes these per user.
   gtk = {
     enable = true;
-    theme.name = "Adwaita:dark"; # colon = dark variant of GTK's built-in Adwaita
+    # GTK's built-in Adwaita, no ":dark" suffix: GTK 3 only splits that off $GTK_THEME, so in
+    # settings.ini it names a theme called "Adwaita:dark" - missing, hence the unthemed light UI.
+    theme.name = "Adwaita";
+    colorScheme = "dark"; # -> gtk-application-prefer-dark-theme (gtk3) + prefer-dark (dconf/gtk4)
     gtk4.theme = config.gtk.theme; # stateVersion < 26.05 would otherwise only warn about it
     iconTheme.name = "Adwaita";
     font = {
@@ -12,11 +15,9 @@
     };
   };
 
-  # libadwaita/GTK4 apps ignore gtk-theme-name and read this instead.
-  dconf = {
-    enable = true;
-    settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
-  };
+  # gtk.colorScheme writes the GNOME color-scheme (what libadwaita/GTK4 apps read) into dconf,
+  # but only if dconf is enabled.
+  dconf.enable = true;
 
   # gtk3 platform theme: Qt derives its palette from the GTK theme above, so one theme drives both.
   qt = {
