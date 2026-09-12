@@ -31,7 +31,11 @@
           rounding = 4;
           dim_inactive = false;
         };
-        input.kb_layout = "pl"; # binds use the first layout; digits are unmodified on `pl`
+        input = {
+          kb_layout = "pl"; # binds use the first layout; digits are unmodified on `pl`
+          sensitivity = -0.5; # -1.0 .. 1.0, 0 means no modification
+          accel_profile = "flat"; # "adaptive" / "flat" / "custom", "" = libinput default
+        };
         # int, not bool (0 nothing / 1 previous ws / also-when-moving). `hyprctl getoption
         # binds:workspace_back_and_forth` prints the accepted values for any option.
         binds.workspace_back_and_forth = 1;
