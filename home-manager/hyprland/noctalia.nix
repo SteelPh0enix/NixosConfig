@@ -28,6 +28,20 @@
           "qt"
           "wezterm"
         ]; # opt-in; list ids with `noctalia theme --list-templates`
+        templates.community_ids = [
+          "pi-agent"
+          "discord"
+          "inkscape"
+          "libreoffice"
+          "neovim"
+          "vscode"
+          "prismlauncher"
+          "steam"
+          "fastfetch"
+          "obs"
+          "fzf"
+          "lazygit"
+        ]; # opt-in; ids come from api.noctalia.dev/templates, cached in the state dir
       };
 
       shell = {
