@@ -75,6 +75,9 @@ hl.bind(
 	{ description = "Screenshot: pick monitor" }
 )
 
+-- colour picker; -a copies the picked colour to the clipboard
+hl.bind(mod .. " + CTRL + P", hl.dsp.exec_cmd("hyprpicker -a"), { description = "Pick colour" })
+
 -- drag / resize (these two dispatchers need the mouse flag)
 hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
