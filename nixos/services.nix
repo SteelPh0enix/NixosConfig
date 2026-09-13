@@ -76,6 +76,14 @@ in
     };
   };
 
+  # Counterpart of the remote host's sshd AcceptEnv: without COLORTERM (WezTerm's truecolor hint)
+  # TUIs over SSH fall back to the 256-colour palette. Kept system-wide, so ~/.ssh/config stays
+  # hand-owned.
+  programs.ssh.extraConfig = ''
+    Host *
+      SendEnv COLORTERM
+  '';
+
   imports = [ inputs.ucodenix.nixosModules.default ];
   services.ucodenix = {
     enable = true;
