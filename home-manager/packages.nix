@@ -9,37 +9,37 @@
 
   programs.vscode = {
     enable = true;
+    # FHS env for the language plugins: shared build tools from nix/dev-tools.nix plus the
+    # per-language bits.
     package = pkgs.vscode.fhsWithPackages (
-      ps: with ps; [
-        automake
+      ps:
+      import ../nix/dev-tools.nix ps
+      ++ (with ps; [
+        clang-tools
         curl
         eslint
-        gcc15
         gdb
-        gnumake
+        git-lfs
+        gitFull
         icu
         lldb
         llvmPackages.clang-unwrapped
         lua
         luajit
+        nixd
+        nixpkgs-review
         nodejs
         npm-check
         openssl.dev
         pkg-config
+        ruff
         rustup
         sqlite
+        uv-sort
         wget
         yarn
         zlib
-        clang-tools
-        cmake
-        git-lfs
-        gitFull
-        ninja
-        ruff
-        uv
-        uv-sort
-      ]
+      ])
     );
   };
 
@@ -51,7 +51,7 @@
 
       config.color_scheme = 'Afterglow (Gogh)'
       config.font_size = 10.5
-      config.font = wezterm.font_with_fallback { 'BerkeleyMono Nerd Font Mono' }
+      config.font = wezterm.font_with_fallback { 'Berkeley Mono', 'Symbols Nerd Font Mono' }
       config.initial_cols = 120
       config.initial_rows = 30
       config.enable_wayland = false
@@ -113,7 +113,7 @@
       user = {
         name = "SteelPh0enix";
         email = [ "wojciech_olech@hotmail.com" ];
-        signingkey = "/home/steelph0enix/.ssh/gitea.pub";
+        signingkey = "/home/steelph0enix/.ssh/forgejo.pub";
       };
       core.editor = "nvim";
       merge.ff = true;
@@ -139,6 +139,14 @@
         overrideGpg = true;
       };
     };
+  };
+
+  programs.eza = {
+    enable = true;
+    icons = "always";
+    git = true;
+    # -g list group, -M show mount details. Shell integration maps `ls` onto eza.
+    extraOptions = [ "-gM" ];
   };
 
   programs.gh.enable = true;

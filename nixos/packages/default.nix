@@ -1,20 +1,9 @@
-{
-  pkgs,
-  inputs,
-  ...
-}:
+{ pkgs, ... }:
 {
   imports = [
     ./dev.nix
     ./media.nix
     ./system.nix
-  ];
-
-  nixpkgs.overlays = [
-    inputs.rust-overlay.overlays.default
-    inputs.nix-cachyos-kernel.overlays.pinned
-    inputs.llama-cpp.overlays.default
-    (import ../overlays/llama-cpp.nix)
   ];
 
   programs.appimage = {

@@ -1,12 +1,9 @@
 { ... }:
 {
-  # ---- Autocmds ----
-  # NixVim's autocmd options are `autoCmd` / `autoGroups` (capital C). Each entry maps to
-  # `nvim_create_autocmd`: `event`, `pattern`, `desc`, and exactly one of `callback`
-  # (raw Lua function) / `command` (viml string).
+  # NixVim's autocmd options are `autoCmd`/`autoGroups`; each entry maps to
+  # `nvim_create_autocmd` with either `callback` (raw Lua) or `command` (viml).
   autoCmd = [
-    # Flash the yank region. `vim.hl` is the 0.10+ home for `on_yank` (vim.hl.on_yank
-    # exists in 0.12.5; the old `vim.highlight.on_yank` is a deprecated alias).
+    # Flash the yanked region (vim.hl is the 0.10+ home for on_yank).
     {
       event = [ "TextYankPost" ];
       desc = "Highlight yanked text";
@@ -17,8 +14,8 @@
       '';
     }
 
-    # Reopen where you left off. The `"` mark is the last cursor position; guard against a
-    # stale mark pointing past the end of a file that shrank since the last session.
+    # Reopen where you left off; `"` is the last cursor position, guarded against a stale
+    # mark past the end of a file that shrank since.
     {
       event = [ "BufReadPost" ];
       desc = "Restore last cursor position";
@@ -33,9 +30,7 @@
       '';
     }
 
-    # Companion to `opts.autoread = true`: autoread silently reloads a buffer that has no
-    # unsaved changes, and prompts when it does. This is the notification for the silent
-    # case (nixfmt on another tty, `git checkout`, codegen, ...).
+    # opts.autoread reloads silently when the buffer is unmodified - this makes that visible.
     {
       event = [ "FileChangedShellPost" ];
       desc = "Autoreload changed files";
@@ -53,10 +48,8 @@
       command = "setlocal nonumber norelativenumber signcolumn=no foldcolumn=0";
     }
 
-    # ---- Per-filetype line-width guides ----
-    # Replaces the old global `colorcolumn = "80,100,120"`. Keep these in sync with the
-    # real formatter configs of each project (`.clang-format` ColumnLimit,
-    # `rustfmt.toml` max_width, `ruff.toml` line-length) - a guide nobody matches is noise.
+    # Per-filetype width guides, kept in sync with the real formatter configs
+    # (rustfmt 100, ruff 88, clang-format 80/120, nixfmt 100) instead of a global colorcolumn.
     {
       event = [ "FileType" ];
       pattern = [ "rust" ];

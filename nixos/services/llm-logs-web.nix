@@ -1,5 +1,14 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  settings,
+  ...
+}:
 
+let
+  # Plain runtime path into the working checkout, not a store path: the log viewer is edited
+  # in place and just needs a unit restart.
+  logsServer = "${settings.repoPath}/nixos/services/llm-logs-server/server.py";
+in
 {
   systemd.services = {
     "llm-logs-web" = {
@@ -14,7 +23,7 @@
       ];
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${pkgs.python3}/bin/python3 /etc/nixos/nixos/services/llm-logs-server/server.py --service llm-router --port 51580";
+        ExecStart = "${pkgs.python3}/bin/python3 ${logsServer} --service llm-router --port 51580";
         Restart = "on-failure";
         RestartSec = 5;
         User = "steelph0enix";
@@ -37,7 +46,7 @@
       ];
       serviceConfig = {
         Type = "simple";
-        ExecStart = "${pkgs.python3}/bin/python3 /etc/nixos/nixos/services/llm-logs-server/server.py --service llm-router-rocm --port 51581";
+        ExecStart = "${pkgs.python3}/bin/python3 ${logsServer} --service llm-router-rocm --port 51581";
         Restart = "on-failure";
         RestartSec = 5;
         User = "steelph0enix";

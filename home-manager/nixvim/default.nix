@@ -6,7 +6,7 @@
     enable = true;
 
     # Reuse the system package set, otherwise nixvim imports its own nixpkgs without this
-    # flake's overlays and `rust-bin` (rust-toolchain.nix) would not resolve.
+    # flake's overlays and `pkgs.rustToolchain` would not resolve.
     nixpkgs.pkgs = pkgs;
 
     # modules/ is written in plain Nixvim option syntax (no `programs.nixvim` prefix), so it is

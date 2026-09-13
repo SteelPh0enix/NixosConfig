@@ -28,9 +28,8 @@
       "<leader>sh" = "help_tags";
       "<leader>sk" = "keymaps";
 
-      # Man pages: the doc lookup for C/C++/POSIX symbols (`printf`, `pthread_create`,
-      # `gitattributes`) that LSP hover cannot give - clangd only knows what is in the
-      # compilation database, and `K` is already hover. Needs `man` on PATH (system default).
+      # Doc lookup for C/C++/POSIX symbols, which LSP hover cannot give (clangd only knows the
+      # compilation database; `K` is already hover).
       "<leader>sm" = "man_pages";
 
       # Git

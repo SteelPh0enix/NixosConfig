@@ -2,10 +2,15 @@
   fonts = {
     fontconfig = {
       defaultFonts = {
-        serif = [ "BerkeleyMono Nerd Font Mono" ];
+        serif = [ "Berkeley Mono" ];
         emoji = [ "Noto Color Emoji" ];
-        sansSerif = [ "BerkeleyMono Nerd Font Mono" ];
-        monospace = [ "BerkeleyMono Nerd Font Mono" ];
+        sansSerif = [ "Berkeley Mono" ];
+        # Symbols Nerd Font Mono (nerd-fonts.symbols-only, nixos/fonts.nix) supplies the
+        # private-use glyphs; the font package itself comes from ./nonfree-fonts.nix.
+        monospace = [
+          "Berkeley Mono"
+          "Symbols Nerd Font Mono"
+        ];
       };
       enable = true;
     };

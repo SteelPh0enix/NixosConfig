@@ -1,7 +1,7 @@
-{ hostId, ... }:
+{ settings, ... }:
 {
   networking.networkmanager.enable = true;
-  networking.hostName = hostId;
+  networking.hostName = settings.hostId;
 
   networking.firewall = {
     enable = true;

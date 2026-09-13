@@ -1,15 +1,6 @@
+{ settings, ... }:
 {
-  nixpkgs.config = {
-    allowUnfree = true;
-    rocmSupport = true;
-  };
-
-  nix.gc = {
-    automatic = true;
-    dates = "daily";
-    options = "--delete-older-than 7d";
-  };
-
+  # Garbage collection itself lives in `programs.nh.clean` (nixos/shell.nix).
   nix.settings.auto-optimise-store = true;
   nix.channel.enable = false;
 
@@ -18,6 +9,8 @@
     "https://nix-community.cachix.org"
     "https://attic.xuyh0120.win/lantian"
   ];
+
+  nix.settings.trusted-users = [ settings.userName ];
 
   nix.settings.trusted-public-keys = [
     "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="

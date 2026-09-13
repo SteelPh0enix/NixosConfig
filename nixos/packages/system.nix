@@ -1,7 +1,6 @@
-{ pkgs, inputs, ... }:
+{ pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
-    inputs.compose2nix.packages.${pkgs.stdenv.hostPlatform.system}.default
     ascii-image-converter
     bindfs
     btop-rocm
@@ -14,7 +13,6 @@
     docker-buildx
     espeak
     exfatprogs
-    eza
     fastfetch
     fd
     figlet

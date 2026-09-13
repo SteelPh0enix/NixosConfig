@@ -15,22 +15,11 @@
     ./mounts.nix
     ./networking.nix
     ./nix.nix
+    ./nixpkgs.nix
     ./packages
     ./services.nix
-    ./services/open-webui/open-webui.nix
-    ./services/anything-llm/anything-llm.nix
-    ./services/pihole/pihole.nix
-    ./services/samba.nix
-    ./services/wireguard.nix
-    ./services/llm-logs-web.nix
-    ./services/llm-router.nix
-    ./services/llm-router-rocm/llm-router-rocm.nix
-    ./services/llm-metrics/llm-metrics.nix
-    ./services/minecraft-server.nix
-    ./services/hindsight/hindsight.nix
-    ./services/tei/tei.nix
-    ./services/coverage.nix
-    ./services/docs.nix
+    # `./services` would resolve to ./services.nix, so name the directory entry explicitly.
+    ./services/default.nix
     ./shell.nix
     ./timers.nix
     ./users.nix

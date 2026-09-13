@@ -1,26 +1,15 @@
 { ... }:
 {
-  # ---- Leader key ----
-  # NOTE: this must be a literal " ". `vim.g.mapleader = '<Space>'` does NOT expand
-  # keycodes in Lua - it silently kept the default `\` leader.
-  # `globals` is emitted in `extraConfigLuaPre` (before keymaps & plugin setup),
-  # which is why it replaces the old `extraConfigLua` hack.
+  # Must be a literal " ": `vim.g.mapleader = '<Space>'` does not expand keycodes in Lua.
+  # `globals` is emitted in extraConfigLuaPre, i.e. before keymaps and plugin setup.
   globals = {
     mapleader = " ";
     maplocalleader = " ";
   };
 
-  # ---- Global keymaps ----
-  # Plugin-specific mappings live next to their plugin:
-  #   - LSP buffer mappings:   plugins/lsp.nix        (attached per-buffer)
-  #   - fzf-lua pickers:       plugins/fzf-lua.nix
-  #   - file tree toggle:      plugins/nvim-tree.nix
-  #   - debug controls:        plugins/dap.nix        (<leader>d*)
-  #
-  # Neovim already provides, unconditionally: `]d`/`[d` (diagnostics), `]q`/`[q`
-  # (quickfix), `]l`/`[l` + `]L`/`[L` (location list), `gra`/`grn`/`grr`/`gri`/`grt`/
-  # `grx`/`gO` (LSP), `gc` (comment). `K` (hover) is set per-buffer on LspAttach.
-  # Only map what is actually missing from that list.
+  # Plugin-specific mappings live next to their plugin (lsp.nix, fzf-lua.nix, nvim-tree.nix,
+  # dap.nix). Neovim already provides `]d`/`[d`, `]q`/`[q`, `]l`/`[l`, the `gr*` LSP set, `gO`
+  # and `gc` - only the gaps are mapped here.
   keymaps = [
     # --- Save / Close ---
     {
@@ -45,8 +34,7 @@
     }
 
     # --- Buffer navigation ---
-    # Not <S-H>/<S-L>: Neovim cannot tell `h` from `<S-h>`, so those would clobber
-    # the native H/L (jump to first/last line of the window).
+    # Not <S-H>/<S-L>: Neovim cannot tell `h` from `<S-h>`, so those clobber the native H/L.
     {
       key = "<leader>bn";
       action = "<Cmd>bnext<CR>";
@@ -59,9 +47,8 @@
     }
 
     # --- LSP status ---
-    # Global on purpose: the `<leader>l{s,x,R}` client controls live in plugins/lsp.nix
-    # and only exist once a client has attached (LspAttach), which is exactly when
-    # figuring out "why is nothing attached" is useless. `:LspInfo` is gone in 0.11+.
+    # Global on purpose: the `<leader>l{s,x,R}` controls in lsp.nix only exist once a client
+    # attached, which is exactly when "why is nothing attached" is hardest to diagnose.
     {
       key = "<leader>li";
       action = "<Cmd>checkhealth vim.lsp<CR>";
@@ -69,12 +56,8 @@
     }
 
     # --- Diagnostics ---
-    # <leader>d -> <leader>dd: the bare <leader>d prefix belongs to nvim-dap now
-    # (plugins/dap.nix). A mapping on the prefix *and* on <leader>dX means the bare
-    # <leader>d waits out `timeoutlen` before firing - worst possible for the
-    # "peek at this error" case, which wants to be instant.
-    # Neovim's own `<C-W>d` does the same thing natively - drop this map and use that
-    # if the extra chord is not worth it. `]d`/`[d` jump, <leader>sd (fzf) lists all.
+    # Not <leader>d: that prefix belongs to nvim-dap, and mapping the prefix *and* <leader>dX
+    # makes the bare press wait out `timeoutlen`. `<C-W>d` is the native equivalent.
     {
       key = "<leader>dd";
       action.__raw = "function() vim.diagnostic.open_float() end";

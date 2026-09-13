@@ -3,6 +3,7 @@
   lib,
   pkgs,
   inputs,
+  settings,
   ...
 }:
 let
@@ -103,8 +104,7 @@ in
       PermitRootLogin = "no";
       PasswordAuthentication = false;
       AllowUsers = [
-        "steelph0enix"
-        "quake"
+        settings.userName
         "forgejo"
       ];
       LogLevel = "VERBOSE";

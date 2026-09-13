@@ -1,5 +1,13 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  settings,
+  ...
+}:
 
+let
+  # Plain runtime path into the working checkout, not a store path.
+  composeDir = "${settings.repoPath}/nixos/services/llm-router-rocm";
+in
 {
   systemd.services = {
     "llm-router-rocm" = {
@@ -8,9 +16,9 @@
       enableStrictShellChecks = true;
 
       serviceConfig = {
-        WorkingDirectory = "/etc/nixos/nixos/services/llm-router-rocm";
-        ExecStart = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/llm-router-rocm/docker-compose.yml up --build --remove-orphans --yes";
-        ExecStop = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/llm-router-rocm/docker-compose.yml down";
+        WorkingDirectory = composeDir;
+        ExecStart = "${pkgs.docker}/bin/docker compose -f ${composeDir}/docker-compose.yml up --build --remove-orphans --yes";
+        ExecStop = "${pkgs.docker}/bin/docker compose -f ${composeDir}/docker-compose.yml down";
         Restart = "on-failure";
         RestartSec = 10;
       };

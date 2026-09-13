@@ -12,7 +12,7 @@
 # for compute on integrated GPUs - the root cause of the "broken output / no
 # tool calls" you saw with the stock NixOS ROCm build.
 #
-# Rebuild with the `update-llama-cpp-rocm` fish function (home-manager/shell.nix).
+# Rebuild with the `update-llama-cpp-rocm` script (home-manager/shell.nix).
 # NOTE: the image must exist on the SYSTEM docker daemon (/run/docker.sock) -
 # the service runs as root and does not see the user's rootless daemon.
 #
@@ -62,15 +62,18 @@ services:
     environment:
       - GPU_MAX_HW_QUEUES=1
 
-    # Mount the model fleet at the SAME absolute paths the INI preset uses,
-    # so /home/LLMs/... and /home/steelph0enix/LLMs/... resolve unchanged.
+    # Mount the model fleet and the INI preset at the SAME absolute paths they have on the
+    # host, so /home/LLMs/... and /home/steelph0enix/LLMs/... resolve unchanged. The preset
+    # lives in the nixos-config checkout (shared with the Vulkan llm-router): edit it there,
+    # restart this unit, no rebuild.
     volumes:
       - /home/LLMs:/home/LLMs:ro
+      - /home/steelph0enix/nixos-config/nixos/services/llm-router:/home/steelph0enix/nixos-config/nixos/services/llm-router:ro
 
     entrypoint: ["/usr/local/bin/llama-server"]
     command:
       - --models-preset
-      - /home/LLMs/llama-server.ini
+      - /home/steelph0enix/nixos-config/nixos/services/llm-router/llama-server.ini
       - --host
       - 0.0.0.0
       - --port

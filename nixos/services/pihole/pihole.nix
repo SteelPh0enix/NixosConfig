@@ -1,5 +1,14 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  settings,
+  ...
+}:
 
+let
+  # Plain runtime path into the working checkout, not a store path: editing the compose file
+  # and restarting the unit is enough, no rebuild needed.
+  composeDir = "${settings.repoPath}/nixos/services/pihole";
+in
 {
   systemd.services = {
     "pihole" = {
@@ -8,9 +17,9 @@
       enableStrictShellChecks = true;
 
       serviceConfig = {
-        WorkingDirectory = "/etc/nixos/nixos/services/pihole";
-        ExecStart = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/docker-compose.yml up --build --remove-orphans --yes";
-        ExecStop = "${pkgs.docker}/bin/docker compose -f /etc/nixos/nixos/services/pihole/docker-compose.yml down";
+        WorkingDirectory = composeDir;
+        ExecStart = "${pkgs.docker}/bin/docker compose -f ${composeDir}/docker-compose.yml up --build --remove-orphans --yes";
+        ExecStop = "${pkgs.docker}/bin/docker compose -f ${composeDir}/docker-compose.yml down";
       };
 
       wantedBy = [

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Simple HTTP server with SSE endpoint for streaming journalctl logs.
-Run as: python3 /etc/nixos/services/llm-logs-server/server.py [--service <unit>] [--port <port>]
-Then visit: http://localhost:51581  (native) / http://localhost:51569 (ROCm)
+Run as: python3 nixos/services/llm-logs-server/server.py [--service <unit>] [--port <port>]
+Then visit: http://localhost:51580 (Vulkan) / http://localhost:51581 (ROCm)
 """
 
 import os

@@ -1,16 +1,11 @@
 { ... }:
 {
-  # ---- gitsigns ----
-  # gitsigns 2.1.0 ships *no* default keymaps (`grep -rn vim.keymap.set lua/gitsigns/`
-  # only turns up the ones inside the blame/show_commit popups) and the nixvim module has
-  # no keymap option - `settings.on_attach` is the only hook. Without this there is no
-  # hunk workflow at all (`<leader>gc/gb/gt` are fzf-lua, not gitsigns).
+  # gitsigns 2.x ships no default keymaps and the nixvim module has no keymap option, so
+  # `settings.on_attach` is the only hook. The `bufnr` parameter is used explicitly because
+  # gitsigns can attach a buffer that is not the current one.
   plugins.gitsigns = {
     enable = true;
 
-    # `attach.lua` calls `config.on_attach(cbuf)`, so bind the buffer number explicitly
-    # instead of `buffer = true` - gitsigns can attach to a buffer that is not the current
-    # one (`:args`, `:LspInfo`-style bulk attaches, `+` arglists).
     settings.on_attach.__raw = ''
       function(bufnr)
         local map = function(lhs, rhs, desc)
