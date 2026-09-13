@@ -8,7 +8,7 @@
     dxvk
     element-desktop
     file-roller # archive default; thunar-archive-plugin drives it
-    freecad
+    # freecad
     gimp
     hardinfo2
     heroic
