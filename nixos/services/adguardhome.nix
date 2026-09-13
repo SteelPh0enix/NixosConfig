@@ -6,9 +6,14 @@
 # survive restarts. Admin credentials are created in the UI on first visit and live in the
 # state file, not here.
 #
-# Lists refresh themselves every 24h (dns.filtering.filters_update_interval). A restart forces
-# it: the merge above replaces dns.filters, so the `last_updated` stamps are gone and AdGuard
+# Note the AdGuardHome.yaml layout (schema 34): filter lists live in the top-level `filters`,
+# custom records in top-level `filtering.rewrites` - *not* under `dns.*`, and every entry needs
+# an explicit `enabled = true`, otherwise AdGuard silently loads it disabled.
+#
+# Lists refresh themselves every 24h (filtering.filters_update_interval). A restart forces it:
+# the merge above replaces `filters`, so the `last_updated` stamps are gone and AdGuard
 # re-downloads everything - `systemctl restart adguardhome` is the manual "update gravity".
+# The fixed `id`s keep that from piling up orphaned files in /var/lib/AdGuardHome/data/filters.
 { lib, ... }:
 let
   # This host's LAN address; DNS is published on it plus loopback, like the old Pi-hole.
@@ -27,7 +32,7 @@ let
   };
 
   # Filter lists, migrated from Pi-hole's gravity DB (all five were enabled).
-  filters = [
+  filterLists = [
     {
       name = "StevenBlack hosts";
       url = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
@@ -59,9 +64,9 @@ in
 
     settings = {
       dns = {
-        bind_info = [
-          { source = lanIp; }
-          { source = "127.0.0.1"; }
+        bind_hosts = [
+          lanIp
+          "127.0.0.1"
         ];
         port = 53;
 
@@ -83,14 +88,23 @@ in
           "2001:4860:4860::8888"
           "2001:4860:4860::8844"
         ];
+      };
 
-        inherit filters;
-
-        custom_dns = lib.mapAttrsToList (question: answer: {
-          inherit question;
-          answers = [ { inherit answer; type = "A"; } ];
+      filtering = {
+        rewrites = lib.mapAttrsToList (domain: answer: {
+          inherit domain answer;
+          enabled = true;
         }) customHosts;
       };
+
+      filters = lib.imap0 (
+        i: f:
+        f
+        // {
+          id = i + 1;
+          enabled = true;
+        }
+      ) filterLists;
     };
   };
 }

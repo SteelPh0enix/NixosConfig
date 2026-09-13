@@ -164,8 +164,8 @@ in
 
       # `--commit-lock-file` is handled by `nix flake update` itself and no-ops when the
       # lock file did not change.
-      # Restarting AdGuard refreshes the filter lists: the unit's preStart merge replaces
-      # dns.filters, wiping the `last_updated` stamps AdGuard would otherwise honour. The API
+      # Restarting AdGuard refreshes the filter lists: the unit's preStart merge replaces the
+      # top-level `filters`, wiping the `last_updated` stamps AdGuard would otherwise honour. The API
       # equivalent (/control/refresh) would need the web password, which we don't keep here.
       (script "os-update" "Update llama.cpp and the AdGuard filter lists, rebuild, commit flake.lock" ''
         ${info "=== Starting OS Update Sequence ==="}
