@@ -1,9 +1,16 @@
-final: prev: {
+final: prev:
+let
+  # LTO archives hold only GCC IR, so they must be indexed with the LTO plugin; the cc-wrapper
+  # ships plain `ar`, which cannot (link then fails with undefined references).
+  ltoAr = "${prev.stdenv.cc.cc}/bin/gcc-ar";
+  ltoRanlib = "${prev.stdenv.cc.cc}/bin/gcc-ranlib";
+in
+{
   # Built from the local checkout (flake input `llama-cpp`), see the `llama-cpp-update`
-  # script. ROCm stays off; the GPU is offloaded through Vulkan.
+  # script. ROCm stays off here; the ROCm stack runs from its own container
+  # (nixos/services/llm-router-rocm).
   llama-cpp =
     (prev.llamaPackages.llama-cpp.override {
-      llamaVersion = "4.2.0";
       useVulkan = true;
       useRocm = false;
     }).overrideAttrs
@@ -15,13 +22,23 @@ final: prev: {
           # Tell CMake/Curl where to find the certificates
           SSL_CERT_FILE = "${prev.cacert}/etc/ssl/certs/ca-bundle.crt";
 
-          # CPU tuning without `-march=native`: that flag needs the cc-wrapper's purity guard
-          # (NIX_ENFORCE_NO_NATIVE) off and lets one derivation hash hide different binaries, so
-          # a closure copied to another CPU can SIGILL. These flags pin the same instruction set
-          # (Zen 3 = x86-64-v3: AVX2/FMA/F16C/BMI2) plus this CPU's scheduling - reproducible and
-          # shareable. Upstream already builds the ggml-cpu kernels with `-mavx2` and runtime
-          # dispatch (GGML_NATIVE=OFF); this additionally tunes everything else.
-          NIX_CFLAGS_COMPILE = "-march=x86-64-v3 -mtune=znver3";
+          # Zen 3 ISA, stated explicitly (`-march=native` needs the cc-wrapper purity guard off,
+          # which lets one derivation hash hide two binaries).
+          NIX_CFLAGS_COMPILE = "-march=znver3 -mtune=znver3";
+
+          # Release is what the cmake hook picks by default (-O3 -DNDEBUG); pinned so an
+          # upstream default flip cannot silently drop us to a slower build type.
+          cmakeBuildType = "Release";
+
+          # Whole-build IPO. ggml's own GGML_LTO only reaches the ggml/ targets, leaving
+          # libllama, common and server unoptimized.
+          cmakeFlags = (prevAttrs.cmakeFlags or [ ]) ++ [
+            (prev.lib.cmakeBool "CMAKE_INTERPROCEDURAL_OPTIMIZATION" true)
+            (prev.lib.cmakeFeature "CMAKE_C_COMPILER_AR" ltoAr)
+            (prev.lib.cmakeFeature "CMAKE_CXX_COMPILER_AR" ltoAr)
+            (prev.lib.cmakeFeature "CMAKE_C_COMPILER_RANLIB" ltoRanlib)
+            (prev.lib.cmakeFeature "CMAKE_CXX_COMPILER_RANLIB" ltoRanlib)
+          ];
         }
       );
 }
