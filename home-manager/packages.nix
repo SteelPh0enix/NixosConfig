@@ -20,7 +20,6 @@
     obsidian
     orca-slicer
     prismlauncher
-    proton-vpn
     protonup-qt
     qbittorrent-enhanced
     quodlibet-xine-full
