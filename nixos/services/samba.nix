@@ -1,8 +1,9 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 {
   services.samba = {
     enable = true;
-    package = pkgs.sambaFull;
+    # Pinned: current nixpkgs samba does not build (see flake.nix `nixpkgs-previous`).
+    package = inputs.nixpkgs-previous.legacyPackages.${pkgs.stdenv.hostPlatform.system}.sambaFull;
     openFirewall = true;
     nsswins = true;
     usershares.enable = true;
