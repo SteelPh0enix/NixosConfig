@@ -8,7 +8,7 @@
     allowPing = true;
     # Only ports not managed by services with openFirewall = true
     allowedTCPPorts = [
-      53 # PiHole DNS (Docker service)
+      53 # AdGuard Home DNS (its openFirewall covers the UI port only)
       443 # HTTPS
 
       6969 # Forgejo (HTTP)
@@ -28,7 +28,7 @@
       44444
       55555
     ];
-    allowedUDPPorts = [ 53 ]; # PiHole DNS
+    allowedUDPPorts = [ 53 ]; # AdGuard Home DNS
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
   };
 

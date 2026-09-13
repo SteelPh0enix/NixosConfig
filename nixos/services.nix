@@ -15,7 +15,7 @@ let
         weather url="https://wttr.in/Fajslawice?1" timeout=30
         service-status {
             service display-name="Accounts" unit="accounts-daemon"
-            service display-name="PiHole" unit="pihole"
+            service display-name="AdGuard Home" unit="adguardhome"
             service display-name="Jellyfin" unit="jellyfin"
             service display-name="Forgejo" unit="forgejo"
             service display-name="Forgejo runner" unit="gitea-runner-framework"
@@ -53,8 +53,8 @@ in
   # DNS readiness check service - ensures DNS is actually functional
   systemd.services."dns-ready-check" = {
     description = "DNS readiness check";
-    after = [ "pihole.service" ];
-    requires = [ "pihole.service" ];
+    after = [ "adguardhome.service" ];
+    requires = [ "adguardhome.service" ];
     serviceConfig = {
       Type = "oneshot";
       User = "root";

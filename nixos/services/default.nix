@@ -7,7 +7,7 @@
     ./llm-logs-web.nix
     ./llm-router/llm-router.nix
     ./llm-router-rocm/llm-router-rocm.nix
-    ./pihole/pihole.nix
+    ./adguardhome.nix
     ./samba.nix
   ];
 }

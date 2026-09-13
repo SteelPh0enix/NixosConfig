@@ -25,12 +25,12 @@ in
 
       wantedBy = [ "multi-user.target" ];
       wants = [
-        "pihole.service"
+        "adguardhome.service"
         "dns-ready.target"
         "network-online.target"
       ];
       after = [
-        "pihole.service"
+        "adguardhome.service"
         "dns-ready.target"
         "network-online.target"
       ];

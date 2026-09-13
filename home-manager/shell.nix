@@ -29,9 +29,6 @@ let
     };
 
   rsyncFlags = "--archive --recursive --mkpath --verbose --progress --human-readable";
-
-  # Same compose file the `pihole` unit runs (nixos/services/pihole).
-  piholeCompose = "${repoPath}/nixos/services/pihole/docker-compose.yml";
 in
 {
   # Fish stays the login shell; nothing below depends on it. This option is what makes
@@ -167,10 +164,17 @@ in
 
       # `--commit-lock-file` is handled by `nix flake update` itself and no-ops when the
       # lock file did not change.
-      (script "os-update" "Update llama.cpp and the services, rebuild, commit flake.lock" ''
+      # Restarting AdGuard refreshes the filter lists: the unit's preStart merge replaces
+      # dns.filters, wiping the `last_updated` stamps AdGuard would otherwise honour. The API
+      # equivalent (/control/refresh) would need the web password, which we don't keep here.
+      (script "os-update" "Update llama.cpp and the AdGuard filter lists, rebuild, commit flake.lock" ''
         ${info "=== Starting OS Update Sequence ==="}
         llama-cpp-update
-        update-services
+
+        ${info "Refreshing AdGuard Home filter lists..."}
+        sudo systemctl restart adguardhome
+        # grace period for DNS restart
+        sleep 5
         ${info "Rebuilding NixOS with updated inputs..."}
         nh os boot --update --commit-lock-file --keep-going
         ${success "=== OS Update done! ==="}
@@ -254,26 +258,6 @@ in
           sudo docker build --no-cache -t "$image:latest" \
               -f "$repo_dir/toolboxes/Dockerfile.rocm-10.0" \
               "$repo_dir/toolboxes"
-        '';
-      })
-
-      (pkgs.writeShellApplication {
-        name = "update-services";
-        runtimeInputs = [
-          pkgs.docker
-          pkgs.coreutils
-        ];
-        meta.description = "Update the container-based services (PiHole)";
-        text = ''
-          ${info "Updating PiHole"}
-          sudo docker compose -f ${piholeCompose} pull --policy always
-          sudo systemctl restart pihole
-
-          # grace period for DNS restart
-          ${info "Waiting for PiHole restart..."}
-          sleep 5
-          ${info "Updating PiHole lists"}
-          sudo docker exec pihole pihole -g
         '';
       })
     ];
