@@ -176,7 +176,7 @@ in
         # grace period for DNS restart
         sleep 5
         ${info "Rebuilding NixOS with updated inputs..."}
-        nh os boot --update --commit-lock-file --keep-going
+        nh os boot --keep-going --show-trace --refresh --commit-lock-file --update
         ${success "=== OS Update done! ==="}
       '')
 
@@ -193,6 +193,14 @@ in
         ${info "Running NixOS store check/fix..."}
         sudo nix-store --verify --check-contents --repair
         ${success "NixOS store check/fix complete!"}
+      '')
+
+      (script "os-repair" "Rebuild the whole OS, repair nix store and install bootloader." ''
+        ${info "=== Starting OS Update Sequence ==="}
+        llama-cpp-update
+        ${info "Rebuilding NixOS with updated inputs..."}
+        nh os boot --keep-going --repair --show-trace --install-bootloader
+        ${success "=== OS Update done! ==="}
       '')
 
       # ROCm venv for the conversion scripts; `llama-cpp-venv-activate` (fish) for interactive use.
