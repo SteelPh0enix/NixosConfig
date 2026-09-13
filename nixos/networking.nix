@@ -16,9 +16,6 @@
       6971 # Docs viewer (nginx, /srv/docs)
       22137 # Forgejo (SSH)
 
-      # 51520 # Hindsight API
-      # 51521 # Hindsight Control Panel
-
       51536 # LLM Router (Vulkan)
       51537 # LLM Router (ROCm)
       51580 # LLM Router (Vulkan) log web interface

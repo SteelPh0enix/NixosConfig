@@ -60,19 +60,5 @@
     usbmon.enable = true;
   };
 
-  programs.steam = {
-    enable = true;
-    remotePlay.openFirewall = true;
-    protontricks.enable = true;
-    localNetworkGameTransfers.openFirewall = true;
-    extest.enable = true;
-    dedicatedServer.openFirewall = true;
-    gamescopeSession.enable = true;
-    extraPackages = with pkgs; [
-      gamescope
-      javaPackages.compiler.temurin-bin.jdk-25
-    ];
-  };
-
   qt.enable = true;
 }

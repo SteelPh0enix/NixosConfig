@@ -8,7 +8,6 @@
     boxes
     bzip3
     cifs-utils
-    cowsay
     cpupower-gui
     dmidecode
     dnsutils
@@ -26,7 +25,6 @@
     inetutils
     jp2a
     jq
-    libnatpmp
     libva-utils
     llama-cpp
     lm_sensors
@@ -47,14 +45,11 @@
     psmisc
     radeontop
     rar
-    remmina
     ripgrep
     rust-motd
     socat
     sqlite
     sshfs
-    steam-tui
-    steamcmd
     sysstat
     tcpdump
     toilet
@@ -64,7 +59,6 @@
     unrar
     unzip
     usbutils
-    weechat
     wget
     zenity
     zip

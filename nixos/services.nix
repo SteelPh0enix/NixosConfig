@@ -15,9 +15,6 @@ let
         service-status {
             service display-name="Accounts" unit="accounts-daemon"
             service display-name="PiHole" unit="pihole"
-            service display-name="AnythingLLM" unit="anything-llm"
-            service display-name="Hindsight" unit="hindsight"
-            service display-name="TEI" unit="tei"
             service display-name="Jellyfin" unit="jellyfin"
             service display-name="Forgejo" unit="forgejo"
             service display-name="Forgejo runner" unit="gitea-runner-framework"

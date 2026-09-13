@@ -3,10 +3,8 @@
   home.packages = with pkgs; [
     keepassxc
     obsidian
-    proton-vpn
     quodlibet-xine-full
     ungoogled-chromium
-    zenmap
   ];
 
   programs.vscode = {
