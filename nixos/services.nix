@@ -100,6 +100,13 @@ in
     ports = [ 22137 ];
     openFirewall = true;
     settings = {
+      # COLORTERM carries WezTerm's truecolor hint. Without it TUIs quantize to the 256-colour
+      # palette, and the Noctalia scheme paints index 16 with the palette's secondary colour.
+      AcceptEnv = [
+        "LANG"
+        "LC_*"
+        "COLORTERM"
+      ];
       X11Forwarding = false;
       PermitRootLogin = "no";
       PasswordAuthentication = false;
