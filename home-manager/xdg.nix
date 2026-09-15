@@ -1,4 +1,4 @@
-{ ... }:
+{ config, pkgs, ... }:
 {
   # xdg.enable is already on in shell.nix; xdg.mime (shared-mime-info + update-desktop-database over
   # the profile) defaults to true on Linux, so only the associations and dirs below are needed.
@@ -40,6 +40,22 @@
     enable = true;
     settings.default = [ "org.wezfurlong.wezterm.desktop" ];
   };
+
+  # Thunar's "Open Terminal Here" runs `exo-open --launch TerminalEmulator` (see Thunar's uca.xml).
+  # libexo knows nothing about xdg-terminal-exec or terminal desktop files: it reads this key file and
+  # resolves the value as a bare executable on $PATH (no arguments allowed), else falls back to
+  # xfce4-terminal and errors out. `wezterm` without `--cwd` starts in $HOME even though exo-open
+  # spawns it *in* the selected folder, hence the wrapper that turns that cwd into a flag.
+  home.packages = [
+    (pkgs.writeShellScriptBin "wezterm-terminal" ''
+      exec ${config.programs.wezterm.package}/bin/wezterm start --cwd "$(pwd)" "$@"
+    '')
+  ];
+
+  xdg.configFile."xfce4/helpers.rc".text = ''
+    [Default]
+    TerminalEmulator=wezterm-terminal
+  '';
 
   # Gives Noctalia real XDG directories to use for screenshots/wallpapers. Also writes
   # user-dirs.conf (enabled = false) so xdg-user-dirs-update never rewrites this at runtime.
