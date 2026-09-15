@@ -37,6 +37,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Video wallpaper daemon (GPU decode). Used by home-manager/hyprland/phonto.nix.
+    phonto.url = "github:museslabs/phonto";
+
     # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
     # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
     berkeleyMono = {

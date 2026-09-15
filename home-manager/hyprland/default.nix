@@ -3,6 +3,7 @@
 {
   imports = [
     ./noctalia.nix
+    ./phonto.nix
     ./services.nix
   ];
 
@@ -48,7 +49,7 @@
         };
         misc = {
           disable_hyprland_logo = true;
-          force_default_wallpaper = 0; # Noctalia draws the wallpaper
+          force_default_wallpaper = 0; # phonto draws the wallpaper
           disable_autoreload = true; # generated file; shell.nix reloads it
           mouse_move_enables_dpms = true;
           key_press_enables_dpms = true;

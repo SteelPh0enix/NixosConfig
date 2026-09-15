@@ -75,6 +75,10 @@
         ];
       };
 
+      # phonto plays the animated wallpapers (hyprland/phonto.nix). Noctalia's wallpaper is a
+      # zwlr-layer-shell surface on the same layer, so exactly one of the two may be enabled.
+      wallpaper.enabled = false;
+
       notification.enable_daemon = true; # Noctalia owns org.freedesktop.Notifications
 
       audio.enable_sounds = true; # master toggle for UI feedback sounds

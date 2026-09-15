@@ -102,6 +102,24 @@
         "type": "github"
       }
     },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems_2"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -109,11 +127,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789430117,
-        "narHash": "sha256-t+U1mijItLJ64xZOifpfQ17kpAL73nU7pDI48ScacVc=",
+        "lastModified": 1789482455,
+        "narHash": "sha256-pD3qVlQ4mUCFoTWrYtxecpSitQMsgJvJIN0FUIDZoEU=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "cda90fd8838825c689fde9d3f3b4e937937790df",
+        "rev": "efa3ccb4c3cc90d832eab232976379058fa75aa3",
         "type": "github"
       },
       "original": {
@@ -129,8 +147,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1789468268,
-        "narHash": "sha256-2Zur4elz6S8ALrx1qV9yKX6h6OQucvJCfF5ZRADcHso=",
+        "lastModified": 1789515736,
+        "narHash": "sha256-5paD8xZ16/MbqpZzR131PsZ+2GTWnPiZUoTEOZOeJTw=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -257,6 +275,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_4": {
+      "locked": {
+        "lastModified": 1778869304,
+        "narHash": "sha256-30sZNZoA1cqF5JNO9fVX+wgiQYjB7HJqqJ4ztCDeBZE=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixvim": {
       "inputs": {
         "flake-parts": "flake-parts_3",
@@ -300,6 +334,26 @@
         "type": "github"
       }
     },
+    "phonto": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs_4",
+        "rust-overlay": "rust-overlay_2"
+      },
+      "locked": {
+        "lastModified": 1783456022,
+        "narHash": "sha256-58K8lOiwu5s0Y3NifdoLOg38nCxdDdX8oG5zmo8Fj0Y=",
+        "owner": "museslabs",
+        "repo": "phonto",
+        "rev": "9eaa162135626d22617bca1bdbedb52567d76074",
+        "type": "github"
+      },
+      "original": {
+        "owner": "museslabs",
+        "repo": "phonto",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "berkeleyMono": "berkeleyMono",
@@ -338,6 +392,27 @@
     "rust-overlay_2": {
       "inputs": {
         "nixpkgs": [
+          "phonto",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1779160702,
+        "narHash": "sha256-frUihZLlBLdcFN95mq5QiQmxF2M16nxtmw1GH4rhZmg=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "8cd592658d4448c57326aaa819e1c2f91086eb40",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_3": {
+      "inputs": {
+        "nixpkgs": [
           "nixpkgs"
         ]
       },
@@ -368,6 +443,21 @@
       "original": {
         "owner": "nix-systems",
         "ref": "future-26.11",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "systems_2": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
         "repo": "default",
         "type": "github"
       }
