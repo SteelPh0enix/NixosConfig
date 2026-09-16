@@ -147,8 +147,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1789515736,
-        "narHash": "sha256-5paD8xZ16/MbqpZzR131PsZ+2GTWnPiZUoTEOZOeJTw=",
+        "lastModified": 1789516867,
+        "narHash": "sha256-m5L0XUdHiLufk9vU2nJafyU3N2fBJq8jn2Py9CgCsfg=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -245,11 +245,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1789349923,
-        "narHash": "sha256-dQpjYY7PZgPt8235G0LXkPr+8NgoIQy49Nt3MMYOM1M=",
+        "lastModified": 1789491802,
+        "narHash": "sha256-b1oub1k+TSrJurSlVf44ZLtS83LvpKcJczY8XwsvzRI=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "88aca2668455cf2c5ff64814329249b27598685b",
+        "rev": "418b4364809447c9bce66e1e52ce0a194e7b4160",
         "type": "github"
       },
       "original": {
@@ -321,7 +321,7 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1789455622,
+        "lastModified": 1789498951,
         "narHash": "sha256-MMtqj+L14YmONwnQNEeyQZf5pvGFnnVNHr0NUwBKmCM=",
         "owner": "AprilNEA",
         "repo": "OpenLogi",
@@ -364,7 +364,8 @@
         "nixpkgs": "nixpkgs_3",
         "nixvim": "nixvim",
         "openlogi": "openlogi",
-        "rust-overlay": "rust-overlay_2",
+        "phonto": "phonto",
+        "rust-overlay": "rust-overlay_3",
         "ucodenix": "ucodenix"
       }
     },
