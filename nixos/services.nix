@@ -20,6 +20,7 @@ let
             service display-name="Forgejo" unit="forgejo"
             service display-name="Forgejo runner" unit="gitea-runner-framework"
             service display-name="XRDP" unit="xrdp"
+            service display-name="SearXNG" unit="searx"
         }
         uptime prefix="Uptime"
         filesystems {
@@ -90,6 +91,7 @@ in
   systemd.services.jackett = dnsWait;
   systemd.services.jellyfin = dnsWait;
   systemd.services.qbittorrent = dnsWait;
+  systemd.services.searx = dnsWait;
   systemd.services.xrdp = dnsWait;
 
   services.printing.enable = true;

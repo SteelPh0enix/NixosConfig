@@ -8,6 +8,7 @@
     ./llm-router/llm-router.nix
     ./llm-router-rocm/llm-router-rocm.nix
     ./adguardhome.nix
+    ./searxng.nix
     ./samba.nix
   ];
 }
