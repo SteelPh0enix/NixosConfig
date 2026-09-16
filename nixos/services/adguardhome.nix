@@ -24,6 +24,7 @@ let
     "home.ap" = "192.168.0.100";
     "home.gateway" = "192.168.18.1";
     "home.router" = "192.168.0.1";
+    "search.framework" = lanIp;
     "steelph0enix.1337.cx" = lanIp;
     "steelph0enix.framework" = lanIp;
     "steelph0enix.framework-vpn" = "10.69.69.69";
