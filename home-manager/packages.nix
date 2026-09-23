@@ -3,7 +3,6 @@
   # Per-user applications only - environment.systemPackages would put them in every profile,
   # root included.
   home.packages = with pkgs; [
-    discord
     drawio
     dxvk
     element-desktop

@@ -16,6 +16,7 @@
     ./hyprland
     ./nixvim
     ./theming.nix
+    ./vesktop.nix
     ./xdg.nix
   ];
 }
