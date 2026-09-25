@@ -129,7 +129,7 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1790341528,
+        "lastModified": 1790341860,
         "narHash": "sha256-zrUsNe2pgBIXc36VmOjT8Qjs+PAAlFpR055aZyDKitg=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
