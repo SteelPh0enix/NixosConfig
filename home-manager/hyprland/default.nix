@@ -22,8 +22,8 @@
       # values is the single hl.config call (no hl.general / hl.input / hl.misc).
       config = {
         general = {
-          gaps_in = 3;
-          gaps_out = 12;
+          gaps_in = 4;
+          gaps_out = 8;
           resize_on_border = true;
           col.active_border = "rgba(33ccffee)";
           col.inactive_border = "rgba(595959aa)";
@@ -45,7 +45,7 @@
         cursor = {
           no_warps = true;
           hide_on_key_press = true;
-          min_refresh_rate = 48; # both panels bottom out at 48 Hz; keeps the cursor smooth in VRR
+          min_refresh_rate = 60; # both panels bottom out at 48 Hz; keeps the cursor smooth in VRR
         };
         misc = {
           disable_hyprland_logo = true;
@@ -53,8 +53,8 @@
           disable_autoreload = true; # generated file; shell.nix reloads it
           mouse_move_enables_dpms = true;
           key_press_enables_dpms = true;
-          font_family = "Berkeley Mono"; # it is `misc`, not `general`
-          vrr = 3; # 0 off / 1 always / 2 fullscreen / 3 fullscreen + video|game; per output below
+          font_family = "Berkeley Mono";
+          vrr = 0; # 0 off / 1 always / 2 fullscreen / 3 fullscreen + video|game; per output below
         };
         ecosystem.no_update_news = true; # nixpkgs decides when Hyprland updates
         ecosystem.no_donation_nag = true;
