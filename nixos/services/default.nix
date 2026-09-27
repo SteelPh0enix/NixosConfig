@@ -5,6 +5,7 @@
     ./coverage.nix
     ./docs.nix
     ./llm-logs-web.nix
+    ./minecraft.nix
     ./llm-router/llm-router.nix
     ./llm-router-rocm/llm-router-rocm.nix
     ./adguardhome.nix

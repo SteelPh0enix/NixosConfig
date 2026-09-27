@@ -26,6 +26,16 @@
     # settings.llamaCppPath.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
+    # Create+ (Minecraft 1.19.2 / Forge 43.5.1) server: launcher module and package plus the
+    # generated server pack (~200 MB of jars, content-addressed into the store; unchanged jars
+    # are hardlinked). Not a git repo on purpose: a git path input would follow `git ls-files`
+    # semantics and silently drop the untracked pack. Refresh with `nix flake update mcserver`
+    # after `scripts/build-pack.sh` regenerates it.
+    mcserver = {
+      url = "path:/home/steelph0enix/Projects/mcserver-nix";
+      flake = false;
+    };
+
     nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
 
     nixvim = {
