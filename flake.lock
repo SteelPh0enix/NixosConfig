@@ -142,8 +142,8 @@
     "mcserver": {
       "flake": false,
       "locked": {
-        "lastModified": 1790529507,
-        "narHash": "sha256-4nj1qE+NLS5aF7pcb+nLFHhWZb9hkIdlCLfXT+BKvns=",
+        "lastModified": 1790532726,
+        "narHash": "sha256-uwGx7yD/bXSIsrVaTaQJ76M2bvdG0Od7nDHF2gFEPTw=",
         "path": "/home/steelph0enix/Projects/mcserver-nix",
         "type": "path"
       },
