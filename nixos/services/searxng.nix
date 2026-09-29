@@ -35,6 +35,8 @@ in
         # Autocomplete uses duckduckgo.com/ac, which is not affected by the CAPTCHA below.
         autocomplete = "duckduckgo";
         favicon_resolver = "duckduckgo";
+        # Without "json" the /search endpoint answers 403 to ?format=json (see ~/.pi/agent/extensions/).
+        formats = [ "html" "json" ];
       };
 
       engines =
