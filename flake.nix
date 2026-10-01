@@ -36,7 +36,11 @@
       flake = false;
     };
 
-    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
+    # Pinned: newer revisions build their kernel against a nixpkgs whose lld cannot link
+    # tools/bpf/resolve_btfids, and the resulting derivation has no cached build (the overlay
+    # is self-contained, so this rev alone fixes the kernel store path). Unpin once upstream
+    # builds again; the running kernel is 7.2.8-cachyos-lto.
+    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel/b1332396df6e880d7e3b6b451c6a74132ce8cf66";
 
     nixvim = {
       url = "github:nix-community/nixvim";
