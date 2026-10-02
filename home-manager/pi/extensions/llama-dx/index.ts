@@ -1,7 +1,17 @@
-import type { ExtensionAPI, ExtensionContext, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
+import type {
+  ContextUsage,
+  ExtensionAPI,
+  ExtensionContext,
+  ReadonlyFooterDataProvider,
+  Theme,
+  ThemeColor,
+} from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { Component, TUI } from "@earendil-works/pi-tui";
 
-// Three fixed rows under the editor: speeds, token totals, prefill progress + session counters.
+// llama.cpp's numbers, merged into pi's footer: where pi is and what it is on, this request's speeds and token
+// counts, its prompt progress, what the session cost and the server's own state. The cells fill the lines in a
+// fixed order, so it is two lines on a wide terminal and grows towards more as the terminal narrows.
 // Cell order and widths never change: a speed is held while its phase stalls and the previous request's numbers are
 // kept until this one measures its own, so cells never blink to 0 between prefill, generation and the next request.
 
@@ -17,7 +27,6 @@ const BLEND = 0.4;
 const RENDER_MIN_MS = 200;
 
 const PROBE_TIMEOUT_MS = 1500;
-const WIDGET_KEY = "llama-dx";
 const BAR = 12;
 const GAP = "  ";
 
@@ -106,16 +115,20 @@ const word = (v: string | undefined, w: number): string => (v ?? "—").padStart
 
 let req: Req | undefined;
 let last: Req | undefined;
-const sess = { reqs: 0, prompt: 0, evalToks: 0, reuse: 0, out: 0 };
+/** Requests llama.cpp has served in this session; pi's own usage entries carry the token totals. */
+const sess = { reqs: 0 };
 let samples: { t: number; processed: number; decoded: number }[] = [];
 let charsPerToken = 3.6;
 let detailed = false;
+let compact = false;
 let freeze = true;
 let idlePolls = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let tui: TUI | undefined;
-/** The model pi is on, so the panel has something to show before the first request. */
-let model = { root: undefined as string | undefined, id: "", nCtx: 0 };
+/** The freshest context: the footer reads the session, the model and the context usage through it. */
+let ctxRef: ExtensionContext | undefined;
+/** The model pi is on, so the footer has something to show before the first request. */
+let model = { root: undefined as string | undefined, nCtx: 0 };
 /** Settled "is this a llama.cpp server" answers; unknown roots are treated as one. */
 const llamaRoots = new Map<string, boolean>();
 const probing = new Set<string>();
@@ -155,9 +168,9 @@ function probeRoot(root: string): void {
 const isLlama = (root: string): boolean => llamaRoots.get(root) ?? true;
 
 function trackModel(ctx: ExtensionContext): void {
+  ctxRef = ctx;
   model = {
     root: serverRoot(ctx.model as { baseUrl?: string } | undefined),
-    id: ctx.model?.id ?? "",
     nCtx: ctx.model?.contextWindow ?? 0,
   };
   if (model.root) probeRoot(model.root);
@@ -298,7 +311,7 @@ function push<T>(map: Map<string, T[]>, key: string, value: T): void {
 }
 
 function resetAll(): void {
-  Object.assign(sess, { reqs: 0, prompt: 0, evalToks: 0, reuse: 0, out: 0 });
+  sess.reqs = 0;
   req = undefined;
   last = undefined;
   settled = undefined;
@@ -399,10 +412,6 @@ function finalize(r: Req): void {
   settled = n;
   record(r, n);
   sess.reqs += 1;
-  sess.prompt += n.prompt ?? 0;
-  sess.evalToks += n.evalToks ?? 0;
-  sess.reuse += n.reuse ?? 0;
-  sess.out += n.out ?? 0;
   last = r;
   debug(`#${sess.reqs} prompt=${n.prompt} eval=${n.evalToks} reuse=${n.reuse} out=${n.out} pp=${Math.round(n.pp ?? 0)} tg=${Math.round(n.tg ?? 0)} ttft=${n.ttft}`);
 }
@@ -512,10 +521,12 @@ const progressOf = (r: Req | undefined, n: Nums): number => {
   return Math.min(0.99, doneOf(r, n) / total);
 };
 
-/** Join cells in fixed columns, dropping only what no longer fits. */
-function clip(cells: Cell[], width: number, theme: Theme): string {
+const widthOf = (cells: Cell[]): number => Math.max(0, cells.reduce((w, c) => w + c[0].length + GAP.length, 0) - GAP.length);
+
+/** Draw cells in fixed columns, dropping only what no longer fits. */
+function draw(cells: Cell[], width: number, theme: Theme): string {
   const line = (items: Cell[]): string => items.map((c) => theme.fg(c[1], c[0])).join(GAP);
-  if (cells.map((c) => c[0]).join(GAP).length <= width) return line(cells);
+  if (widthOf(cells) <= width) return line(cells);
   const kept: Cell[] = [];
   let room = width;
   for (const cell of cells) {
@@ -526,9 +537,222 @@ function clip(cells: Cell[], width: number, theme: Theme): string {
   return line(kept);
 }
 
+/**
+ * The footer's lines, as few as the width allows: each line takes as many cells as fit, in order. Only the width
+ * decides where a cell lands, so the lines never rearrange while a request runs.
+ */
+function pack(cells: Cell[], width: number): Cell[][] {
+  const lines: Cell[][] = [];
+  let line: Cell[] = [];
+  for (const cell of cells) {
+    if (line.length > 0 && widthOf(line) + GAP.length + cell[0].length > width) {
+      lines.push(line);
+      line = [];
+    }
+    line.push(cell);
+  }
+  if (line.length > 0) lines.push(line);
+  return lines;
+}
+
+const tone = (live: boolean): ThemeColor => (live ? "accent" : "dim");
+
+/**
+ * What a number is, in as few characters as it takes: compact mode keeps the short keys and drops the words, the
+ * units and the padding that lines the columns up.
+ */
+const K = {
+  unit: () => (compact ? "" : " t/s"),
+  spec: () => (compact ? "sp" : "spec"),
+  ttft: () => (compact ? "tt" : "ttft"),
+  prompt: () => (compact ? "pr" : "prompt"),
+  eval: () => (compact ? "ev" : "eval"),
+  reuse: () => (compact ? "rs" : "reuse"),
+  ctx: () => (compact ? "cx" : "ctx"),
+  queue: () => (compact ? "q" : "queue"),
+  flight: () => (compact ? "fl" : "in flight"),
+  busy: () => (compact ? "bd" : "busy/dec"),
+  specLife: () => (compact ? "sl" : "spec life"),
+  host: () => (compact ? "@" : "host"),
+  slot: () => (compact ? "#" : "slot"),
+  nmax: () => (compact ? "max" : "n_tokens_max"),
+  timings: (exact: boolean) => (compact ? (exact ? "exact" : "fitted") : `timings: ${exact ? "exact" : "estimated"}`),
+  /** The `~` that marks "not llama.cpp's own number", inline with the value instead of in front of it. */
+  mark: (estimated: boolean): string => (compact ? (estimated ? "~" : "") : estimated ? " ~" : "  "),
+  /** A value's column: roomy normally, one character less wherever compact mode can spare it. */
+  w: (roomy: number, tight: number): number => (compact ? tight : roomy),
+};
+
+type Current = {
+  root: string;
+  req: Req | undefined;
+  n: Nums;
+  phase: ReturnType<typeof phaseOf>;
+  running: boolean;
+  progress: { done: number; fraction: number; eta: string } | undefined;
+};
+
+/**
+ * The request llama.cpp is working on, or the last one it finished; nothing when pi is not on a llama.cpp model.
+ * The numbers are the running request's own, with the previous one's holding the holes until it measures them.
+ */
+function current(): Current | undefined {
+  const root = req?.root ?? last?.root ?? model.root;
+  if (!root || llamaRoots.get(root) === false) return undefined;
+  const r = req ?? last;
+  const n: Nums = r ? numbers(r) : { estimated: false, ppEstimated: true, tgEstimated: true, nCtx: model.nCtx };
+  // The progress cells tell what this request itself has done, so they are read before the held numbers go in.
+  const progress = r ? { done: doneOf(r, n), fraction: progressOf(r, n), eta: etaOf(r, n) } : undefined;
+  if (req?.ended === undefined) hold(n);
+  return { root, req: r, n, progress, phase: phaseOf(), running: req !== undefined && req.ended === undefined };
+}
+
+/** Speculative decoding: how much of what the draft offered got used. */
+const specRate = (n: Nums): string | undefined => (n.spec ? `${Math.round((n.spec[0] / n.spec[1]) * 100)}%` : undefined);
+
+const specPair = (n: Nums, w: number): string => (n.spec ? `${n.spec[0]}/${n.spec[1]}`.padStart(w) : "—".padStart(w));
+
+/** Throughput and speculation: whether the machine is doing its job. */
+function speeds(c: Current): Cell[] {
+  const { n } = c;
+  return [
+    [`pp${K.mark(n.ppEstimated)}${num(n.pp, K.w(5, 4))}${K.unit()}`, tone(c.running && c.phase === "prefill" && !n.ppEstimated)],
+    [`tg${K.mark(n.tgEstimated)}${num(n.tg, K.w(5, 4))}${K.unit()}`, tone(c.running && c.phase === "decode" && !n.tgEstimated)],
+    [`${K.spec()} ${word(specRate(n), K.w(4, 3))} ${specPair(n, K.w(9, 5))}`, "muted"],
+    [`${K.ttft()} ${word(n.ttft === undefined ? undefined : fmtMs(n.ttft), K.w(6, 5))}`, "muted"],
+  ];
+}
+
+/** What this request itself is made of. */
+function tokens(c: Current): Cell[] {
+  const { n } = c;
+  return [
+    [`${K.prompt()}${K.mark(n.estimated)}${num(n.prompt, K.w(6, 5))}`, "text"],
+    [`${K.eval()} ${num(n.evalToks, K.w(6, 5))}`, "muted"],
+    [`${K.reuse()} ${num(n.reuse, K.w(6, 5))}`, "muted"],
+    [`out ${num(n.out, K.w(6, 5))}`, tone(c.running && c.phase === "decode")],
+  ];
+}
+
+/** How far prompt processing got and what is left of it. */
+function progressCells(c: Current): Cell[] {
+  return [
+    [bar(c.progress?.fraction ?? 0), c.phase === "prefill" ? "warning" : "dim"],
+    [`${num(c.progress?.done ?? 0, K.w(6, 5))}/${c.n.estimated ? "~" : compact ? "" : " "}${num(c.n.prompt, K.w(6, 5))}`, "muted"],
+    [word(c.progress?.eta ?? "—", K.w(7, 5)), "muted"],
+  ];
+}
+
+/** Where the context stands: what the slot holds over what the server serves, or pi's own number without one. */
+function ctxCell(c: Current | undefined): Cell {
+  const usage = sessionState().context;
+  const served = c?.n.nCtx || usage?.contextWindow || 0;
+  const used = (c ? ctxUsed(c.n) : 0) || usage?.tokens || 0;
+  const pct = served > 0 && used > 0 ? (used / served) * 100 : undefined;
+  return [
+    `${K.ctx()} ${num(used || undefined, K.w(6, 5))}/${num(served || undefined, K.w(6, 5))} ${word(pct === undefined ? undefined : `${Math.round(pct)}%`, 4)}`,
+    pct !== undefined && pct > 90 ? "error" : pct !== undefined && pct > 70 ? "warning" : "muted",
+  ];
+}
+
+/** What the session has cost, summed from what pi recorded; only the request count comes from llama.cpp. */
+function sessionCells(): Cell[] {
+  const t = sessionState();
+  const cells: Cell[] = [];
+  if (sess.reqs > 0) cells.push([`req ${word(String(sess.reqs), K.w(3, 2))}`, "dim"]);
+  if (t.input > 0) cells.push([`↑${kfmt(t.input)}`, "dim"]);
+  if (t.output > 0) cells.push([`↓${kfmt(t.output)}`, "dim"]);
+  if (t.cacheRead > 0) cells.push([`R${kfmt(t.cacheRead)}`, "dim"]);
+  if (t.cacheWrite > 0) cells.push([`W${kfmt(t.cacheWrite)}`, "dim"]);
+  if (t.cost > 0) cells.push([`$${t.cost.toFixed(3)}`, "dim"]);
+  return cells;
+}
+
+/** Server-wide state, for a server that answers /metrics; nothing else on it is per request. */
+function serverState(c: Current): Cell[] {
+  if (!c.req || metricsSupport.get(keyOf(c.req)) !== true) return [];
+  const m = c.req.metrics ?? metricsShown.get(keyOf(c.req));
+  const accept = m?.accepted !== undefined && m.drafted ? `${Math.round((m.accepted / m.drafted) * 100)}%`.padStart(K.w(4, 3)) : compact ? "  —" : "   —";
+  return [
+    [`${K.queue()} ${num(m?.deferred, K.w(3, 2))}`, m?.deferred ? "warning" : "muted"],
+    [`${K.flight()} ${num(m?.processing, 2)}/${Math.max(c.req.slots, 1)}`, "muted"],
+    [`${K.busy()} ${word(m?.busy === undefined ? undefined : m.busy.toFixed(2), 4)}`, "muted"],
+    [`${K.specLife()} ${accept} ${num(m?.accepted, K.w(5, 4))}/${num(m?.drafted, K.w(5, 4))}`, "muted"],
+  ];
+}
+
+function detailCells(c: Current): Cell[] {
+  return [
+    [`${K.host()} ${c.root.replace(/^https?:\/\//, "")}`, "muted"],
+    [`${K.slot()} ${c.req?.slotId ?? "—"}/${Math.max(c.req?.slots ?? 1, 1)}`, "muted"],
+    [`${K.nmax()} ${num(c.req?.metrics?.nmax, K.w(6, 5))}`, "muted"],
+    [compact ? `${charsPerToken.toFixed(1)}c/t` : `${charsPerToken.toFixed(2)} ch/tok`, "muted"],
+    [K.timings(!!c.req?.timings), "muted"],
+  ];
+}
+
+/** pi's own shortening of a path: the home directory as ~. */
+function shortPath(path: string): string {
+  const home = process.env.HOME ?? process.env.USERPROFILE;
+  if (!home) return path;
+  if (path === home) return "~";
+  return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+}
+
+/** Where pi is and which model it is on: what pi's own footer says that nothing here repeats. */
+function identity(footerData: ReadonlyFooterDataProvider): Cell[] {
+  const ctx = ctxRef;
+  const branch = footerData.getGitBranch();
+  const name = ctx?.sessionManager.getSessionName();
+  const path = shortPath(ctx?.sessionManager.getCwd() ?? "");
+  const level = ctx?.model?.reasoning ? ` • ${!ctx.thinkingLevel || ctx.thinkingLevel === "off" ? "thinking off" : ctx.thinkingLevel}` : "";
+  return [
+    [`${path}${branch ? ` (${branch})` : ""}${name ? ` • ${name}` : ""}`, "dim"],
+    [`${ctx?.model?.id ?? "no-model"}${level}`, "dim"],
+  ];
+}
+
+/** What other extensions set with ctx.ui.setStatus(), on a line of its own the way pi's footer puts it. */
+function statuses(footerData: ReadonlyFooterDataProvider, width: number, theme: Theme): string | undefined {
+  const texts = [...footerData.getExtensionStatuses().values()];
+  if (texts.length === 0) return undefined;
+  return truncateToWidth(texts.join(" ").replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim(), width, theme.fg("dim", "…"));
+}
+
+type Totals = { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number; context: ContextUsage | undefined };
+
+let totalsCache: { key: string; value: Totals } | undefined;
+
+/**
+ * What pi recorded for this session, plus its own estimate of the context. Both walk the whole session, so they
+ * are taken once per leaf: entries are append-only, and every append moves the leaf.
+ */
+function sessionState(): Totals {
+  const ctx = ctxRef;
+  const key = `${ctx?.sessionManager.getSessionId()}/${ctx?.sessionManager.getLeafId()}/${ctx?.model?.id}`;
+  if (totalsCache?.key === key) return totalsCache.value;
+  const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+  const add = (u: { input: number; output: number; cacheRead: number; cacheWrite: number; cost?: { total?: number } } | undefined): void => {
+    if (!u) return;
+    totals.input += u.input;
+    totals.output += u.output;
+    totals.cacheRead += u.cacheRead;
+    totals.cacheWrite += u.cacheWrite;
+    totals.cost += u.cost?.total ?? 0;
+  };
+  for (const entry of ctx?.sessionManager.getEntries() ?? []) {
+    if (entry.type === "usage") add(entry.usage);
+    else if (entry.type === "message" && (entry.message.role === "assistant" || entry.message.role === "toolResult")) add(entry.message.usage);
+    else if (entry.type === "compaction" || entry.type === "branch_summary") add(entry.usage);
+  }
+  const value: Totals = { ...totals, context: ctx?.getContextUsage() };
+  totalsCache = { key, value };
+  return value;
+}
+
 export default function llamaDx(pi: ExtensionAPI) {
   const mount = (ctx: ExtensionContext) =>
-    ctx.ui.setWidget(WIDGET_KEY, (_tui: TUI, theme: Theme) => ((tui = _tui), new DxBar(theme)), { placement: "belowEditor" });
+    ctx.ui.setFooter((_tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => ((tui = _tui), new DxFooter(theme, footerData)));
 
   pi.on("session_start", (_event, ctx) => {
     resetAll();
@@ -540,12 +764,14 @@ export default function llamaDx(pi: ExtensionAPI) {
   pi.on("model_select", (_event, ctx) => {
     resetAll();
     trackModel(ctx);
+    paint(false);
   });
 
   pi.on("before_provider_request", async (event, ctx) => {
     const payload = event.payload as Record<string, unknown>;
     const root = serverRoot(ctx.model as { baseUrl?: string } | undefined);
     if (!root) return undefined;
+    ctxRef = ctx;
     // A tool call that finished faster than the idle detection still belongs to the session totals.
     if (req && !req.counted) {
       req.ended ??= Date.now();
@@ -571,7 +797,6 @@ export default function llamaDx(pi: ExtensionAPI) {
     req.shownPp = estimatePrefill(key, req.nCtx);
     req.shownTg = estimateDecode(key);
     stopPolling();
-    if (ctx.mode === "tui") mount(ctx);
     if (!isLlama(root)) return undefined;
     void scrapeMetrics(req); // learns whether this server has --metrics at all
     pollTimer = setInterval(() => void poll(), POLL_MS);
@@ -607,84 +832,53 @@ export default function llamaDx(pi: ExtensionAPI) {
   pi.on("session_shutdown", (_event, ctx) => {
     stopPolling();
     req = undefined;
-    ctx.ui.setWidget(WIDGET_KEY, undefined);
+    ctx.ui.setFooter(undefined);
   });
 
   pi.registerCommand("llama-dx", {
-    description: "Toggle llama.cpp diagnostics below the editor (/llama-dx detail|freeze|reset)",
+    description: "Toggle llama.cpp diagnostics in the footer (/llama-dx compact|detail|freeze|reset)",
     handler: async (args, ctx) => {
       const what = args.trim();
-      if (what === "detail") detailed = !detailed;
+      if (what === "compact") compact = !compact;
+      else if (what === "detail") detailed = !detailed;
       else if (what === "reset") resetAll();
       else freeze = !freeze;
-      mount(ctx);
-      ctx.ui.notify(`llama-dx: freeze=${freeze ? "on" : "off"}, detail=${detailed ? "on" : "off"}`, "info");
+      ctx.ui.notify(`llama-dx: freeze=${freeze ? "on" : "off"}, compact=${compact ? "on" : "off"}, detail=${detailed ? "on" : "off"}`, "info");
       tui?.requestRender();
     },
   });
 
-  class DxBar implements Component {
-    constructor(private theme: Theme) {}
+  /**
+   * pi's footer, with llama.cpp in it: where pi is and what it is on, what it is doing with the current request,
+   * and what the session has cost. pi's own numbers are kept and llama.cpp's do not repeat them.
+   */
+  class DxFooter implements Component {
+    private readonly stopBranchChange: () => void;
+
+    constructor(private readonly theme: Theme, private readonly footerData: ReadonlyFooterDataProvider) {
+      this.stopBranchChange = footerData.onBranchChange(() => paint(false));
+    }
 
     render(width: number): string[] {
-      const root = req?.root ?? last?.root ?? model.root;
-      if (!root || llamaRoots.get(root) === false) return [];
-      if (!req && !freeze) return [];
-      const r = req ?? last;
-      const phase = phaseOf();
-      const running = req !== undefined && req.ended === undefined;
-      const n: Nums = r ? numbers(r) : { estimated: false, ppEstimated: true, tgEstimated: true, nCtx: model.nCtx };
-      // The progress row tells what this request itself has done, so it is taken before the held numbers go in.
-      const progress = r && { done: doneOf(r, n), fraction: progressOf(r, n), eta: etaOf(r, n) };
-      if (req?.ended === undefined) hold(n);
-      const tone = (live: boolean): ThemeColor => (live ? "accent" : "dim");
+      const c = current();
+      // With freeze off, what llama.cpp had to say is cleared once its request ends; where pi is and what it has
+      // cost stay, because those are pi's own numbers and not llama.cpp's.
+      const shown = c !== undefined && (req !== undefined || freeze);
+      const cells: Cell[] = [...identity(this.footerData)];
+      if (c && shown) cells.push(...speeds(c), ...tokens(c), ...progressCells(c));
+      cells.push(ctxCell(shown ? c : undefined), ...sessionCells());
+      if (c && shown) cells.push(...serverState(c), ...(detailed ? detailCells(c) : []));
+      const lines = pack(cells, width).map((row) => draw(row, width, this.theme));
+      // The last line hugs the right edge, so the footer reads as a filled block with the short line inside it
+      // rather than as text that ran out halfway across the screen.
+      const last = lines.length - 1;
+      if (last > 0) lines[last] = `${" ".repeat(Math.max(0, width - visibleWidth(lines[last]!)))}${lines[last]!}`;
+      const status = statuses(this.footerData, width, this.theme);
+      return status === undefined ? lines : [...lines, status];
+    }
 
-      const rows: Cell[][] = [
-        [
-          [(r?.instance ?? model.id).slice(0, 14).padEnd(14), "muted"],
-          [`pp ${n.ppEstimated ? "~" : " "}${num(n.pp, 5)} t/s`, tone(running && phase === "prefill" && !n.ppEstimated)],
-          [`tg ${n.tgEstimated ? "~" : " "}${num(n.tg, 5)} t/s`, tone(running && phase === "decode" && !n.tgEstimated)],
-          [`spec ${word(n.spec ? `${Math.round(((n.spec[0] / n.spec[1]) * 100) | 0)}%` : undefined, 4)} ${n.spec ? `${n.spec[0]}/${n.spec[1]}`.padStart(9) : "—".padStart(9)}`, "muted"],
-          [`ttft ${word(n.ttft === undefined ? undefined : fmtMs(n.ttft), 6)}`, "muted"],
-        ],
-        [
-          [`prompt${n.estimated ? " ~" : "  "}${num(n.prompt, 6)}`, "text"],
-          [`eval ${num(n.evalToks, 6)}`, "muted"],
-          [`reuse ${num(n.reuse, 6)}`, "muted"],
-          [`out ${num(n.out, 6)}`, tone(running && phase === "decode")],
-          [`ctx ${num(ctxUsed(n), 6)}/${num(n.nCtx, 6)} ${word(n.nCtx ? `${Math.round(((ctxUsed(n) / n.nCtx) * 100) | 0)}%` : undefined, 4)}`, "muted"],
-        ],
-        [
-          [bar(progress?.fraction ?? 0), phase === "prefill" ? "warning" : "dim"],
-          [`${num(progress?.done ?? 0, 6)}${n.estimated ? "/~" : "/ "}${num(n.prompt, 6)}`, "muted"],
-          [word(progress?.eta ?? "—", 7), "muted"],
-          [`session ${word(String(sess.reqs), 3)} req ${num(sess.prompt, 6)} in ${num(sess.out, 6)} out ${num(sess.reuse, 6)} reused`, "dim"],
-        ],
-      ];
-
-      // Server-wide state, shown only for a server that answers /metrics; nothing else on it is per request.
-      if (r && metricsSupport.get(keyOf(r)) === true) {
-        const m = r.metrics ?? metricsShown.get(keyOf(r));
-        const accept = m?.accepted !== undefined && m.drafted ? `${Math.round((m.accepted / m.drafted) * 100)}%`.padStart(4) : "   —";
-        rows.push([
-          [`queue ${num(m?.deferred, 3)}`, m?.deferred ? "warning" : "muted"],
-          [`in flight ${num(m?.processing, 2)}/${Math.max(r.slots, 1)}`, "muted"],
-          [`busy/dec ${word(m?.busy === undefined ? undefined : m.busy.toFixed(2), 4)}`, "muted"],
-          [`spec life ${accept} ${num(m?.accepted, 5)}/${num(m?.drafted, 5)}`, "muted"],
-        ]);
-      }
-
-      if (detailed && r) {
-        rows.push([
-          [`host ${root.replace(/^https?:\/\//, "")}`, "muted"],
-          [`slot ${r?.slotId ?? "—"}/${Math.max(r.slots, 1)}`, "muted"],
-          [`n_tokens_max ${num(r.metrics?.nmax, 6)}`, "muted"],
-          [`${charsPerToken.toFixed(2)} ch/tok`, "muted"],
-          [r.timings ? "timings: exact" : "timings: estimated", "muted"],
-        ]);
-      }
-
-      return rows.map((cells) => clip(cells, width, this.theme));
+    dispose(): void {
+      this.stopBranchChange();
     }
 
     invalidate(): void {}
