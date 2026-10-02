@@ -13,12 +13,15 @@
     environment.PI_WEBFETCH_BIN.value = "${pkgs.agent-browser}/bin/agent-browser";
     # SearXNG is served by fwpc, so the extension's 127.0.0.1:7777 default never connects from other hosts.
     environment.SEARXNG_URL.value = "http://steelph0enix.framework:7777";
+    # llama-compat auto-detects llama-named providers; these routers are qwen-named, so they are listed.
+    environment.LLAMA_COMPAT_URLS.value = "http://steelph0enix.framework:33333,http://steelph0enix.pc:51536";
 
     # Handed to pi as CLI flags on every run instead of being placed in the agent dir.
     rules = ./APPEND_SYSTEM.md;
     extensions = [
       ./extensions/searxng.ts
       ./extensions/webfetch.ts
+      ./extensions/llama-compat/index.ts
     ];
     # No theme here: Noctalia's community `pi-agent` template (hyprland/noctalia.nix) writes
     # ~/.pi/agent/themes/noctalia.json from the live palette. Passing a copy via `themes` would
