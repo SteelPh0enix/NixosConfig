@@ -204,7 +204,9 @@ export default function (pi: ExtensionAPI) {
         if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
           throw new Error(`SearXNG request timed out after ${TIMEOUT_MS / 1000}s: ${base}`);
         }
-        throw err instanceof Error ? err : new Error(String(err));
+        // A failed connection is reported by fetch as "fetch failed", which hides which host was tried.
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new Error(`Could not reach SearXNG at ${base}: ${reason}. Set SEARXNG_URL to the instance URL.`);
       } finally {
         linked.cleanup();
       }
