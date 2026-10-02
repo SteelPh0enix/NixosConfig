@@ -1,19 +1,310 @@
-import type {
-  ContextUsage,
-  ExtensionAPI,
-  ExtensionContext,
-  ReadonlyFooterDataProvider,
-  Theme,
-  ThemeColor,
-} from "@earendil-works/pi-coding-agent";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+// llama.cpp's diagnostics as pi's footer. Two lines: the metrics line on top, and below it the working directory,
+// the model, and between them a context bar filling whatever room is left — KV held, tokens landing right now,
+// room left. Groups on the metrics line drop from the right as the terminal narrows, so nothing is ever
+// compressed; only the width decides what is there, never the state of the request.
+//
+// The layout (everything between "LAYOUT" and "STATE") imports nothing at runtime — colours are named tones and
+// widths are measured here — so preview.mjs can render it under plain node.
+
+import type { ExtensionAPI, ExtensionContext, ReadonlyFooterDataProvider, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
 
-// llama.cpp's numbers, merged into pi's footer: where pi is and what it is on, this request's speeds and token
-// counts, its prompt progress, what the session cost and the server's own state. The cells fill the lines in a
-// fixed order, so it is two lines on a wide terminal and grows towards more as the terminal narrows.
-// Cell order and widths never change: a speed is held while its phase stalls and the previous request's numbers are
-// kept until this one measures its own, so cells never blink to 0 between prefill, generation and the next request.
+// ------------------------------------------------------------------ layout
+
+export type Tone = "label" | "value" | "live" | "dim" | "warn" | "error" | "separator" | "ident" | "model" | "number" | "percent" | "used" | "flight" | "free" | "none";
+export type Segment = { text: string; tone: Tone };
+export type Cell = Segment[];
+export type Group = { name: string; cells: Cell[] };
+
+const GAP = "  ";
+const SEP = "  │  ";
+const GUTTER = "  ";
+
+/** Block Elements only: ▰▱ and friends are missing from Berkeley Mono and fall back to another font mid-bar. */
+const EIGHTHS = ["▏", "▎", "▍", "▌", "▋", "▊", "▉"];
+
+const clamp = (v: number, min = 0, max = 1): number => Math.min(max, Math.max(min, v));
+
+export const short = (n: number): string =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n));
+
+export const full = (n: number | null | undefined): string =>
+  n === undefined || n === null || !Number.isFinite(n) ? "—" : Math.round(n).toLocaleString("en-US");
+
+/** Three significant digits in a field that never changes width: `0.02%` `1.22%` `12.3%` `100%`. */
+export const percent = (used: number, total: number): string => {
+  if (!(total > 0)) return "—";
+  const p = (used / total) * 100;
+  return p >= 100 ? "100%" : p >= 10 ? `${p.toFixed(1)}%` : `${p.toFixed(2)}%`;
+};
+
+/** pi's own compaction thresholds, shared by the percent text and the bar's used zone. */
+export type Load = "normal" | "warn" | "error";
+export const load = (used: number, total: number): Load => {
+  const p = total > 0 ? (used / total) * 100 : 0;
+  return p > 90 ? "error" : p > 70 ? "warn" : "normal";
+};
+
+const ZONE: Record<Load, { used: Tone; percent: Tone }> = {
+  normal: { used: "used", percent: "percent" },
+  warn: { used: "warn", percent: "warn" },
+  error: { used: "error", percent: "error" },
+};
+
+export const fmtMs = (ms: number): string => (ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`);
+
+type Style = { estimated?: boolean; live?: boolean; tone?: Tone };
+
+const lab = (t: string): Segment => ({ text: t, tone: "label" });
+
+const str = (t: string, s: Style = {}): Segment => ({ text: t, tone: s.estimated ? "warn" : s.live ? "live" : (s.tone ?? "value") });
+
+/** Right-align, but keep an unknown value short: `—`, not five spaces and a dash. */
+const pad = (s: string, width: number): string => (s === "—" ? " —" : s.padStart(width));
+
+const num = (v: number | undefined, width: number, s: Style = {}): Segment => {
+  const body = v === undefined || !Number.isFinite(v) ? "—" : short(v);
+  if (body === "—") return str(" —", s); // nothing to mark as estimated
+  return str(s.estimated ? `~${body}`.padStart(width) : pad(body, width), s);
+};
+
+/**
+ * The context bar: KV already held, the tokens landing right now, and the room left. Both edges round to 1/8 of a
+ * cell, so a prompt creeping through prefill visibly creeps instead of jumping whole cells.
+ */
+export function contextBar(cells: number, used: number, flight: number, total: number, l: Load = "normal"): Segment[] {
+  const n = Math.max(1, Math.round(cells));
+  const tones = { used: ZONE[l].used, flight: "flight" as Tone, free: "free" as Tone };
+  const eighth = (v: number) => EIGHTHS[clamp(Math.round(v * 8) - 1, 0, EIGHTHS.length - 1)];
+  const out: Segment[] = [];
+  const put = (glyph: string, tone: Tone) => {
+    const last = out[out.length - 1];
+    if (last && last.tone === tone) last.text += glyph;
+    else out.push({ text: glyph, tone });
+  };
+  const end = (v: number) => (total > 0 ? clamp(v / total) : 0);
+  const usedAt = end(used);
+  const flightAt = end(used + Math.max(0, flight));
+  for (let i = 0; i < n; i++) {
+    const u = (usedAt - i / n) * n;
+    const f = (flightAt - i / n) * n;
+    if (u >= 1) put("█", tones.used);
+    else if (u > 0) put(eighth(u), tones.used);
+    else if (f >= 1) put("▓", tones.flight);
+    else if (f > 0) put(eighth(f), tones.flight);
+    else put("░", tones.free);
+  }
+  return out;
+}
+
+/** Everything the metrics line can show; absent fields render as `—`, absent groups are left out. */
+export type Facts = {
+  live?: "prefill" | "decode" | "idle" | "done";
+  pp?: number;
+  ppEstimated?: boolean;
+  tg?: number;
+  tgEstimated?: boolean;
+  prompt?: number;
+  promptEstimated?: boolean;
+  eval?: number;
+  reuse?: number;
+  out?: number;
+  reqs?: number;
+  sessionIn?: number;
+  sessionOut?: number;
+  cacheRead?: number;
+  queue?: number;
+  processing?: number;
+  slots?: number;
+  busy?: number;
+  specAccepted?: number;
+  specDrafted?: number;
+  specLifeAccepted?: number;
+  specLifeDrafted?: number;
+  ttft?: number;
+  host?: string;
+  slotId?: number;
+  nTokensMax?: number;
+  charsPerToken?: number;
+  exactTimings?: boolean;
+};
+
+const rate = (accepted?: number, drafted?: number): string => (drafted ? `${Math.round(((accepted ?? 0) / drafted) * 100)}%` : "—");
+const pair = (a?: number, b?: number): string => (a === undefined || b === undefined ? "—" : `${a}/${b}`);
+const quiet = (s: string): Segment => str(s, { tone: "dim" });
+
+/**
+ * The metric cells, most important group first: what the machine is doing, what this request is made of, what the
+ * session has cost, what else is on the server, speculation, latency, and the gory detail.
+ */
+export function metricGroups(f: Facts): Group[] {
+  const groups: Group[] = [
+    {
+      name: "throughput",
+      cells: [[lab("pp"), num(f.pp, 5, { estimated: f.ppEstimated, live: f.live === "prefill" }), lab(" tg"), num(f.tg, 4, { estimated: f.tgEstimated, live: f.live === "decode" }), lab(" t/s")]],
+    },
+    {
+      name: "this request",
+      cells: [
+        [lab("fp"), num(f.prompt, 6, { estimated: f.promptEstimated })],
+        [lab("ev"), num(f.eval, 6, { live: f.live === "prefill" })],
+        [lab("re"), num(f.reuse, 6)],
+        [lab("out"), num(f.out, 5, { live: f.live === "decode" })],
+      ],
+    },
+    {
+      name: "session",
+      cells: [
+        [lab("#"), quiet(String(f.reqs ?? 0))],
+        [lab("↑"), quiet(f.sessionIn === undefined ? "—" : short(f.sessionIn))],
+        [lab("↓"), quiet(f.sessionOut === undefined ? "—" : short(f.sessionOut))],
+        [lab("R"), quiet(f.cacheRead === undefined ? "—" : short(f.cacheRead))],
+      ],
+    },
+  ];
+  if (f.queue !== undefined || f.processing !== undefined || f.busy !== undefined) {
+    groups.push({
+      name: "server",
+      cells: [
+        [lab("q"), { text: String(f.queue ?? "—").padStart(2), tone: f.queue ? "warn" : "dim" }],
+        [lab("fl"), quiet(pad(pair(f.processing, Math.max(f.slots ?? 1, 1)), 5))],
+        [lab("bd"), quiet(pad(f.busy === undefined ? "—" : f.busy.toFixed(2), 5))],
+      ],
+    });
+  }
+  if (f.specDrafted !== undefined || f.specLifeDrafted !== undefined) {
+    groups.push({
+      name: "speculation",
+      cells: [[lab("sc"), str(pad(rate(f.specAccepted, f.specDrafted), 4)), quiet(" "), quiet(pad(pair(f.specAccepted, f.specDrafted), 9))], [lab("st"), quiet(pad(rate(f.specLifeAccepted, f.specLifeDrafted), 4))]],
+    });
+  }
+  groups.push({ name: "latency", cells: [[lab("tt"), str(pad(f.ttft === undefined ? "—" : fmtMs(f.ttft), 7))]] });
+  if (f.host !== undefined) {
+    groups.push({
+      name: "detail",
+      cells: [
+        [lab("@"), quiet(f.host ?? "—")],
+        [lab("#"), quiet(pad(pair(f.slotId, f.slots), 4))],
+        [lab("max"), num(f.nTokensMax, 6)],
+        [quiet(`${(f.charsPerToken ?? 0).toFixed(1)}c/t`)],
+        [lab(f.exactTimings ? "exact" : "fitted")],
+      ],
+    });
+  }
+  return groups.filter((g) => g.cells.length > 0);
+}
+
+const cellWidth = (cell: Cell): number => cell.reduce((w, s) => w + s.text.length, 0);
+const groupWidth = (g: Group): number => g.cells.reduce((w, c) => w + cellWidth(c), GAP.length * (g.cells.length - 1));
+
+/** Whole groups in priority order until the width runs out, so cells keep their columns and never dance. */
+export function metricsLine(groups: Group[], width: number): Segment[] {
+  const kept: Group[] = [];
+  let taken = 0;
+  for (const g of groups) {
+    const cost = groupWidth(g) + (kept.length ? SEP.length : 0);
+    if (taken + cost > width) break;
+    taken += cost;
+    kept.push(g);
+  }
+  const out: Segment[] = [];
+  kept.forEach((g, i) => {
+    if (i > 0) out.push({ text: SEP, tone: "separator" });
+    g.cells.forEach((cell, j) => {
+      if (j > 0) out.push({ text: GAP, tone: "none" });
+      out.push(...cell);
+    });
+  });
+  return out;
+}
+
+export type BaseLineInput = {
+  width: number;
+  cwd: string;
+  branch?: string | null;
+  model?: string;
+  thinking?: string | null;
+  used: number | null;
+  flight?: number;
+  total: number;
+  minBar?: number;
+};
+
+/**
+ * The bottom line: path and branch on the left, model and thinking on the right, and between them the tokens held,
+ * their percent and the context bar, which takes every column the others leave. Identity gives way before the bar
+ * does: the thinking level first, then the ends of both names, then the percent, then the model.
+ */
+export function baseLine(i: BaseLineInput): Segment[] {
+  const minBar = i.minBar ?? 10;
+  const leftRaw = i.branch ? `${i.cwd} (${i.branch})` : i.cwd;
+  const model = i.model ?? "no-model";
+  const rightFull = i.thinking ? `${model} • ${i.thinking}` : model;
+  const rightShort = i.thinking ? model : rightFull;
+  const usedTxt = full(i.used);
+  const totalTxt = full(i.total);
+  const known = typeof i.used === "number";
+  const pctTxt = i.used === null || i.used === undefined ? "" : percent(i.used, i.total);
+  const l = load(i.used ?? 0, i.total);
+
+  let leftW = Math.min(cols(leftRaw), Math.max(8, Math.floor(i.width * 0.3)));
+  let rightRaw = rightFull;
+  let rightW = Math.min(cols(rightFull), Math.max(8, Math.floor(i.width * 0.22)));
+  let showPercent = known;
+  let showRight = true;
+
+  const barCells = () => {
+    const blocks = [leftW, usedTxt.length + (showPercent ? 1 + pctTxt.length : 0), totalTxt.length, showRight ? rightW : 0];
+    return i.width - blocks.reduce((a, b) => a + b, 0) - GUTTER.length * blocks.filter((b) => b > 0).length;
+  };
+
+  for (let guard = 0; guard < 12 && barCells() < minBar; guard++) {
+    if (showRight && rightRaw !== rightShort && rightW >= cols(rightShort)) {
+      rightRaw = rightShort;
+      rightW = cols(rightShort);
+    } else if (leftW > 8) leftW = Math.max(8, leftW - 6);
+    else if (showRight && rightW > 8) rightW = Math.max(8, rightW - 6);
+    else if (showPercent) showPercent = false;
+    else if (showRight) {
+      showRight = false;
+      rightW = 0;
+    } else break;
+  }
+
+  const out: Segment[] = [];
+  const emit = (s: string, tone: Tone) => {
+    if (s.length > 0) out.push({ text: s, tone });
+  };
+  emit(cut(leftRaw, leftW), "ident");
+  emit(GUTTER, "none");
+  emit(usedTxt, "number");
+  if (showPercent) {
+    emit(" ", "none");
+    emit(pctTxt, ZONE[l].percent);
+  }
+  emit(GUTTER, "none");
+  out.push(...contextBar(Math.max(1, barCells()), i.used ?? 0, i.flight ?? 0, i.total, l));
+  emit(GUTTER, "none");
+  emit(totalTxt, "number");
+  if (showRight) {
+    emit(GUTTER, "none");
+    emit(cut(rightRaw, rightW), "model");
+  }
+  return out;
+}
+
+/** Plain text of a composed line, for padding, tests and the preview. */
+export const flatten = (segments: Segment[]): string => segments.reduce((s, x) => s + x.text, "");
+
+/**
+ * Column count and truncation of plain text. Codepoints rather than pi's `visibleWidth`, because only this file's
+ * own strings reach it — the colours are applied afterwards — and the two strings that can hold wide characters
+ * (a path and a model id) are the ones being cut here, where losing a column or two beats pulling in a dependency.
+ */
+const cols = (s: string): number => [...s].length;
+const cut = (s: string, w: number): string => (cols(s) <= w ? s : `${[...s].slice(0, Math.max(0, w - 1)).join("")}…`);
+
+// ------------------------------------------------------------------ state
 
 const POLL_MS = 250;
 /** /metrics is scraped less often than /slots: it posts a task to the server queue and answers ~2.5 kB. */
@@ -25,10 +316,12 @@ const MIN_SPAN_MS = 1200;
 const BLEND = 0.4;
 /** Repaint at most this often: `timings_per_token` means one stream event per generated token. */
 const RENDER_MIN_MS = 200;
-
 const PROBE_TIMEOUT_MS = 1500;
-const BAR = 12;
-const GAP = "  ";
+/** How many recent measurements an estimate is built from; lives only for this session and model. */
+const HISTORY = 10;
+/** Below these measured amounts the server's own speed is noise rather than a signal. */
+const TRUST_PP = 200;
+const TRUST_TG = 16;
 
 type Slot = {
   id?: number;
@@ -64,13 +357,13 @@ type Req = {
   slotId?: number;
   processing: boolean;
   started: number;
-  /** What the speed cells show: the live rate, smoothed, held while its phase has nothing new. */
+  /** What pi called the context when this request went out: the bar's used zone, without what is landing now. */
+  base: number | null;
   shownPp?: number;
   shownTg?: number;
   firstToken?: number;
   ended?: number;
   timings?: Timings;
-  /** Server-wide gauges from /metrics; absent when the server was started without --metrics. */
   metrics?: Metrics;
   metricsAt?: number;
   counted: boolean;
@@ -104,24 +397,12 @@ type Nums = {
 
 const debug = process.env.LLAMA_DX_DEBUG === "1" ? (m: string) => process.stderr.write(`llama-dx: ${m}\n`) : () => void 0;
 
-const kfmt = (n: number): string =>
-  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n));
-
-const fmtMs = (ms: number): string => (ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`);
-
-const num = (v: number | undefined, w: number): string => (v === undefined || !Number.isFinite(v) ? "—" : kfmt(v)).padStart(w);
-
-const word = (v: string | undefined, w: number): string => (v ?? "—").padStart(w);
-
 let req: Req | undefined;
 let last: Req | undefined;
 /** Requests llama.cpp has served in this session; pi's own usage entries carry the token totals. */
 const sess = { reqs: 0 };
 let samples: { t: number; processed: number; decoded: number }[] = [];
 let charsPerToken = 3.6;
-let detailed = false;
-let compact = false;
-let freeze = true;
 let idlePolls = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let tui: TUI | undefined;
@@ -147,7 +428,19 @@ function serverRoot(m: { baseUrl?: string } | undefined): string | undefined {
   }
 }
 
-/** One /props per server, off the request path: it decides polling, timings injection and visibility. */
+/** Which machine this is, short enough for a detail cell: `pc:51536`, `local:33333`. */
+const shortHost = (root: string): string => {
+  try {
+    const url = new URL(root);
+    const loopback = ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(url.hostname);
+    const name = loopback ? "local" : (url.hostname.split(".").at(-1) ?? url.hostname);
+    return url.port ? `${name}:${url.port}` : name;
+  } catch {
+    return root;
+  }
+};
+
+/** One /props per server, off the request path: it decides polling, timings injection and whether to take the footer at all. */
 function probeRoot(root: string): void {
   if (llamaRoots.has(root) || probing.has(root)) return;
   probing.add(root);
@@ -162,10 +455,12 @@ function probeRoot(root: string): void {
       llamaRoots.set(root, answer);
       probing.delete(root);
       debug(`${root}: llama.cpp=${answer}`);
+      if (ctxRef) syncFooter(ctxRef); // a server that turns out not to be llama.cpp gets pi's footer back
+      else paint(false);
     });
 }
 
-const isLlama = (root: string): boolean => llamaRoots.get(root) ?? true;
+const isLlama = (root: string | undefined): boolean => (root === undefined ? false : llamaRoots.get(root) ?? true);
 
 function trackModel(ctx: ExtensionContext): void {
   ctxRef = ctx;
@@ -187,7 +482,7 @@ async function fetchSlots(root: string, instance: string): Promise<Slot[] | unde
   }
 }
 
-/** Optional per-instance metrics; `"off"` means this server has no /metrics endpoint at all. */
+/** Optional per-instance metrics; `false` means this server has no /metrics endpoint at all. */
 const metricsSupport = new Map<string, boolean>();
 
 function parseMetrics(text: string): Metrics {
@@ -285,13 +580,6 @@ const blend = (fresh: number, shown: number | undefined): number | undefined =>
       : fresh;
 
 type PrefillSample = { ctx: number; tps: number };
-
-/** How many recent measurements an estimate is built from; lives only for this session and model. */
-const HISTORY = 10;
-
-/** Below these measured amounts the server's own speed is noise rather than a signal. */
-const TRUST_PP = 200;
-const TRUST_TG = 16;
 
 /**
  * Measured speeds per server+instance. Both are properties of the machine, so a request that cannot measure
@@ -444,7 +732,8 @@ async function pollOnce(): Promise<void> {
 
   r.processed = Math.max(r.processed, processed);
   r.decoded = Math.max(r.decoded, decoded);
-  r.seenPrompt = Math.max(r.seenPrompt, slot.n_prompt_tokens ?? 0);
+  // /slots counts the whole KV slot, generation included, so the prompt size is what is left after subtracting.
+  r.seenPrompt = Math.max(r.seenPrompt, (slot.n_prompt_tokens ?? 0) - decoded);
   r.cached = Math.max(r.cached, slot.n_prompt_tokens_cache ?? 0);
   r.nCtx = slot.n_ctx ?? r.nCtx;
   r.slots = slots.length;
@@ -484,242 +773,16 @@ function stopPolling(): void {
   idlePolls = 0;
 }
 
-const bar = (fraction: number): string => {
-  const filled = Math.max(0, Math.min(BAR, Math.round(fraction * BAR)));
-  return "▰".repeat(filled) + "▱".repeat(BAR - filled);
-};
+const ctxUsed = (n: Nums): number => (n.evalToks ?? 0) + (n.reuse ?? 0) + (n.out ?? 0);
 
-const phaseOf = (): "idle" | "queued" | "prefill" | "decode" | "done" => {
+const phaseOf = (): "idle" | "prefill" | "decode" | "done" => {
   const r = req;
   if (!r) return last ? "done" : "idle";
   if (r.ended !== undefined) return "done";
-  if (r.decoded > 0 || (r.timings?.predicted_n ?? 0) > 0) return "decode";
-  return r.processing || idlePolls < 2 ? "prefill" : "queued";
+  return r.decoded > 0 || (r.timings?.predicted_n ?? 0) > 0 ? "decode" : "prefill";
 };
 
-/** Seconds left of prompt processing; "cached" when there is essentially nothing to evaluate. */
-function etaOf(r: Req, n: Nums): string {
-  const reuse = n.reuse ?? 0;
-  if ((n.prompt ?? 0) - reuse < 200) return "cached";
-  if (r.ended !== undefined) return "done";
-  const rate = n.pp ?? 0;
-  const left = Math.max(0, (n.prompt ?? 0) - (r.processed + reuse));
-  if (rate < 1) return "…";
-  return `~${Math.min(999, Math.max(1, Math.round(left / rate)))}s`;
-}
-
-type Cell = [text: string, tone: ThemeColor];
-
-const ctxUsed = (n: Nums): number => (n.evalToks ?? 0) + (n.reuse ?? 0) + (n.out ?? 0);
-
-const doneOf = (r: Req | undefined, n: Nums): number => Math.min(n.prompt ?? 0, (r?.processed ?? 0) + (n.reuse ?? 0));
-
-const progressOf = (r: Req | undefined, n: Nums): number => {
-  const total = n.prompt ?? 0;
-  if (total <= 0) return 0;
-  if (r?.ended !== undefined) return 1;
-  return Math.min(0.99, doneOf(r, n) / total);
-};
-
-const widthOf = (cells: Cell[]): number => Math.max(0, cells.reduce((w, c) => w + c[0].length + GAP.length, 0) - GAP.length);
-
-/** Draw cells in fixed columns, dropping only what no longer fits. */
-function draw(cells: Cell[], width: number, theme: Theme): string {
-  const line = (items: Cell[]): string => items.map((c) => theme.fg(c[1], c[0])).join(GAP);
-  if (widthOf(cells) <= width) return line(cells);
-  const kept: Cell[] = [];
-  let room = width;
-  for (const cell of cells) {
-    if (cell[0].length > room) break;
-    kept.push(cell);
-    room -= cell[0].length + GAP.length;
-  }
-  return line(kept);
-}
-
-/**
- * The footer's lines, as few as the width allows: each line takes as many cells as fit, in order. Only the width
- * decides where a cell lands, so the lines never rearrange while a request runs.
- */
-function pack(cells: Cell[], width: number): Cell[][] {
-  const lines: Cell[][] = [];
-  let line: Cell[] = [];
-  for (const cell of cells) {
-    if (line.length > 0 && widthOf(line) + GAP.length + cell[0].length > width) {
-      lines.push(line);
-      line = [];
-    }
-    line.push(cell);
-  }
-  if (line.length > 0) lines.push(line);
-  return lines;
-}
-
-const tone = (live: boolean): ThemeColor => (live ? "accent" : "dim");
-
-/**
- * What a number is, in as few characters as it takes: compact mode keeps the short keys and drops the words, the
- * units and the padding that lines the columns up.
- */
-const K = {
-  unit: () => (compact ? "" : " t/s"),
-  spec: () => (compact ? "sp" : "spec"),
-  ttft: () => (compact ? "tt" : "ttft"),
-  prompt: () => (compact ? "pr" : "prompt"),
-  eval: () => (compact ? "ev" : "eval"),
-  reuse: () => (compact ? "rs" : "reuse"),
-  ctx: () => (compact ? "cx" : "ctx"),
-  queue: () => (compact ? "q" : "queue"),
-  flight: () => (compact ? "fl" : "in flight"),
-  busy: () => (compact ? "bd" : "busy/dec"),
-  specLife: () => (compact ? "sl" : "spec life"),
-  host: () => (compact ? "@" : "host"),
-  slot: () => (compact ? "#" : "slot"),
-  nmax: () => (compact ? "max" : "n_tokens_max"),
-  timings: (exact: boolean) => (compact ? (exact ? "exact" : "fitted") : `timings: ${exact ? "exact" : "estimated"}`),
-  /** The `~` that marks "not llama.cpp's own number", inline with the value instead of in front of it. */
-  mark: (estimated: boolean): string => (compact ? (estimated ? "~" : "") : estimated ? " ~" : "  "),
-  /** A value's column: roomy normally, one character less wherever compact mode can spare it. */
-  w: (roomy: number, tight: number): number => (compact ? tight : roomy),
-};
-
-type Current = {
-  root: string;
-  req: Req | undefined;
-  n: Nums;
-  phase: ReturnType<typeof phaseOf>;
-  running: boolean;
-  progress: { done: number; fraction: number; eta: string } | undefined;
-};
-
-/**
- * The request llama.cpp is working on, or the last one it finished; nothing when pi is not on a llama.cpp model.
- * The numbers are the running request's own, with the previous one's holding the holes until it measures them.
- */
-function current(): Current | undefined {
-  const root = req?.root ?? last?.root ?? model.root;
-  if (!root || llamaRoots.get(root) === false) return undefined;
-  const r = req ?? last;
-  const n: Nums = r ? numbers(r) : { estimated: false, ppEstimated: true, tgEstimated: true, nCtx: model.nCtx };
-  // The progress cells tell what this request itself has done, so they are read before the held numbers go in.
-  const progress = r ? { done: doneOf(r, n), fraction: progressOf(r, n), eta: etaOf(r, n) } : undefined;
-  if (req?.ended === undefined) hold(n);
-  return { root, req: r, n, progress, phase: phaseOf(), running: req !== undefined && req.ended === undefined };
-}
-
-/** Speculative decoding: how much of what the draft offered got used. */
-const specRate = (n: Nums): string | undefined => (n.spec ? `${Math.round((n.spec[0] / n.spec[1]) * 100)}%` : undefined);
-
-const specPair = (n: Nums, w: number): string => (n.spec ? `${n.spec[0]}/${n.spec[1]}`.padStart(w) : "—".padStart(w));
-
-/** Throughput and speculation: whether the machine is doing its job. */
-function speeds(c: Current): Cell[] {
-  const { n } = c;
-  return [
-    [`pp${K.mark(n.ppEstimated)}${num(n.pp, K.w(5, 4))}${K.unit()}`, tone(c.running && c.phase === "prefill" && !n.ppEstimated)],
-    [`tg${K.mark(n.tgEstimated)}${num(n.tg, K.w(5, 4))}${K.unit()}`, tone(c.running && c.phase === "decode" && !n.tgEstimated)],
-    [`${K.spec()} ${word(specRate(n), K.w(4, 3))} ${specPair(n, K.w(9, 5))}`, "muted"],
-    [`${K.ttft()} ${word(n.ttft === undefined ? undefined : fmtMs(n.ttft), K.w(6, 5))}`, "muted"],
-  ];
-}
-
-/** What this request itself is made of. */
-function tokens(c: Current): Cell[] {
-  const { n } = c;
-  return [
-    [`${K.prompt()}${K.mark(n.estimated)}${num(n.prompt, K.w(6, 5))}`, "text"],
-    [`${K.eval()} ${num(n.evalToks, K.w(6, 5))}`, "muted"],
-    [`${K.reuse()} ${num(n.reuse, K.w(6, 5))}`, "muted"],
-    [`out ${num(n.out, K.w(6, 5))}`, tone(c.running && c.phase === "decode")],
-  ];
-}
-
-/** How far prompt processing got and what is left of it. */
-function progressCells(c: Current): Cell[] {
-  return [
-    [bar(c.progress?.fraction ?? 0), c.phase === "prefill" ? "warning" : "dim"],
-    [`${num(c.progress?.done ?? 0, K.w(6, 5))}/${c.n.estimated ? "~" : compact ? "" : " "}${num(c.n.prompt, K.w(6, 5))}`, "muted"],
-    [word(c.progress?.eta ?? "—", K.w(7, 5)), "muted"],
-  ];
-}
-
-/** Where the context stands: what the slot holds over what the server serves, or pi's own number without one. */
-function ctxCell(c: Current | undefined): Cell {
-  const usage = sessionState().context;
-  const served = c?.n.nCtx || usage?.contextWindow || 0;
-  const used = (c ? ctxUsed(c.n) : 0) || usage?.tokens || 0;
-  const pct = served > 0 && used > 0 ? (used / served) * 100 : undefined;
-  return [
-    `${K.ctx()} ${num(used || undefined, K.w(6, 5))}/${num(served || undefined, K.w(6, 5))} ${word(pct === undefined ? undefined : `${Math.round(pct)}%`, 4)}`,
-    pct !== undefined && pct > 90 ? "error" : pct !== undefined && pct > 70 ? "warning" : "muted",
-  ];
-}
-
-/** What the session has cost, summed from what pi recorded; only the request count comes from llama.cpp. */
-function sessionCells(): Cell[] {
-  const t = sessionState();
-  const cells: Cell[] = [];
-  if (sess.reqs > 0) cells.push([`req ${word(String(sess.reqs), K.w(3, 2))}`, "dim"]);
-  if (t.input > 0) cells.push([`↑${kfmt(t.input)}`, "dim"]);
-  if (t.output > 0) cells.push([`↓${kfmt(t.output)}`, "dim"]);
-  if (t.cacheRead > 0) cells.push([`R${kfmt(t.cacheRead)}`, "dim"]);
-  if (t.cacheWrite > 0) cells.push([`W${kfmt(t.cacheWrite)}`, "dim"]);
-  if (t.cost > 0) cells.push([`$${t.cost.toFixed(3)}`, "dim"]);
-  return cells;
-}
-
-/** Server-wide state, for a server that answers /metrics; nothing else on it is per request. */
-function serverState(c: Current): Cell[] {
-  if (!c.req || metricsSupport.get(keyOf(c.req)) !== true) return [];
-  const m = c.req.metrics ?? metricsShown.get(keyOf(c.req));
-  const accept = m?.accepted !== undefined && m.drafted ? `${Math.round((m.accepted / m.drafted) * 100)}%`.padStart(K.w(4, 3)) : compact ? "  —" : "   —";
-  return [
-    [`${K.queue()} ${num(m?.deferred, K.w(3, 2))}`, m?.deferred ? "warning" : "muted"],
-    [`${K.flight()} ${num(m?.processing, 2)}/${Math.max(c.req.slots, 1)}`, "muted"],
-    [`${K.busy()} ${word(m?.busy === undefined ? undefined : m.busy.toFixed(2), 4)}`, "muted"],
-    [`${K.specLife()} ${accept} ${num(m?.accepted, K.w(5, 4))}/${num(m?.drafted, K.w(5, 4))}`, "muted"],
-  ];
-}
-
-function detailCells(c: Current): Cell[] {
-  return [
-    [`${K.host()} ${c.root.replace(/^https?:\/\//, "")}`, "muted"],
-    [`${K.slot()} ${c.req?.slotId ?? "—"}/${Math.max(c.req?.slots ?? 1, 1)}`, "muted"],
-    [`${K.nmax()} ${num(c.req?.metrics?.nmax, K.w(6, 5))}`, "muted"],
-    [compact ? `${charsPerToken.toFixed(1)}c/t` : `${charsPerToken.toFixed(2)} ch/tok`, "muted"],
-    [K.timings(!!c.req?.timings), "muted"],
-  ];
-}
-
-/** pi's own shortening of a path: the home directory as ~. */
-function shortPath(path: string): string {
-  const home = process.env.HOME ?? process.env.USERPROFILE;
-  if (!home) return path;
-  if (path === home) return "~";
-  return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
-}
-
-/** Where pi is and which model it is on: what pi's own footer says that nothing here repeats. */
-function identity(footerData: ReadonlyFooterDataProvider): Cell[] {
-  const ctx = ctxRef;
-  const branch = footerData.getGitBranch();
-  const name = ctx?.sessionManager.getSessionName();
-  const path = shortPath(ctx?.sessionManager.getCwd() ?? "");
-  const level = ctx?.model?.reasoning ? ` • ${!ctx.thinkingLevel || ctx.thinkingLevel === "off" ? "thinking off" : ctx.thinkingLevel}` : "";
-  return [
-    [`${path}${branch ? ` (${branch})` : ""}${name ? ` • ${name}` : ""}`, "dim"],
-    [`${ctx?.model?.id ?? "no-model"}${level}`, "dim"],
-  ];
-}
-
-/** What other extensions set with ctx.ui.setStatus(), on a line of its own the way pi's footer puts it. */
-function statuses(footerData: ReadonlyFooterDataProvider, width: number, theme: Theme): string | undefined {
-  const texts = [...footerData.getExtensionStatuses().values()];
-  if (texts.length === 0) return undefined;
-  return truncateToWidth(texts.join(" ").replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim(), width, theme.fg("dim", "…"));
-}
-
-type Totals = { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number; context: ContextUsage | undefined };
+type Totals = { input: number; output: number; cacheRead: number; context: { tokens: number | null; contextWindow: number } | undefined };
 
 let totalsCache: { key: string; value: Totals } | undefined;
 
@@ -731,39 +794,172 @@ function sessionState(): Totals {
   const ctx = ctxRef;
   const key = `${ctx?.sessionManager.getSessionId()}/${ctx?.sessionManager.getLeafId()}/${ctx?.model?.id}`;
   if (totalsCache?.key === key) return totalsCache.value;
-  const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
-  const add = (u: { input: number; output: number; cacheRead: number; cacheWrite: number; cost?: { total?: number } } | undefined): void => {
+  const totals = { input: 0, output: 0, cacheRead: 0 };
+  const add = (u: { input: number; output: number; cacheRead: number } | undefined): void => {
     if (!u) return;
     totals.input += u.input;
     totals.output += u.output;
     totals.cacheRead += u.cacheRead;
-    totals.cacheWrite += u.cacheWrite;
-    totals.cost += u.cost?.total ?? 0;
   };
   for (const entry of ctx?.sessionManager.getEntries() ?? []) {
     if (entry.type === "usage") add(entry.usage);
     else if (entry.type === "message" && (entry.message.role === "assistant" || entry.message.role === "toolResult")) add(entry.message.usage);
     else if (entry.type === "compaction" || entry.type === "branch_summary") add(entry.usage);
   }
-  const value: Totals = { ...totals, context: ctx?.getContextUsage() };
+  const usage = ctx?.getContextUsage();
+  const value: Totals = { ...totals, context: usage ? { tokens: usage.tokens, contextWindow: usage.contextWindow } : undefined };
   totalsCache = { key, value };
   return value;
 }
 
-export default function llamaDx(pi: ExtensionAPI) {
-  const mount = (ctx: ExtensionContext) =>
-    ctx.ui.setFooter((_tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => ((tui = _tui), new DxFooter(theme, footerData)));
+/** What a number is: the running request's own numbers, with the previous request's holding the holes. */
+function view(): { facts: Facts; used: number | null; flight: number; total: number } | undefined {
+  const root = req?.root ?? last?.root ?? model.root;
+  if (!isLlama(root)) return undefined;
+  const r = req ?? last;
+  const phase = phaseOf();
+  const n: Nums = r ? numbers(r) : { estimated: false, ppEstimated: true, tgEstimated: true, nCtx: model.nCtx };
+  if (req?.ended === undefined) hold(n);
+  const session = sessionState();
+  const m = r ? (r.metrics ?? metricsShown.get(keyOf(r))) : undefined;
+  const hasMetrics = r ? metricsSupport.get(keyOf(r)) === true : false;
 
+  // The used zone is pi's own context number: the one at the moment this request went out, since everything
+  // arriving now belongs to the flight zone. Without a request it is pi's current estimate.
+  const base = req ? req.base : (session.context?.tokens ?? last?.base ?? null);
+  const facts: Facts = {
+    live: phase,
+    pp: n.pp,
+    ppEstimated: n.ppEstimated,
+    tg: n.tg,
+    tgEstimated: n.tgEstimated,
+    prompt: n.prompt,
+    promptEstimated: n.estimated,
+    eval: n.evalToks,
+    reuse: n.reuse,
+    out: n.out,
+    reqs: sess.reqs,
+    sessionIn: session.input,
+    sessionOut: session.output,
+    cacheRead: session.cacheRead,
+    specAccepted: n.spec?.[0],
+    specDrafted: n.spec?.[1],
+    ttft: n.ttft,
+    host: shortHost(root!),
+    slotId: r?.slotId,
+    slots: Math.max(r?.slots ?? 1, 1),
+    nTokensMax: m?.nmax,
+    charsPerToken,
+    exactTimings: r?.timings !== undefined,
+  };
+  if (hasMetrics) {
+    facts.queue = m?.deferred;
+    facts.processing = m?.processing;
+    facts.busy = m?.busy;
+    facts.specLifeAccepted = m?.accepted;
+    facts.specLifeDrafted = m?.drafted;
+  }
+  return { facts, used: base, flight: flight(), total: n.nCtx || session.context?.contextWindow || model.nCtx };
+}
+
+/** What is landing in the KV right now: what this request's prefill has evaluated and generation has produced. */
+function flight(): number {
+  const r = req;
+  if (r === undefined || r.ended !== undefined) return 0;
+  // Without --slots the server counters stay at 0, so the stream's own generated-token count stands in.
+  return Math.max(0, r.processed + r.decoded, r.timings?.predicted_n ?? 0);
+}
+
+const TONE: Record<Tone, ThemeColor | undefined> = {
+  label: "dim",
+  value: "text",
+  live: "accent",
+  dim: "dim",
+  warn: "warning",
+  error: "error",
+  separator: "borderMuted",
+  ident: "dim",
+  model: "muted",
+  number: "text",
+  percent: "text",
+  used: "accent",
+  flight: "success",
+  free: "borderMuted",
+  none: undefined,
+};
+
+const colorize = (segments: Segment[], theme: Theme, to?: number): string => {
+  const text = segments.map((s) => (TONE[s.tone] ? theme.fg(TONE[s.tone]!, s.text) : s.text)).join("");
+  const room = to === undefined ? 0 : to - cols(flatten(segments));
+  return room > 0 ? `${text}${" ".repeat(room)}` : text;
+};
+
+/** What other extensions set with ctx.ui.setStatus(), on a line of its own above the rest. */
+function statusLine(footerData: ReadonlyFooterDataProvider, width: number, theme: Theme): string | undefined {
+  const texts = [...footerData.getExtensionStatuses().values()];
+  if (texts.length === 0) return undefined;
+  const text = texts.join(" ").replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim();
+  return theme.fg("dim", cut(text, width));
+}
+
+/** pi's footer, with llama.cpp in it: the metrics line, and below it path, context bar and model. */
+// Plain fields rather than constructor parameter properties: the layout half of this file is imported by
+// preview.mjs under plain node, which strips types without transforming them.
+class DxFooter implements Component {
+  private theme: Theme;
+  private footerData: ReadonlyFooterDataProvider;
+  private stopBranchChange: () => void;
+
+  constructor(theme: Theme, footerData: ReadonlyFooterDataProvider) {
+    this.theme = theme;
+    this.footerData = footerData;
+    this.stopBranchChange = footerData.onBranchChange(() => paint(false));
+  }
+
+  render(width: number): string[] {
+    const lines: string[] = [];
+    const status = statusLine(this.footerData, width, this.theme);
+    if (status !== undefined) lines.push(status);
+    const v = view();
+    if (v === undefined) return [...lines, colorize(baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: ctxRef?.model?.id, thinking: thinkingOf(), used: null, total: model.nCtx }), this.theme, width)];
+    lines.push(colorize(metricsLine(metricGroups(v.facts), width), this.theme));
+    lines.push(
+      colorize(
+        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: ctxRef?.model?.id, thinking: thinkingOf(), used: v.used, flight: v.flight, total: v.total }),
+        this.theme,
+        width,
+      ),
+    );
+    return lines;
+  }
+
+  dispose(): void {
+    this.stopBranchChange();
+  }
+
+  invalidate(): void {}
+}
+
+/** Take pi's footer while the model's server answers like llama.cpp, hand it back when it does not. */
+function syncFooter(ctx: ExtensionContext): void {
+  ctxRef = ctx;
+  if (ctx.mode !== "tui") return;
+  if (isLlama(model.root)) ctx.ui.setFooter((_tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => ((tui = _tui), new DxFooter(theme, footerData)));
+  else ctx.ui.setFooter(undefined);
+}
+
+export default function llamaDx(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     resetAll();
     trackModel(ctx);
-    if (ctx.mode === "tui") mount(ctx);
+    syncFooter(ctx);
   });
 
   // A new model is a different machine: nothing measured on the old one may leak into these cells.
   pi.on("model_select", (_event, ctx) => {
     resetAll();
     trackModel(ctx);
+    syncFooter(ctx);
     paint(false);
   });
 
@@ -790,6 +986,7 @@ export default function llamaDx(pi: ExtensionAPI) {
       slots: 0,
       processing: false,
       started: Date.now(),
+      base: ctx.getContextUsage()?.tokens ?? null,
       counted: false,
     };
     // A new request opens at the speeds already measured on this server rather than at 0, and glides from there.
@@ -836,51 +1033,33 @@ export default function llamaDx(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("llama-dx", {
-    description: "Toggle llama.cpp diagnostics in the footer (/llama-dx compact|detail|freeze|reset)",
+    description: "llama.cpp footer: /llama-dx prints its state, /llama-dx reset zeroes the counters",
     handler: async (args, ctx) => {
-      const what = args.trim();
-      if (what === "compact") compact = !compact;
-      else if (what === "detail") detailed = !detailed;
-      else if (what === "reset") resetAll();
-      else freeze = !freeze;
-      ctx.ui.notify(`llama-dx: freeze=${freeze ? "on" : "off"}, compact=${compact ? "on" : "off"}, detail=${detailed ? "on" : "off"}`, "info");
+      if (args.trim() === "reset") {
+        resetAll();
+        ctx.ui.notify("llama-dx: request counter and speed history cleared", "info");
+      } else {
+        const v = view();
+        ctx.ui.notify(
+          v === undefined
+            ? "llama-dx: not on a llama.cpp model, pi's footer is back"
+            : `llama-dx: ${sess.reqs} requests, ${v.facts.ppEstimated ? "~" : ""}${Math.round(v.facts.pp ?? 0)} pp, ${v.facts.tgEstimated ? "~" : ""}${Math.round(v.facts.tg ?? 0)} tg t/s, host ${v.facts.host}, bar ${percent(v.used ?? 0, v.total)} of ${full(v.total)}`,
+          "info",
+        );
+      }
       tui?.requestRender();
     },
   });
-
-  /**
-   * pi's footer, with llama.cpp in it: where pi is and what it is on, what it is doing with the current request,
-   * and what the session has cost. pi's own numbers are kept and llama.cpp's do not repeat them.
-   */
-  class DxFooter implements Component {
-    private readonly stopBranchChange: () => void;
-
-    constructor(private readonly theme: Theme, private readonly footerData: ReadonlyFooterDataProvider) {
-      this.stopBranchChange = footerData.onBranchChange(() => paint(false));
-    }
-
-    render(width: number): string[] {
-      const c = current();
-      // With freeze off, what llama.cpp had to say is cleared once its request ends; where pi is and what it has
-      // cost stay, because those are pi's own numbers and not llama.cpp's.
-      const shown = c !== undefined && (req !== undefined || freeze);
-      const cells: Cell[] = [...identity(this.footerData)];
-      if (c && shown) cells.push(...speeds(c), ...tokens(c), ...progressCells(c));
-      cells.push(ctxCell(shown ? c : undefined), ...sessionCells());
-      if (c && shown) cells.push(...serverState(c), ...(detailed ? detailCells(c) : []));
-      const lines = pack(cells, width).map((row) => draw(row, width, this.theme));
-      // The last line hugs the right edge, so the footer reads as a filled block with the short line inside it
-      // rather than as text that ran out halfway across the screen.
-      const last = lines.length - 1;
-      if (last > 0) lines[last] = `${" ".repeat(Math.max(0, width - visibleWidth(lines[last]!)))}${lines[last]!}`;
-      const status = statuses(this.footerData, width, this.theme);
-      return status === undefined ? lines : [...lines, status];
-    }
-
-    dispose(): void {
-      this.stopBranchChange();
-    }
-
-    invalidate(): void {}
-  }
 }
+
+const cwdOf = (): string => {
+  const path = ctxRef?.sessionManager.getCwd() ?? process.cwd();
+  const home = process.env.HOME ?? process.env.USERPROFILE;
+  return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path;
+};
+
+const thinkingOf = (): string | null => {
+  const ctx = ctxRef;
+  if (!ctx?.model?.reasoning) return null;
+  return !ctx.thinkingLevel || ctx.thinkingLevel === "off" ? "thinking off" : ctx.thinkingLevel;
+};
