@@ -14,5 +14,6 @@
     ./fonts.nix
     ./nonfree-fonts.nix
     ./nixvim
+    ./pi
   ];
 }

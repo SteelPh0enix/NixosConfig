@@ -12,7 +12,6 @@
     ++ [
       imagemagick
       openspec
-      pi-coding-agent
       pnpm
       python314
     ];

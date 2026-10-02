@@ -47,6 +47,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # pi coding agent: pinned upstream source + committed lockfiles, so the npm build is
+    # reproducible. Installed by home-manager/pi; builds from source, as pi.cachix.org is keyed on
+    # this flake's own nixpkgs lock.
+    pi = {
+      url = "github:lukasl-dev/pi.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
     # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
     berkeleyMono = {
