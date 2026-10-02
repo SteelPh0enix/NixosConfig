@@ -22,10 +22,11 @@ and a listed server with no models at all still reports its instances. Instance 
 
 | Command | Result |
 |---|---|
-| `/llama-check` | panel above the editor: instance state plus findings (`error`/`warn`/`info`) |
-| `/llama-check framework` | only servers or models whose name contains `framework` |
-| `/llama-check block` | paste-ready `models.json` entry per server, from the served `n_ctx` and ftype |
-| `/llama-check off` | hide the panel |
+| `/llama-check` | panel above the editor: loaded instances plus `error`/`warn` findings, at most 10 lines (pi's own widget cap) |
+| `/llama-check full` | whole report - every preset, all findings with their `fix:` - in a scrollable screen (`q`/`Esc` closes, arrows and `PgUp`/`PgDn` scroll) |
+| `/llama-check framework` | only servers or models whose name contains `framework` (combines with `full`) |
+| `/llama-check block` | paste-ready `models.json` entry per server, from the served `n_ctx` and ftype, in the same screen |
+| `/llama-check off` | hide the panel (`hide` works too); `/llama-check` shows it again |
 
 The same check is a codemode tool, `llama_compat({ filter, format })`, which returns text: `summary`
 (default), `json` (caps per instance) or `block`. `PI_LLAMA_CHECK=1` runs it at session start and shows

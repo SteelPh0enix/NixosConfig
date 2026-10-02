@@ -1,5 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Model } from "@earendil-works/pi-ai";
+import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 // What a llama.cpp router answers on /props and /models; only the fields pi's models.json depends on.
@@ -88,7 +89,9 @@ type Report = { checkedAt: string; servers: Server[]; findings: Finding[] };
 
 const PROBE_TIMEOUT_MS = 5000;
 const WIDGET_KEY = "llama-compat";
-const WIDGET_MAX_LINES = 30;
+const MODES: readonly string[] = ["full", "block", "off", "hide"];
+/** pi cuts string-array widgets at 10 lines, so the panel is built to fit and points at the full view. */
+const WIDGET_MAX_LINES = 10;
 const LEVELS: Record<Level, number> = { error: 0, warn: 1, info: 2 };
 const MARKS: Record<Level, string> = { error: "x", warn: "!", info: "-" };
 
@@ -609,7 +612,16 @@ function providerNameFor(server: Server): string {
   return `${host}-${new URL(server.root).port || "80"}`;
 }
 
-function renderReport(report: Report): string[] {
+export type ReportView = {
+  /** Drop presets that are neither loaded nor failed; a router lists every preset it knows. */
+  hideIdle?: boolean;
+  /** Only error and warn findings. */
+  problemsOnly?: boolean;
+  /** Omit the "fix:" continuation lines. */
+  concise?: boolean;
+};
+
+function renderReport(report: Report, view: ReportView = {}): string[] {
   const lines: string[] = [];
   if (report.servers.length === 0) {
     return [
@@ -618,25 +630,125 @@ function renderReport(report: Report): string[] {
     ];
   }
   for (const server of report.servers) {
-    lines.push(`${new URL(server.root).host} - ${describeServer(server)}`);
-    for (const instance of server.instances) {
+    const instances = server.instances.filter(
+      (instance) => !view.hideIdle || instance.status === "loaded" || instance.status === "failed",
+    );
+    const idle = server.instances.length - instances.length;
+    lines.push(`${new URL(server.root).host} - ${describeServer(server)}${idle ? `, ${idle} not shown` : ""}`);
+    for (const instance of instances) {
       const models = server.models.filter((model) => model.instance === instance.id);
       const pinned = models.length > 0 ? `  <- ${models.map((model) => `${model.provider}/${model.id}`).join(", ")}` : "";
       lines.push(`  ${instance.status === "loaded" ? "o" : instance.status === "failed" ? "x" : "."} ${instance.id}: ${instanceSummary(instance)}${pinned}`);
       if (instance.note) lines.push(`      note: ${instance.note}`);
     }
   }
-  if (report.findings.length === 0) {
+  const findings = view.problemsOnly ? report.findings.filter((finding) => finding.level !== "info") : report.findings;
+  if (findings.length === 0) {
     lines.push("no mismatches");
     return lines;
   }
   lines.push("");
   lines.push("findings:");
-  for (const finding of report.findings) {
+  for (const finding of findings) {
     lines.push(`  ${MARKS[finding.level]} ${finding.scope} [${finding.code}] ${finding.message}`);
-    if (finding.fix) lines.push(`      fix: ${finding.fix}`);
+    if (finding.fix && !view.concise) lines.push(`      fix: ${finding.fix}`);
   }
   return lines;
+}
+
+/** Body + hint line, always inside pi's own widget line cap. */
+function widgetLines(body: string[], command: string): string[] {
+  const kept = body.slice(0, WIDGET_MAX_LINES - 1);
+  const rest = body.length - kept.length;
+  return [...kept, rest > 0 ? `... ${rest} more line(s) - ${command} full` : `${command} full | ${command} off`];
+}
+
+type Paint = {
+  heading(text: string): string;
+  accent(text: string): string;
+  error(text: string): string;
+  warn(text: string): string;
+  muted(text: string): string;
+};
+
+type ScreenArgs = {
+  title: string;
+  lines: string[];
+  paint: Paint;
+  rows: () => number;
+  requestRender: () => void;
+  quit: () => void;
+};
+
+function colorizeLine(line: string, paint: Paint): string {
+  if (line.startsWith("  x ")) return paint.error(line);
+  if (line.startsWith("  ! ")) return paint.warn(line);
+  if (line.startsWith("  - ") || line.trimStart().startsWith("fix:") || line.startsWith("//")) return paint.muted(line);
+  if (!line.startsWith(" ")) return paint.accent(line);
+  return line;
+}
+
+/** Scrollable full report: the panel above the editor never shows more than 10 lines. */
+function reportScreen(args: ScreenArgs) {
+  let top = 0;
+  const height = () => Math.max(4, args.rows() - 8);
+  const clamp = () => {
+    top = Math.max(0, Math.min(top, args.lines.length - height()));
+  };
+
+  return {
+    render(width: number): string[] {
+      clamp();
+      const view = args.lines.slice(top, top + height());
+      const range = view.length === 0 ? "0" : `${top + 1}-${top + view.length}`;
+      const body = [args.paint.heading(args.title), ...view.map((line) => colorizeLine(line, args.paint)), ""];
+      const hint = args.paint.muted(`up/down scroll  pgup/pgdn page  q close   ${range}/${args.lines.length}`);
+      return [...body, hint].map((line) => truncateToWidth(line, width));
+    },
+
+    handleInput(data: string): void {
+      const page = height();
+      if (matchesKey(data, "escape") || matchesKey(data, "enter") || matchesKey(data, "q")) {
+        args.quit();
+        return;
+      }
+      if (matchesKey(data, "up")) top -= 1;
+      else if (matchesKey(data, "down")) top += 1;
+      else if (matchesKey(data, "pageUp")) top -= page;
+      else if (matchesKey(data, "pageDown")) top += page;
+      else if (matchesKey(data, "home")) top = 0;
+      else if (matchesKey(data, "end")) top = args.lines.length;
+      else return;
+      clamp();
+      args.requestRender();
+    },
+
+    invalidate(): void {},
+  };
+}
+
+async function showScreen(ctx: ExtensionContext, title: string, lines: string[]): Promise<void> {
+  if (ctx.mode !== "tui") {
+    ctx.ui.notify(`${title}: ${lines.length} lines (no terminal here; the llama_compat tool returns the same text)`, "info");
+    return;
+  }
+  await ctx.ui.custom((tui, theme, _keybindings, done) => {
+    const paint: Paint = {
+      heading: (text) => theme.fg("accent", theme.bold(text)),
+      accent: (text) => theme.fg("accent", text),
+      error: (text) => theme.fg("error", text),
+      warn: (text) => theme.fg("warning", text),
+      muted: (text) => theme.fg("muted", text),
+    };
+    return reportScreen({
+      title,
+      lines,
+      paint,
+      rows: () => tui.terminal.rows,
+      requestRender: () => tui.requestRender(),
+      quit: () => done(undefined),
+    });
+  });
 }
 
 function reportFor(report: Report, filter: string | undefined): Report {
@@ -655,31 +767,36 @@ export default function llamaCompat(pi: ExtensionAPI) {
   }
 
   pi.registerCommand("llama-check", {
-    description: "Check llama.cpp routers against models.json (usage: /llama-check [text] [block|off])",
+    description:
+      "Check llama.cpp routers against models.json (usage: /llama-check [text] [full|block|off]; off hides the panel)",
     handler: async (args, ctx) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
-      const mode = parts.find((part) => part === "block" || part === "off") ?? "";
+      const mode = parts.find((part) => MODES.includes(part)) ?? "";
       const filter = parts.find((part) => part !== mode);
+      const scope = filter ? ` (${filter})` : "";
 
-      if (mode === "off") {
+      if (mode === "off" || mode === "hide") {
         ctx.ui.setWidget(WIDGET_KEY, undefined);
+        ctx.ui.notify("llama-compat: panel hidden - /llama-check shows it again", "info");
         return;
       }
 
       const report = await check(ctx, filter);
+      if (mode === "full") {
+        await showScreen(ctx, `llama.cpp compat${scope}`, renderReport(report));
+        return;
+      }
       if (mode === "block") {
-        const block = modelsJsonBlocks(report);
-        ctx.ui.setWidget(WIDGET_KEY, block.slice(0, WIDGET_MAX_LINES), { placement: "aboveEditor" });
-        ctx.ui.notify(`llama-compat: models.json block for ${report.servers.length} server(s) shown above`, "info");
+        await showScreen(ctx, `models.json block${scope}`, modelsJsonBlocks(report));
         return;
       }
 
-      const lines = renderReport(report);
       const errors = report.findings.filter((finding) => finding.level === "error").length;
       const warnings = report.findings.filter((finding) => finding.level === "warn").length;
-      ctx.ui.setWidget(WIDGET_KEY, lines.slice(0, WIDGET_MAX_LINES), { placement: "aboveEditor" });
-      if (errors > 0) ctx.ui.notify(`llama-compat: ${errors} error(s), ${warnings} warning(s) - see panel above`, "error");
-      else if (warnings > 0) ctx.ui.notify(`llama-compat: ${warnings} warning(s) - see panel above`, "warning");
+      const panel = widgetLines(renderReport(report, { hideIdle: true, problemsOnly: true, concise: true }), "/llama-check");
+      ctx.ui.setWidget(WIDGET_KEY, panel, { placement: "aboveEditor" });
+      if (errors > 0) ctx.ui.notify(`llama-compat: ${errors} error(s), ${warnings} warning(s) - /llama-check full`, "error");
+      else if (warnings > 0) ctx.ui.notify(`llama-compat: ${warnings} warning(s) - /llama-check full`, "warning");
       else ctx.ui.notify("llama-compat: no mismatches", "info");
     },
   });
@@ -729,8 +846,9 @@ export default function llamaCompat(pi: ExtensionAPI) {
       const report = await check(ctx);
       const errors = report.findings.filter((finding) => finding.level === "error").length;
       if (errors > 0) {
-        ctx.ui.setWidget(WIDGET_KEY, renderReport(report).slice(0, WIDGET_MAX_LINES), { placement: "aboveEditor" });
-        ctx.ui.notify(`llama-compat: ${errors} error(s) in models.json - run /llama-check`, "error");
+        const panel = widgetLines(renderReport(report, { hideIdle: true, problemsOnly: true, concise: true }), "/llama-check");
+        ctx.ui.setWidget(WIDGET_KEY, panel, { placement: "aboveEditor" });
+        ctx.ui.notify(`llama-compat: ${errors} error(s) in models.json - /llama-check full`, "error");
       }
     } catch {
       // Never block a session on a server probe.
@@ -738,4 +856,4 @@ export default function llamaCompat(pi: ExtensionAPI) {
   });
 }
 
-export { buildReport, modelsJsonBlocks, probe, renderReport };
+export { buildReport, modelsJsonBlocks, probe, renderReport, reportScreen, widgetLines };
