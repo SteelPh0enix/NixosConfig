@@ -6,7 +6,11 @@ Live llama.cpp diagnostics for the request pi is making right now, in three fixe
  qwen-27B       pp   658 t/s  tg     59 t/s  spec  61%     13/21  ttft  10.1s
  prompt    8.4k  eval   6.6k  reuse   1.8k  out     21  ctx   8.4k/  150k   5%
  ▰▰▰▰▰▰▰▰▰▰▰▰    8.4k/   8.4k     done  session   2 req    10k in     80 out   3.5k reused
+ queue   0  in flight  1/1  busy/dec 1.00  spec life  95%   37/39
 ```
+
+The last row is optional: it appears only for a server started with `--metrics` and disappears for one without
+it, with no other row affected.
 
 Row 1 is speed, row 2 the current request's tokens, row 3 prompt progress plus session totals. **Cells never
 move, never shrink and never disappear**: they keep their column, and a value that is finished stays on screen
@@ -22,6 +26,11 @@ dimmed instead of vanishing when the phase ends.
 | `ctx` | used over the instance's served `n_ctx`, from `/slots` |
 | progress bar | prompt processing: evaluated + reused over the prompt. Full and dim once the request is over; `cached` when there was nothing to evaluate, `~4s` while there is |
 | `session` | requests, input, output and reused tokens accumulated in this session |
+| `queue` | `llamacpp:requests_deferred`: requests waiting for a slot, i.e. "slow" meaning "queued behind someone" |
+| `in flight` | `requests_processing` over the instance's slot count |
+| `busy/dec` | `n_busy_slots_per_decode`: above 1.00 several requests share each decode step, so their speeds are mutually dragged down |
+| `spec life` | acceptance over the instance's whole lifetime (`spec_decode_num_*_total`), unlike row 1's single-request sample |
+| `n_tokens_max` | in `/llama-dx detail`: largest sequence the instance has ever held |
 
 A `~` in front of a number means "not llama.cpp's own number", never "roughly".
 
@@ -38,6 +47,13 @@ previous request's exact `usage.prompt_tokens` (~3.6-4.1 characters per token wi
 
 State is per session and per model: starting a session or selecting a model drops the counters and the speed
 history, so nothing measured on another machine shows up under a new model.
+
+`/metrics` is scraped once at the start of a request and then once a second while it runs, always with
+`autoload=false` — on a router `/metrics` is proxied per model and a plain read would load the instance
+(`server.cpp:220` → `proxy_get` → `ensure_model_ready`). Its two throughput gauges are deliberately not read:
+every scrape resets the buckets behind them (`server-context.cpp:4807`), so they are only valid for one scraper
+and reading them would spoil them for anyone else. `--metrics` answers `501 … Start it with --metrics`, which
+is what turns the row off.
 
 Requirements: `--slots` per instance (llama.cpp default, off only with `--no-slots`), the router reachable at
 `baseUrl` minus `/v1`, and `?model=` accepting what pi sends as the model (preset name or alias, the same
