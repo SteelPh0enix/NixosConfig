@@ -15,6 +15,7 @@
     ./nonfree-fonts.nix
     ./hyprland
     ./nixvim
+    ./pi
     ./theming.nix
     ./vesktop.nix
     ./xdg.nix

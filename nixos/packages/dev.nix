@@ -10,7 +10,6 @@
     ]
     ++ import ../../nix/dev-tools.nix pkgs
     ++ [
-      pi-coding-agent
       pnpm
       python314
     ];

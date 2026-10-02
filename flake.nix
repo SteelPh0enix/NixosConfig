@@ -36,6 +36,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # pi coding agent: pinned upstream source + committed lockfiles, so the npm build is
+    # reproducible. Installed by home-manager/pi; builds from source, as pi.cachix.org is keyed on
+    # this flake's own nixpkgs lock.
+    pi = {
+      url = "github:lukasl-dev/pi.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     openlogi = {
       url = "github:AprilNEA/OpenLogi";
       inputs.nixpkgs.follows = "nixpkgs";
