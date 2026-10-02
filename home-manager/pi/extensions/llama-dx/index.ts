@@ -5,6 +5,8 @@ import type { Component, TUI } from "@earendil-works/pi-tui";
 // Cell order and widths never change, values latch instead of dropping out, and latched values are dimmed.
 
 const POLL_MS = 250;
+/** /metrics is scraped less often than /slots: it posts a task to the server queue and answers ~2.5 kB. */
+const METRICS_EVERY_MS = 1000;
 const WINDOW_MS = 3000;
 const PROBE_TIMEOUT_MS = 1500;
 const WIDGET_KEY = "llama-dx";
@@ -48,7 +50,19 @@ type Req = {
   firstToken?: number;
   ended?: number;
   timings?: Timings;
+  /** Server-wide gauges from /metrics; absent when the server was started without --metrics. */
+  metrics?: Metrics;
+  metricsAt?: number;
   counted: boolean;
+};
+
+type Metrics = {
+  deferred?: number;
+  processing?: number;
+  busy?: number;
+  accepted?: number;
+  drafted?: number;
+  nmax?: number;
 };
 
 type Nums = {
@@ -149,6 +163,54 @@ async function fetchSlots(root: string, instance: string): Promise<Slot[] | unde
     debug(`/slots: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
+}
+
+/** Optional per-instance metrics; `"off"` means this server has no /metrics endpoint at all. */
+const metricsSupport = new Map<string, boolean>();
+
+function parseMetrics(text: string): Metrics {
+  const value = (name: string): number | undefined => {
+    const found = new RegExp(`^llamacpp:${name} (\\S+)$`, "m").exec(text);
+    return found ? Number(found[1]) : undefined;
+  };
+  return {
+    deferred: value("requests_deferred"),
+    processing: value("requests_processing"),
+    busy: value("n_busy_slots_per_decode"),
+    accepted: value("spec_decode_num_accepted_tokens_total"),
+    drafted: value("spec_decode_num_draft_tokens_total"),
+    nmax: value("n_tokens_max"),
+  };
+}
+
+/**
+ * autoload=false is required: on a router /metrics is proxied per model and a plain read would load the
+ * instance. The rate gauges are not read at all, since every scrape resets the buckets behind them.
+ */
+async function fetchMetrics(root: string, instance: string): Promise<Metrics | "off" | undefined> {
+  try {
+    const response = await fetch(`${root}/metrics?${new URLSearchParams({ model: instance, autoload: "false" })}`, { signal: AbortSignal.timeout(1500) });
+    const text = await response.text();
+    if (response.ok) return parseMetrics(text);
+    return /does not support metrics/i.test(text) ? "off" : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function scrapeMetrics(r: Req): Promise<void> {
+  const key = keyOf(r);
+  if (metricsSupport.get(key) === false) return;
+  const result = await fetchMetrics(r.root, r.instance);
+  if (result === "off") {
+    metricsSupport.set(key, false);
+    debug(`${key}: no /metrics`);
+    return;
+  }
+  if (!result) return; // cold instance or a hiccup: ask again next time
+  metricsSupport.set(key, true);
+  r.metrics = result;
+  tui?.requestRender();
 }
 
 /** The slot carrying our request: a processing one, else the busiest. Exact only with --parallel 1. */
@@ -311,6 +373,10 @@ async function poll(ctx: ExtensionContext): Promise<void> {
   r.slotId = slot.id;
   r.processing = slot.is_processing === true;
   samples = [...samples.filter((s) => t - s.t <= WINDOW_MS), { t, processed, decoded }];
+  if (metricsSupport.get(keyOf(r)) !== false && t - (r.metricsAt ?? 0) >= METRICS_EVERY_MS) {
+    r.metricsAt = t;
+    void scrapeMetrics(r);
+  }
 
   // The llama.cpp task ends before pi's agent loop does (tools follow), and is_processing drops between
   // prefill chunks, so only a lasting idle with work done means the request is over.
@@ -425,6 +491,7 @@ export default function llamaDx(pi: ExtensionAPI) {
     stopPolling();
     if (ctx.mode === "tui") mount(ctx);
     if (!isLlama(root)) return undefined;
+    void scrapeMetrics(req); // learns whether this server has --metrics at all
     pollTimer = setInterval(() => void poll(ctx), POLL_MS);
     // llama.cpp only repeats its timings in every chunk when asked for it.
     return { ...payload, timings_per_token: true };
@@ -510,12 +577,25 @@ export default function llamaDx(pi: ExtensionAPI) {
         ],
       ];
 
+      // Server-wide state, shown only for a server that answers /metrics; nothing else on it is per request.
+      if (r && metricsSupport.get(keyOf(r)) === true) {
+        const m = r.metrics;
+        const accept = m?.accepted !== undefined && m.drafted ? `${Math.round((m.accepted / m.drafted) * 100)}%`.padStart(4) : "   —";
+        rows.push([
+          [`queue ${num(m?.deferred, 3)}`, m?.deferred ? "warning" : "muted"],
+          [`in flight ${num(m?.processing, 2)}/${Math.max(r.slots, 1)}`, "muted"],
+          [`busy/dec ${word(m?.busy === undefined ? undefined : m.busy.toFixed(2), 4)}`, "muted"],
+          [`spec life ${accept} ${num(m?.accepted, 5)}/${num(m?.drafted, 5)}`, "muted"],
+        ]);
+      }
+
       if (detailed && r) {
         rows.push([
           [`host ${root.replace(/^https?:\/\//, "")}`, "muted"],
-          [`slot ${r?.slotId ?? "—"}/${Math.max(r?.slots ?? 0, 1)}`, "muted"],
+          [`slot ${r?.slotId ?? "—"}/${Math.max(r.slots, 1)}`, "muted"],
+          [`n_tokens_max ${num(r.metrics?.nmax, 6)}`, "muted"],
           [`${charsPerToken.toFixed(2)} ch/tok`, "muted"],
-          [r?.timings ? "timings: exact" : "timings: estimated", "muted"],
+          [r.timings ? "timings: exact" : "timings: estimated", "muted"],
         ]);
       }
 
