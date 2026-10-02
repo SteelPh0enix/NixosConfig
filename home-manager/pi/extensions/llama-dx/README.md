@@ -1,84 +1,69 @@
 # llama-dx
 
-Live llama.cpp diagnostics for the request pi is making right now. It takes over pi's footer, so the numbers sit
-in the two lines pi already used rather than in rows of their own:
+llama.cpp's diagnostics for the request pi is making right now, in pi's footer. Two lines:
 
 ```
- ~/Projects/steel-pi (master)  qwen3-coder-27b • high  pp 658 t/s  tg 59 t/s  spec 61% 13/21  ttft 10.1s  prompt 8.4k  eval 6.6k
- out 21  ▰▰▰▰▰▰▰▰▰▰▰▰ 8.4k/8.4k done  ctx 8.4k/150k 6%  req 2 ↑10k ↓80 R3.5k  queue 0  in flight 1/1  busy/dec 1.00
+pp  622 tg   58 t/s  │  fp 15.2k  ev 6.6k  re 8.6k  out  340  │  #3  ↑25k  ↓600  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 61%  13/21  st 63%  │  tt   8.1s  │  @pc:51536  # 1/1  max  16k  3.9c/t  exact
+~/src/steel-pi (master)  24,300 9.4%  █████████▍▓░░░░░░…░░░░░░░  262,144  qwen3-coder-27b • high
 ```
 
-Cells fill the lines in a fixed order and the last line is right-aligned, so a wide terminal gets everything on
-two lines and a narrow one gets more of them with the ragged edge inside the block instead of at its right side.
-`/llama-dx compact` shortens the labels and the padding, which is usually what fits it all on two lines.
+The bottom line is the one that matters: where you are, what you are on, and between them the **context bar** —
+tokens held, the percent they are of the instance's `n_ctx`, and the bar itself taking every column the two names
+leave. `█` is what the context already holds, `▓` what is landing in it this second (prefill evaluating, generation
+producing), `░` the room left; both edges round to 1/8 of a cell, so prefill creeps instead of jumping whole cells.
+A third line appears above these only when another extension has set a status text.
 
-Where llama.cpp and pi measure the same thing, pi's number is the one shown: the token totals (`↑` in, `↓` out,
-`R` read from cache, `$` cost) are what the session recorded, and `ctx` is what the slot holds over what the
-server serves — pi's own estimate while there is no server number. `req` counts the requests llama.cpp served.
-Of pi's footer only the provider prefix, the subscription marker, the routed-model arrow and the `xp` marker are
-gone; everything else is above, and texts other extensions set with `setStatus()` keep their own line.
+The top line holds the rest, grouped and separated by `│`. **What is dropped is decided by width alone, never by
+the state of the request**: groups disappear from the right as the terminal narrows, in the order
+throughput → this request → session → server → speculation → latency → detail. Cells keep their columns, so nothing
+dances when a number changes.
 
-**Cells never move, never shrink and never disappear**: they keep their column, only the terminal's width changes
-which line one lands on, and a value that is finished stays on screen dimmed instead of vanishing when the phase ends.
-
-Nor does anything fall back to `0`, which is the loudest thing a panel of fixed columns can do. A speed is held
-while its phase has nothing new — prefill advances in whole `--batch-size` steps, so the live rate is a staircase
-of stalls — and is taken towards the fresh measurement each poll instead of snapping to it; a new request opens at
-the speeds already measured on this server and glides from there; and its counters keep the previous request's
-numbers until it has measured its own — they describe the slot's KV, which survives between requests anyway. The
-footer is redrawn a few times a second rather than once per generated token.
-
-| | |
+| group | cells |
 |---|---|
-| `pp` / `tg` | prompt-processing and generation throughput. Exact (`timings.prompt_per_second`, `predicted_per_second`) once llama.cpp has measured enough of this request — 200 prompt tokens, 16 generated ones — otherwise a `~` value: the live rate from `/slots` (smoothed, and held while its counter stalls), or the mean of the last ≤10 measurements for this server+model, the `pp` one fitted against context since it declines as the context grows |
-| `spec` | speculative-decode acceptance, `draft_n_accepted/draft_n`, the only clue when a `--spec-type` preset stops helping |
-| `ttft` | client-measured time to the first content token: prefill, queueing and model loading in one number |
-| `prompt` / `eval` / `reuse` | prompt size, tokens that had to be evaluated, tokens that came back from the KV cache |
-| `out` | tokens generated |
-| `ctx` | used over the instance's served `n_ctx`, from `/slots`; coloured at pi's own compaction thresholds |
-| progress bar | prompt processing: evaluated + reused over the prompt. Full and dim once the request is over; `cached` when there was nothing to evaluate, `~4s` while there is |
-| `↑ ↓ R $` | the session's tokens and cost as pi recorded them |
-| `queue` | `llamacpp:requests_deferred`: requests waiting for a slot, i.e. "slow" meaning "queued behind someone" |
-| `in flight` | `requests_processing` over the instance's slot count |
-| `busy/dec` | `n_busy_slots_per_decode`: above 1.00 several requests share each decode step, so their speeds are mutually dragged down |
-| `spec life` | acceptance over the instance's whole lifetime (`spec_decode_num_*_total`), unlike the single-request `spec` |
-| `n_tokens_max` | in `/llama-dx detail`: largest sequence the instance has ever held |
+| throughput | `pp` `tg` t/s — prompt processing and generation, from `timings` once llama.cpp has measured enough of them (200 prompt tokens, 16 generated); until then `~` values |
+| this request | `fp` full prompt, `ev` tokens that had to be evaluated, `re` taken from the KV cache, `out` generated |
+| session | `#` requests llama.cpp served, `↑` in, `↓` out, `R` read from cache — pi's own totals, never a parallel bookkeeping |
+| server | `q` deferred requests, `fl` processing over slots, `bd` busy slots per decode (above 1.00 several requests drag each other) |
+| speculation | `sc` accepted/drafted this request, `st` over the instance's lifetime |
+| latency | `tt` time to the first content token, measured client-side: prefill, queueing and model loading in one number |
+| detail | `@` host, `#` slot over slots, `max` `n_tokens_max`, characters per token, and whether the speeds are `exact` or `fitted` |
 
-A `~` in front of a number means "not llama.cpp's own number", never "roughly".
+A `~` means "not llama.cpp's own number", never "roughly": the live rate from `/slots` (held while its counter
+stalls, since prefill advances in whole batch steps), or the mean of the last ten measurements for this server and
+model — `pp` fitted against context, since it declines as the context grows. A new request opens at the speeds
+already measured on that server and glides from there, and its counters keep the previous request's numbers until it
+has measured its own. `—` means there is nothing to hold.
 
-Compact mode keeps the short keys and drops the words, the units and some padding — same order, same columns:
-`pp tg` unchanged, `sp` spec, `tt` ttft, `pr` prompt, `ev` eval, `rs` reuse, `cx` ctx, `q` queue, `fl` in flight,
-`bd` busy/dec, `sl` spec life, `@` host, `#` slot, `max` n_tokens_max, `exact`/`fitted` timings.
+Two sources, because neither is enough alone: the response stream (`timings`, `usage` — exact, but the first chunk
+only arrives once prefill is over, so the extension asks for `timings_per_token`), and `GET /slots?model=X` polled
+while the request runs, which is the only way to watch prefill and the only per-instance `n_ctx`. The prompt size is
+not available from the server, so it is estimated from the outgoing body and recalibrated against the previous
+request's exact `usage.prompt_tokens`. The used zone is pi's own context figure, taken the moment the request went
+out — what is arriving since then belongs to the flight zone.
 
-Two sources, because neither is enough alone: the response stream (`timings`/`usage`, exact, but the first
-chunk only arrives once prefill is over — the extension adds `timings_per_token: true` to get them repeated),
-and `GET /slots?model=X` polled while the request runs, which is the only way to watch prefill. The prompt size
-is not available from the server, so it is estimated from the outgoing body and re-calibrated against the
-previous request's exact `usage.prompt_tokens` (~3.6-4.1 characters per token with pi's prompt).
+`/metrics` is scraped at the start of a request and then once a second while it runs, always with `autoload=false`:
+on a router a plain read would load the instance. Its two throughput gauges are deliberately not read, since every
+scrape resets the buckets behind them. `--metrics` answers `501`, which is the only answer that turns those cells
+off; a scrape that times out keeps the last one that answered.
 
-* `/llama-dx` — keep (default) or clear the diagnostics once a request finishes
-* `/llama-dx compact` — short keys, no labels, tighter padding
-* `/llama-dx detail` — host, slot, characters-per-token, whether the speeds are measured or fitted
-* `/llama-dx reset` — zero the request counter and the speed history
-* `LLAMA_DX_DEBUG=1` — one stderr line per poll and per finished request
+Colours are theme tokens: `accent` for what is held (`warning` past 70%, `error` past 90%, pi's own compaction
+thresholds), `success` for what is landing, `borderMuted` for the room left and the separators, `dim` for labels and
+session totals, and the bright `accent` for the phase that is live right now.
 
-State is per session and per model: starting a session or selecting a model drops the counters and the speed
-history, so nothing measured on another machine shows up under a new model.
-
-`/metrics` is scraped once at the start of a request and then once a second while it runs, always with
-`autoload=false` — on a router `/metrics` is proxied per model and a plain read would load the instance
-(`server.cpp:220` → `proxy_get` → `ensure_model_ready`). Its two throughput gauges are deliberately not read:
-every scrape resets the buckets behind them (`server-context.cpp:4807`), so they are only valid for one scraper
-and reading them would spoil them for anyone else. `--metrics` answers `501 … Start it with --metrics`, which
-is the only answer that turns those cells off; a scrape that times out leaves them on the last one that answered.
+`/llama-dx` prints what the footer currently thinks; `/llama-dx reset` zeroes the request counter and the speed
+history; `LLAMA_DX_DEBUG=1` writes one stderr line per poll and per finished request. State is per session and per
+model: starting a session or switching model drops the counters, so nothing measured on another machine survives.
 
 Requirements: `--slots` per instance (llama.cpp default, off only with `--no-slots`), the router reachable at
-`baseUrl` minus `/v1`, and `?model=` accepting what pi sends as the model (preset name or alias, the same
-matching `llama-compat` does). A server that never answers `/slots` is given up on after ~10s of silence and the
-diagnostics fall back to stream timings; one that is merely slow, or still loading, is not. With a model that is
-not served by llama.cpp at all the footer shows only pi's own numbers.
+`baseUrl` minus `/v1`, and `?model=` accepting what pi sends (preset name or alias). `--metrics` is optional and
+only the server/spec-lifetime cells need it. A model that is not served by llama.cpp — checked once per server with
+`/props` — hands the footer back to pi.
 
-Limits: progress granularity is `--chunk-size`/`--batch-size`, so a 2048-batched instance has few real steps
-per bar. With `--parallel > 1` on one server (subagents) the slot is picked as "the processing one" and the bar
-can describe someone else's request. Nothing is written to the session: pi records token counts only, never
-`timings`, so these numbers exist while the request runs and, dimmed, after it.
+Limits: bar granularity is `--chunk-size`/`--batch-size`, so a 2048-batched instance has few real steps per cell.
+With `--parallel > 1` the slot is picked as "the processing one" and the flight zone can describe someone else's
+request. Nothing is written to the session: pi records token counts only, never `timings`, so these numbers exist
+while the request runs and, dimmed, after it.
+
+`preview.mjs` renders the real layout at chosen widths without starting pi (`--check` asserts the bar always fills
+its width at any width from 40 to 280), `harness.mjs` drives the extension outside pi against a real server. Both
+import `index.ts` directly, which is why its layout half imports nothing at runtime.
