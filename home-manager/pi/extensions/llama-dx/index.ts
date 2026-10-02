@@ -2,12 +2,20 @@ import type { ExtensionAPI, ExtensionContext, Theme, ThemeColor } from "@earendi
 import type { Component, TUI } from "@earendil-works/pi-tui";
 
 // Three fixed rows under the editor: speeds, token totals, prefill progress + session counters.
-// Cell order and widths never change, values latch instead of dropping out, and latched values are dimmed.
+// Cell order and widths never change: a speed is held while its phase stalls and the previous request's numbers are
+// kept until this one measures its own, so cells never blink to 0 between prefill, generation and the next request.
 
 const POLL_MS = 250;
 /** /metrics is scraped less often than /slots: it posts a task to the server queue and answers ~2.5 kB. */
 const METRICS_EVERY_MS = 1000;
 const WINDOW_MS = 3000;
+/** Shorter than this the window covers a single batch step, which is a spike rather than a speed. */
+const MIN_SPAN_MS = 1200;
+/** Share of a fresh rate the cell takes each poll: prefill advances in whole batches, so the raw window rate jumps by hundreds. */
+const BLEND = 0.4;
+/** Repaint at most this often: `timings_per_token` means one stream event per generated token. */
+const RENDER_MIN_MS = 200;
+
 const PROBE_TIMEOUT_MS = 1500;
 const WIDGET_KEY = "llama-dx";
 const BAR = 12;
@@ -47,6 +55,9 @@ type Req = {
   slotId?: number;
   processing: boolean;
   started: number;
+  /** What the speed cells show: the live rate, smoothed, held while its phase has nothing new. */
+  shownPp?: number;
+  shownTg?: number;
   firstToken?: number;
   ended?: number;
   timings?: Timings;
@@ -100,9 +111,7 @@ let samples: { t: number; processed: number; decoded: number }[] = [];
 let charsPerToken = 3.6;
 let detailed = false;
 let freeze = true;
-let misses = 0;
 let idlePolls = 0;
-let warned = false;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let tui: TUI | undefined;
 /** The model pi is on, so the panel has something to show before the first request. */
@@ -190,27 +199,39 @@ function parseMetrics(text: string): Metrics {
 async function fetchMetrics(root: string, instance: string): Promise<Metrics | "off" | undefined> {
   try {
     const response = await fetch(`${root}/metrics?${new URLSearchParams({ model: instance, autoload: "false" })}`, { signal: AbortSignal.timeout(1500) });
-    const text = await response.text();
-    if (response.ok) return parseMetrics(text);
-    return /does not support metrics/i.test(text) ? "off" : undefined;
+    if (response.ok) return parseMetrics(await response.text());
+    // 501 "Start it with --metrics" is the only answer that means there is no /metrics; anything else, including a
+    // router refusing to speak for an instance that is not loaded, is worth asking about again.
+    return response.status === 501 && /does not support metrics/i.test(await response.text()) ? "off" : undefined;
   } catch {
     return undefined;
   }
 }
 
+/** The last scrape per server+instance, so a request whose first scrape is late or lost does not show a row of dashes. */
+const metricsShown = new Map<string, Metrics>();
+
+let scraping = false;
+
 async function scrapeMetrics(r: Req): Promise<void> {
   const key = keyOf(r);
-  if (metricsSupport.get(key) === false) return;
-  const result = await fetchMetrics(r.root, r.instance);
-  if (result === "off") {
-    metricsSupport.set(key, false);
-    debug(`${key}: no /metrics`);
-    return;
+  if (scraping || metricsSupport.get(key) === false) return;
+  scraping = true;
+  try {
+    const result = await fetchMetrics(r.root, r.instance);
+    if (result === "off") {
+      metricsSupport.set(key, false);
+      debug(`${key}: no /metrics`);
+      return;
+    }
+    if (!result) return; // cold instance or a hiccup: ask again next time
+    metricsSupport.set(key, true);
+    metricsShown.set(key, result);
+    r.metrics = result;
+    paint();
+  } finally {
+    scraping = false;
   }
-  if (!result) return; // cold instance or a hiccup: ask again next time
-  metricsSupport.set(key, true);
-  r.metrics = result;
-  tui?.requestRender();
 }
 
 /** The slot carrying our request: a processing one, else the busiest. Exact only with --parallel 1. */
@@ -219,17 +240,36 @@ function pickSlot(slots: Slot[]): Slot | undefined {
   return slots.find((slot) => slot.is_processing) ?? slots.reduce((a, b) => ((b.n_prompt_tokens ?? 0) > (a.n_prompt_tokens ?? 0) ? b : a));
 }
 
-/** Rate over the last WINDOW_MS; a single poll delta moves by whole --batch-size steps and reads 0 or a spike. */
-function windowRate(t: number, counter: (s: { t: number; processed: number; decoded: number }) => number): number {
-  const current = counter(samples[samples.length - 1] ?? { t, processed: 0, decoded: 0 });
-  const oldest = samples.filter((s) => t - s.t <= WINDOW_MS)[0];
-  if (!oldest || oldest.t === t) return 0;
-  return Math.max(0, (current - counter(oldest)) / ((t - oldest.t) / 1000));
+/**
+ * Rate over the last WINDOW_MS, between the samples at its ends: divided by the time since the window started it
+ * would decay towards 0 for as long as the counter stands still, which it does between batch steps.
+ */
+function windowRate(t: number, counter: (s: { t: number; processed: number; decoded: number }) => number, minStep: number): number {
+  const window = samples.filter((s) => t - s.t <= WINDOW_MS);
+  const oldest = window[0];
+  const newest = window[window.length - 1];
+  const step = oldest && newest ? counter(newest) - counter(oldest) : 0;
+  if (!oldest || !newest || newest.t - oldest.t < MIN_SPAN_MS || step < minStep) return 0;
+  return step / ((newest.t - oldest.t) / 1000);
 }
 
-const prefillRate = (t: number): number => windowRate(t, (s) => s.processed);
+/** A window over too little of the phase is a rate of nothing: prefill advances in batches, generation token by token. */
+const prefillRate = (t: number): number => windowRate(t, (s) => s.processed, 64);
 
-const decodeRate = (t: number): number => windowRate(t, (s) => s.decoded);
+const decodeRate = (t: number): number => windowRate(t, (s) => s.decoded, 8);
+
+/**
+ * The rate for this poll: the fresh one taken towards the one already shown, and the shown one held when nothing
+ * new arrived. Speeds are properties of the machine, so holding one across a stall of a second says no lie.
+ */
+const blend = (fresh: number, shown: number | undefined): number | undefined =>
+  fresh <= 0
+    ? shown !== undefined && shown > 0
+      ? shown
+      : undefined
+    : shown !== undefined && shown > 0
+      ? shown + (fresh - shown) * BLEND
+      : fresh;
 
 type PrefillSample = { ctx: number; tps: number };
 
@@ -261,7 +301,9 @@ function resetAll(): void {
   Object.assign(sess, { reqs: 0, prompt: 0, evalToks: 0, reuse: 0, out: 0 });
   req = undefined;
   last = undefined;
+  settled = undefined;
   samples = [];
+  metricsShown.clear();
   prefillHist.clear();
   decodeHist.clear();
 }
@@ -309,15 +351,15 @@ function record(r: Req, n: Nums): void {
 function numbers(r: Req, t = Date.now()): Nums {
   const timing = r.timings;
   const ctx = (timing?.cache_n ?? r.cached) + (timing?.prompt_n ?? r.processed) + (timing?.predicted_n ?? r.decoded);
-  // A server number measured over a handful of tokens is worse than no number: below the trust threshold the
-  // cell falls back to the live rate or to the recent estimate, and carries the ~ marker.
+  // A server number measured over a handful of tokens is worse than no number: below the trust threshold the cell
+  // keeps its own smoothed live rate, or the recent estimate, and carries the ~ marker.
   const ppExact = (timing?.prompt_n ?? 0) >= TRUST_PP ? timing?.prompt_per_second : undefined;
   const tgExact = (timing?.predicted_n ?? 0) >= TRUST_TG ? timing?.predicted_per_second : undefined;
   const key = keyOf(r);
   const n: Nums = {
-    pp: ppExact ?? ((r.processed >= 200 ? prefillRate(t) : undefined) ?? estimatePrefill(key, ctx) ?? timing?.prompt_per_second),
+    pp: ppExact ?? blend(r.processed >= TRUST_PP ? prefillRate(t) : 0, r.shownPp) ?? estimatePrefill(key, ctx),
     ppEstimated: ppExact === undefined,
-    tg: tgExact ?? (decodeRate(t) || estimateDecode(key) || timing?.predicted_per_second || undefined),
+    tg: tgExact ?? blend(decodeRate(t), r.shownTg) ?? estimateDecode(key),
     tgEstimated: tgExact === undefined,
     spec: timing?.draft_n ? [timing.draft_n_accepted ?? 0, timing.draft_n] : undefined,
     ttft: r.firstToken,
@@ -328,13 +370,33 @@ function numbers(r: Req, t = Date.now()): Nums {
     out: timing?.predicted_n ?? r.decoded,
     nCtx: r.nCtx,
   };
+  r.shownPp = n.pp;
+  r.shownTg = n.tg;
   return n;
+}
+
+/** The numbers of the request that ended last, frozen: a new request holds them until it measures its own. */
+let settled: Nums | undefined;
+
+/** The holes of the running request filled with the previous one's numbers; the KV context survives between them. */
+function hold(n: Nums): void {
+  const p = settled;
+  if (!p) return;
+  if (!n.prompt) {
+    n.prompt = p.prompt;
+    n.estimated = true;
+  }
+  if (!n.evalToks) n.evalToks = p.evalToks;
+  if (!n.reuse) n.reuse = p.reuse;
+  if (!n.out) n.out = p.out;
+  if (!n.nCtx) n.nCtx = p.nCtx;
 }
 
 function finalize(r: Req): void {
   if (r.counted) return;
   r.counted = true;
   const n = numbers(r);
+  settled = n;
   record(r, n);
   sess.reqs += 1;
   sess.prompt += n.prompt ?? 0;
@@ -345,21 +407,28 @@ function finalize(r: Req): void {
   debug(`#${sess.reqs} prompt=${n.prompt} eval=${n.evalToks} reuse=${n.reuse} out=${n.out} pp=${Math.round(n.pp ?? 0)} tg=${Math.round(n.tg ?? 0)} ttft=${n.ttft}`);
 }
 
-async function poll(ctx: ExtensionContext): Promise<void> {
+/**
+ * One /slots at a time. A llama.cpp that is up to its neck in prefill answers them slowly, and letting the poll
+ * timer queue them up every 250ms only makes every one of them time out — which stops the panel moving entirely.
+ */
+let polling = false;
+
+async function poll(): Promise<void> {
+  if (polling) return;
+  polling = true;
+  try {
+    await pollOnce();
+  } finally {
+    polling = false;
+  }
+}
+
+async function pollOnce(): Promise<void> {
   const r = req;
   if (!r) return;
-  const slots = await fetchSlots(r.root, r.instance);
-  const slot = slots ? pickSlot(slots) : undefined;
-  if (!slot) {
-    if (++misses < 3) return;
-    stopPolling();
-    if (!warned) {
-      warned = true;
-      ctx.ui.notify(`llama-dx: ${r.root} has no /slots, showing stream timings only`, "warning");
-    }
-    return;
-  }
-  misses = 0;
+  const slots = (await fetchSlots(r.root, r.instance)) ?? [];
+  const slot = pickSlot(slots); // nothing to read while the instance is loading or without --slots
+  if (!slot) return;
   const t = Date.now();
   const processed = slot.n_prompt_tokens_processed ?? 0;
   const decoded = slot.next_token?.[0]?.n_decoded ?? 0;
@@ -369,7 +438,7 @@ async function poll(ctx: ExtensionContext): Promise<void> {
   r.seenPrompt = Math.max(r.seenPrompt, slot.n_prompt_tokens ?? 0);
   r.cached = Math.max(r.cached, slot.n_prompt_tokens_cache ?? 0);
   r.nCtx = slot.n_ctx ?? r.nCtx;
-  r.slots = slots?.length ?? 0;
+  r.slots = slots.length;
   r.slotId = slot.id;
   r.processing = slot.is_processing === true;
   samples = [...samples.filter((s) => t - s.t <= WINDOW_MS), { t, processed, decoded }];
@@ -386,6 +455,16 @@ async function poll(ctx: ExtensionContext): Promise<void> {
     finalize(r);
   }
   debug(`total=${slot.n_prompt_tokens ?? 0} processed=${processed} cache=${slot.n_prompt_tokens_cache ?? 0} decoded=${decoded} pp=${Math.round(prefillRate(t))} tg=${Math.round(decodeRate(t))}`);
+  paint();
+}
+
+let painted = 0;
+
+/** Stream events come once per generated token, and /slots polls four times a second: a panel only needs a few. */
+function paint(throttled = true): void {
+  const now = Date.now();
+  if (throttled && now - painted < RENDER_MIN_MS) return;
+  painted = now;
   tui?.requestRender();
 }
 
@@ -414,10 +493,10 @@ function etaOf(r: Req, n: Nums): string {
   const reuse = n.reuse ?? 0;
   if ((n.prompt ?? 0) - reuse < 200) return "cached";
   if (r.ended !== undefined) return "done";
-  const rate = prefillRate(Date.now());
+  const rate = n.pp ?? 0;
   const left = Math.max(0, (n.prompt ?? 0) - (r.processed + reuse));
   if (rate < 1) return "…";
-  return `~${Math.max(1, Math.round(left / rate))}s`;
+  return `~${Math.min(999, Math.max(1, Math.round(left / rate)))}s`;
 }
 
 type Cell = [text: string, tone: ThemeColor];
@@ -487,12 +566,15 @@ export default function llamaDx(pi: ExtensionAPI) {
       started: Date.now(),
       counted: false,
     };
-    misses = 0;
+    // A new request opens at the speeds already measured on this server rather than at 0, and glides from there.
+    const key = keyOf(req);
+    req.shownPp = estimatePrefill(key, req.nCtx);
+    req.shownTg = estimateDecode(key);
     stopPolling();
     if (ctx.mode === "tui") mount(ctx);
     if (!isLlama(root)) return undefined;
     void scrapeMetrics(req); // learns whether this server has --metrics at all
-    pollTimer = setInterval(() => void poll(ctx), POLL_MS);
+    pollTimer = setInterval(() => void poll(), POLL_MS);
     // llama.cpp only repeats its timings in every chunk when asked for it.
     return { ...payload, timings_per_token: true };
   });
@@ -510,7 +592,7 @@ export default function llamaDx(pi: ExtensionAPI) {
       // Nearly the same body goes out next turn, so this ratio is a good estimate then.
       charsPerToken = req.chars / data.usage.prompt_tokens;
     }
-    tui?.requestRender();
+    paint();
   });
 
   pi.on("agent_end", async () => {
@@ -519,7 +601,7 @@ export default function llamaDx(pi: ExtensionAPI) {
       req.ended ??= Date.now();
       finalize(req);
     }
-    tui?.requestRender();
+    paint(false);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
@@ -552,6 +634,9 @@ export default function llamaDx(pi: ExtensionAPI) {
       const phase = phaseOf();
       const running = req !== undefined && req.ended === undefined;
       const n: Nums = r ? numbers(r) : { estimated: false, ppEstimated: true, tgEstimated: true, nCtx: model.nCtx };
+      // The progress row tells what this request itself has done, so it is taken before the held numbers go in.
+      const progress = r && { done: doneOf(r, n), fraction: progressOf(r, n), eta: etaOf(r, n) };
+      if (req?.ended === undefined) hold(n);
       const tone = (live: boolean): ThemeColor => (live ? "accent" : "dim");
 
       const rows: Cell[][] = [
@@ -570,16 +655,16 @@ export default function llamaDx(pi: ExtensionAPI) {
           [`ctx ${num(ctxUsed(n), 6)}/${num(n.nCtx, 6)} ${word(n.nCtx ? `${Math.round(((ctxUsed(n) / n.nCtx) * 100) | 0)}%` : undefined, 4)}`, "muted"],
         ],
         [
-          [bar(progressOf(r, n)), phase === "prefill" ? "warning" : "dim"],
-          [`${num(doneOf(r, n), 6)}${n.estimated ? "/~" : "/ "}${num(n.prompt, 6)}`, "muted"],
-          [word(r ? etaOf(r, n) : "—", 7), "muted"],
+          [bar(progress?.fraction ?? 0), phase === "prefill" ? "warning" : "dim"],
+          [`${num(progress?.done ?? 0, 6)}${n.estimated ? "/~" : "/ "}${num(n.prompt, 6)}`, "muted"],
+          [word(progress?.eta ?? "—", 7), "muted"],
           [`session ${word(String(sess.reqs), 3)} req ${num(sess.prompt, 6)} in ${num(sess.out, 6)} out ${num(sess.reuse, 6)} reused`, "dim"],
         ],
       ];
 
       // Server-wide state, shown only for a server that answers /metrics; nothing else on it is per request.
       if (r && metricsSupport.get(keyOf(r)) === true) {
-        const m = r.metrics;
+        const m = r.metrics ?? metricsShown.get(keyOf(r));
         const accept = m?.accepted !== undefined && m.drafted ? `${Math.round((m.accepted / m.drafted) * 100)}%`.padStart(4) : "   —";
         rows.push([
           [`queue ${num(m?.deferred, 3)}`, m?.deferred ? "warning" : "muted"],
