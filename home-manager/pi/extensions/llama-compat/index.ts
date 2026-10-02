@@ -1,106 +1,153 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Model } from "@earendil-works/pi-ai";
-import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
+import type { ExtensionAPI, ProviderConfig, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
-// What a llama.cpp router answers on /props and /models; only the fields pi's models.json depends on.
+// pi cannot know what a llama.cpp server actually serves: the served n_ctx after a re-fit, whether the
+// chat template has a thinking switch and which one it reads, whether the instance has a vision projector.
+// This extension reads that from the server and re-registers the configured provider with it, so the
+// hand-written numbers in models.json stop mattering. It never loads or unloads a model, and it shows
+// nothing: no command, no tool, no panel.
+
+const PROBE_TIMEOUT_MS = 2000;
+/** Its own built-in provider already reads /models and /props; re-registering it would drop its classifiers. */
+const BUILTIN_PROVIDER = "llama.cpp";
+
 type Caps = {
   supports_tools?: boolean;
-  supports_tool_calls?: boolean;
-  supports_system_role?: boolean;
-  supports_parallel_tool_calls?: boolean;
-  supports_preserve_reasoning?: boolean;
   supports_reasoning_effort?: boolean;
-  supports_object_arguments?: boolean;
 };
 
 type ServerProps = {
   role?: string;
-  max_instances?: number;
   models_autoload?: boolean;
-  build_info?: string;
   model_alias?: string;
-  model_ftype?: string;
-  total_slots?: number;
-  is_sleeping?: boolean;
   chat_template?: string;
   chat_template_caps?: Caps;
   modalities?: { vision?: boolean };
-  endpoint_slots?: boolean;
   default_generation_settings?: { n_ctx?: number };
 };
 
-type RouterInstance = {
+type RouterModel = {
   id: string;
   aliases?: string[];
   source?: string;
-  status?: { value?: string; failed?: boolean };
-  meta?: { n_ctx?: number; ftype?: string };
+  status?: { value?: string; failed?: boolean; args?: string[] };
+  meta?: { n_ctx?: number };
   architecture?: { input_modalities?: string[] };
 };
 
-type CompatLike = {
-  supportsReasoningEffort?: boolean;
-  thinkingFormat?: string;
-  supportsDeveloperRole?: boolean;
-  maxTokensField?: string;
-};
-
-type Level = "error" | "warn" | "info";
-
-type Finding = {
-  level: Level;
-  /** "provider/id" for a pi model, or the server root for a router-wide problem. */
-  scope: string;
-  code: string;
-  message: string;
-  fix?: string;
-  dedupeKey?: string;
-};
-
-type Instance = {
+/** What one instance of a router is able to do, as far as the server will say without loading it. */
+type Served = {
   id: string;
   aliases: string[];
-  status: string;
-  failed: boolean;
   nCtx?: number;
-  ftype?: string;
-  totalSlots?: number;
-  sleeping?: boolean;
-  caps?: Caps;
+  /** What the preset was started with, from its launch args; weaker than the served n_ctx. */
+  requested?: number;
   vision?: boolean;
-  templateThinking?: boolean;
-  note?: string;
+  /** The template has an enable_thinking switch. */
+  thinkingSwitch?: boolean;
+  /** The template reads OpenAI's reasoning_effort. */
+  effortCap?: boolean;
+  /** The effort values the template names; empty when it validates none. */
+  efforts?: string[];
 };
 
-type Server = {
-  root: string;
-  buildInfo?: string;
-  role?: string;
-  maxInstances?: number;
-  autoload?: boolean;
-  /** Set when the endpoint is unreachable or is not a llama.cpp server; such servers are skipped. */
-  skip?: string;
-  instances: Instance[];
-  models: { provider: string; id: string; instance?: string }[];
+/** The chat variant of a registered model config. */
+type ChatModelConfig = Exclude<ProviderModelConfig, { type: "image" } | { type: "classifier" }>;
+
+type ModelsJsonCompat = Record<string, unknown>;
+
+type Derived = {
+  reasoning?: boolean;
+  input?: ("text" | "image")[];
+  contextWindow?: number;
+  maxTokens?: number;
+  thinkingLevelMap?: ChatModelConfig["thinkingLevelMap"];
 };
 
-type Report = { checkedAt: string; servers: Server[]; findings: Finding[] };
+/** How pi should switch a model's thinking on and off, as far as the template allows. */
+type ThinkingPolicy = {
+  reasoning: boolean;
+  thinkingFormat?: string;
+  supportsReasoningEffort?: boolean;
+  thinkingLevelMap?: ChatModelConfig["thinkingLevelMap"];
+  label: string;
+};
 
-const PROBE_TIMEOUT_MS = 5000;
-const WIDGET_KEY = "llama-compat";
-const MODES: readonly string[] = ["full", "block", "off", "hide"];
-/** pi cuts string-array widgets at 10 lines, so the panel is built to fit and points at the full view. */
-const WIDGET_MAX_LINES = 10;
-const LEVELS: Record<Level, number> = { error: 0, warn: 1, info: 2 };
-const MARKS: Record<Level, string> = { error: "x", warn: "!", info: "-" };
+const PI_EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"];
 
-function envList(name: string): string[] {
-  return (process.env[name] ?? "")
-    .split(",")
-    .map((entry) => entry.trim().replace(/\/+$/, "").replace(/\/v1$/, ""))
-    .filter(Boolean);
+const EFFORT_NAME = String.raw`\w*reasoning_effort`;
+const EFFORT_LITERAL = String.raw`['"]([a-z][a-z0-9_-]*)['"]`;
+
+/**
+ * The effort values a chat template accepts, taken from the values it branches on, defaults to or validates.
+ * Undefined when the template is unknown, empty when it reads reasoning_effort without naming a value.
+ */
+function effortsIn(template: unknown): string[] | undefined {
+  if (typeof template !== "string") return undefined;
+  const found = new Set<string>();
+  const collect = (text: string) => {
+    for (const literal of text.matchAll(new RegExp(EFFORT_LITERAL, "g"))) found.add(literal[1]!);
+  };
+  for (const [pattern, tuple] of [
+    [String.raw`${EFFORT_NAME}\s*==\s*${EFFORT_LITERAL}`, false],
+    [String.raw`${EFFORT_LITERAL}\s*==\s*${EFFORT_NAME}`, false],
+    [String.raw`${EFFORT_NAME}[^\n]{0,80}?\bin \(([^)]{1,160})\)`, true],
+    [String.raw`${EFFORT_NAME}\s*\|\s*default\(\s*${EFFORT_LITERAL}`, false],
+  ] as const) {
+    for (const match of template.matchAll(new RegExp(pattern, "g"))) (tuple ? collect(match[1]!) : found.add(match[1]!));
+  }
+  return [...found].sort();
 }
+
+function thinkingPolicy(served: Served): ThinkingPolicy | undefined {
+  // A bool switch can turn thinking off, an effort cannot, so it wins where a template has both. pi checks
+  // thinkingFormat before reasoning_effort, so only one of the two is ever sent.
+  if (served.thinkingSwitch === true) {
+    return { reasoning: true, thinkingFormat: "qwen-chat-template", supportsReasoningEffort: false, label: "bool" };
+  }
+  if (served.effortCap !== true) {
+    if (served.thinkingSwitch === false && served.effortCap === false) return { reasoning: false, label: "none" };
+    return undefined;
+  }
+  if (!served.efforts || served.efforts.length === 0) {
+    return { reasoning: true, supportsReasoningEffort: true, label: "efforts (unvalidated)" };
+  }
+  // pi sends thinkingLevelMap[level] ?? level, so a level the template would reject has to be marked null.
+  const map: Record<string, string | null> = {};
+  for (const level of PI_EFFORT_LEVELS) map[level] = served.efforts.includes(level) ? level : null;
+  const supported = PI_EFFORT_LEVELS.filter((level) => map[level] !== null);
+  return { reasoning: true, supportsReasoningEffort: true, thinkingLevelMap: map, label: `efforts (${supported.join(", ") || "none"})` };
+}
+
+type ModelsJsonModel = {
+  id: string;
+  name?: string;
+  api?: string;
+  baseUrl?: string;
+  reasoning?: boolean;
+  input?: ("text" | "image")[];
+  cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
+  contextWindow?: number;
+  maxTokens?: number;
+  headers?: Record<string, string>;
+  compat?: ModelsJsonCompat;
+  thinkingLevelMap?: Record<string, string | null>;
+  samplingParams?: Record<string, unknown>;
+};
+
+type ModelsJsonProvider = {
+  name?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  api?: string;
+  headers?: Record<string, string>;
+  authHeader?: boolean;
+  compat?: ModelsJsonCompat;
+  models?: ModelsJsonModel[];
+};
+
+const debug = process.env.LLAMA_COMPAT_DEBUG === "1" ? (message: string) => process.stderr.write(`llama-compat: ${message}\n`) : () => {};
 
 /** Turn an inference baseUrl (ends with /v1) into the server root that answers /props and /models. */
 function serverRoot(baseUrl: string): string | undefined {
@@ -116,744 +163,218 @@ function serverRoot(baseUrl: string): string | undefined {
   }
 }
 
-/**
- * Chat models grouped by the llama.cpp server that would serve them. Detection always runs: a
- * server is managed when its provider is named after llama (pi's built-in `llama.cpp`, or a
- * models.json provider like `llama-b`), or when LLAMA_COMPAT_URLS lists it - and then every model
- * pointing at it is compared, whatever its provider is called. Model names are deliberately not
- * matched, because llama models served by a hosted provider are not a local llama.cpp server.
- */
-function candidates(models: Model<unknown>[]): Map<string, Model<unknown>[]> {
-  const listed = new Set(envList("LLAMA_COMPAT_URLS"));
-  const grouped = new Map<string, Model<unknown>[]>();
-  const add = (root: string, model?: Model<unknown>) => {
-    grouped.set(root, model ? [...(grouped.get(root) ?? []), model] : (grouped.get(root) ?? []));
-  };
-  for (const model of models) {
-    if (model.type && model.type !== "chat") continue;
-    const root = serverRoot(model.baseUrl);
-    if (!root) continue;
-    if (model.provider.toLowerCase().includes("llama") || listed.has(root)) add(root, model);
-  }
-  for (const root of listed) add(root);
-  return grouped;
-}
-
-type Fetched<T> = { ok: true; data: T } | { ok: false; status?: number; error: string };
-
-async function getJson<T>(url: string, signal?: AbortSignal, headers?: Record<string, string>): Promise<Fetched<T>> {
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T | undefined> {
   const timeout = AbortSignal.timeout(PROBE_TIMEOUT_MS);
   const linked = signal ? AbortSignal.any([signal, timeout]) : timeout;
   try {
-    const response = await fetch(url, {
-      signal: linked,
-      headers: headers && Object.keys(headers).length > 0 ? headers : undefined,
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      const detail = text.slice(0, 200).replace(/\s+/g, " ");
-      return { ok: false, status: response.status, error: detail || `HTTP ${response.status}` };
-    }
-    return { ok: true, data: JSON.parse(text) as T };
+    const response = await fetch(url, { signal: linked });
+    if (!response.ok) return undefined;
+    return JSON.parse(await response.text()) as T;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: message === "fetch failed" ? "unreachable" : message };
+    debug(`${url}: ${error instanceof Error ? error.message : error}`);
+    return undefined;
   }
 }
 
-function isLlamaProps(props: ServerProps): boolean {
-  return props.role === "router" || typeof props.model_alias === "string" || props.chat_template_caps !== undefined;
+function isLlamaProps(props: ServerProps | undefined): props is ServerProps {
+  return props !== undefined && (props.role === "router" || typeof props.model_alias === "string" || props.chat_template_caps !== undefined);
 }
 
-function templateSupportsThinking(props: ServerProps): boolean {
-  return typeof props.chat_template === "string" && props.chat_template.includes("enable_thinking");
+/** Flags that make a preset answer only embeddings or similarity scores, so it can never be chatted with. */
+function embeddingOnly(model: RouterModel): boolean {
+  return (model.status?.args ?? []).some((flag) => flag === "--embeddings" || flag === "--pooling");
 }
 
-/** Instances that several pi models share should report one instance-wide problem, not one per model. */
-function addFinding(
-  findings: Finding[],
-  level: Level,
-  scope: string,
-  code: string,
-  message: string,
-  fix?: string,
-  dedupeKey?: string,
-): void {
-  const key = dedupeKey ?? `${scope} ${code}`;
-  if (findings.some((entry) => (entry.dedupeKey ?? `${entry.scope} ${entry.code}`) === key)) return;
-  findings.push({ level, scope, code, message, fix, dedupeKey });
+/**
+ * Whether pi can route a request to a preset: a loaded or sleeping instance answers, a cold one only when
+ * the router autoloads it on first use (llama.cpp's own rule for /v1/models + status.value).
+ */
+function routable(model: RouterModel, autoload: boolean): boolean {
+  const status = model.status;
+  if (status?.value === "loaded" || status?.value === "sleeping") return true;
+  return autoload && status?.value === "unloaded" && !status.failed && model.source === "preset";
 }
 
-function instanceFor(server: Server, modelId: string): Instance | undefined {
-  return server.instances.find(
-    (instance) => instance.id === modelId || instance.aliases.includes(modelId) || instance.id === modelId.toLowerCase(),
+/** The context a preset was started with, for a cold instance that cannot report the served one. */
+function requestedContext(model: RouterModel): number | undefined {
+  const args = model.status?.args ?? [];
+  for (let i = 0; i < args.length - 1; i++) {
+    if (args[i] !== "--ctx-size" && args[i] !== "-c" && args[i] !== "-ctx") continue;
+    const size = Number(args[i + 1]);
+    if (Number.isSafeInteger(size) && size > 0) return size;
+  }
+  return undefined;
+}
+
+/** Instances pi can route a configured model to: the preset name, one of its aliases, or the lowercased name. */
+function servedFor(models: RouterModel[], root: string, signal?: AbortSignal): Promise<Served[]> {
+  return Promise.all(
+    models.map(async (model): Promise<Served> => {
+      const served: Served = {
+        id: model.id,
+        aliases: model.aliases ?? [],
+        nCtx: model.meta?.n_ctx,
+        requested: requestedContext(model),
+        vision: model.architecture?.input_modalities?.includes("image"),
+      };
+      const status = model.status?.value;
+      // Only a loaded or sleeping instance answers about its template, and autoload=false keeps it that way:
+      // without it the props query would load a cold preset.
+      if (status !== "loaded" && status !== "sleeping") return served;
+      const props = await getJson<ServerProps>(`${root}/props?${new URLSearchParams({ model: model.id, autoload: "false" })}`, signal);
+      if (!props) return served;
+      return {
+        ...served,
+        nCtx: props.default_generation_settings?.n_ctx ?? served.nCtx,
+        vision: props.modalities?.vision ?? served.vision,
+        thinkingSwitch: typeof props.chat_template === "string" ? props.chat_template.includes("enable_thinking") : undefined,
+        effortCap: props.chat_template_caps?.supports_reasoning_effort,
+        efforts: effortsIn(props.chat_template),
+      };
+    }),
   );
 }
 
-function instanceSummary(instance: Instance): string {
-  const caps = instance.caps;
-  const parts = [instance.status, `ctx ${instance.nCtx ?? "?"}`, instance.totalSlots === undefined ? "" : `slots ${instance.totalSlots}`];
-  if (instance.ftype) parts.push(instance.ftype);
-  if (caps) {
-    parts.push(`tools ${caps.supports_tools && caps.supports_tool_calls ? "yes" : "NO"}`);
-    parts.push(`effort ${caps.supports_reasoning_effort ? "yes" : "no"}`);
-  }
-  return parts.filter(Boolean).join(", ");
+function match(served: Served[], modelId: string): Served | undefined {
+  return served.find((entry) => entry.id === modelId || entry.aliases.includes(modelId) || entry.id === modelId.toLowerCase());
 }
 
-function inspectModel(
-  model: Model<unknown>,
-  server: Server,
-  instance: Instance | undefined,
-  findings: Finding[],
-  current: boolean,
-): void {
-  const scope = `${model.provider}/${model.id}`;
-  const compat = (model.compat ?? {}) as CompatLike;
-  // Tools are sent to every model pi selects, so a template without tool support fails on any model.
-  const toolLevel: Level = current ? "error" : "warn";
-  const softToolLevel: Level = current ? "warn" : "info";
-
-  if (!instance) {
-    const offered = server.instances.map((entry) => entry.id).join(", ") || "none";
-    addFinding(
-      findings,
-      "error",
-      scope,
-      "not-offered",
-      `the server does not list "${model.id}" (it offers: ${offered}); requests fail with 400 model not found`,
-      "use a name the server lists, add a preset section for it (then GET /models?reload=1), or refresh pi's catalog",
-    );
-    return;
+/**
+ * The configured model plus whatever the server says about it. A question the server could not answer
+ * (a cold preset, for instance) keeps the configured value.
+ */
+function withServedInfo(model: ModelsJsonModel, providerCompat: ModelsJsonCompat | undefined, served: Served): {
+  config: ChatModelConfig;
+  added: string[];
+  thinking: string;
+} {
+  const compat: ModelsJsonCompat = { ...(providerCompat ?? {}), ...(model.compat ?? {}) };
+  const llamaCompat: ModelsJsonCompat = {
+    supportsStore: false,
+    supportsDeveloperRole: false,
+    supportsStrictMode: false,
+    supportsUsageInStreaming: true,
+    maxTokensField: "max_tokens",
+  };
+  const policy = thinkingPolicy(served);
+  if (policy) {
+    if (policy.thinkingFormat) compat.thinkingFormat = policy.thinkingFormat;
+    else delete compat.thinkingFormat;
+    llamaCompat.supportsReasoningEffort = policy.supportsReasoningEffort ?? false;
   }
 
-  if (instance.status !== "loaded" && instance.status !== "sleeping") {
-    addFinding(
-      findings,
-      instance.failed ? "error" : "info",
-      scope,
-      "caps-unknown",
-      `instance "${instance.id}" is ${instance.status}${instance.failed ? " (failed to load)" : ""}: no template capabilities to check`,
-      server.autoload ? "load it (POST /models/load) or let autoload warm it, then re-run" : undefined,
-    );
-    return;
+  const servedValues: Derived = {
+    reasoning: policy ? policy.reasoning : model.reasoning,
+    input: served.vision === undefined ? model.input : served.vision ? ["text", "image"] : ["text"],
+    // A hand-written context beats the preset's launch args, which only fill in for a discovered preset.
+    contextWindow: served.nCtx ?? model.contextWindow ?? served.requested,
+    thinkingLevelMap: policy?.thinkingLevelMap ?? model.thinkingLevelMap,
+  };
+  if (servedValues.contextWindow && model.maxTokens) {
+    servedValues.maxTokens = Math.min(model.maxTokens, servedValues.contextWindow);
   }
 
-  const caps = instance.caps ?? {};
-
-  if (!caps.supports_tools) {
-    addFinding(
-      findings,
-      toolLevel,
-      scope,
-      "no-tools",
-      "pi sends tool definitions to every model, but this chat template cannot use them: answers come back tool-free",
-      "pick an instance whose preset runs with jinja = true and a tool-capable template",
-    );
-  } else if (caps.supports_tool_calls === false) {
-    addFinding(
-      findings,
-      toolLevel,
-      scope,
-      "no-tool-calls",
-      "the template takes tool definitions but cannot emit calls: tool-using requests stay tool-free",
-      "pick an instance with a tool-calling template",
-    );
-  }
-  if (caps.supports_object_arguments === false) {
-    addFinding(
-      findings,
-      softToolLevel,
-      scope,
-      "object-arguments",
-      "the template wants string tool arguments while pi sends JSON objects",
-      "verify a real tool round trip before trusting this model with tools",
-    );
-  }
-  if (caps.supports_parallel_tool_calls === false) {
-    addFinding(
-      findings,
-      "info",
-      scope,
-      "parallel-tool-calls",
-      "the template supports one tool call per turn",
-      undefined,
-      `${server.root} ${instance.id} parallel-tool-calls`,
-    );
+  const added = Object.entries(servedValues)
+    .filter(([field, value]) => value !== undefined && JSON.stringify(value) !== JSON.stringify((model as Record<string, unknown>)[field]))
+    .map(([field]) => field);
+  for (const [field, value] of Object.entries(llamaCompat)) {
+    if (compat[field] !== value) added.push(field);
+    compat[field] = value;
   }
 
-  const images = model.input?.includes("image") === true;
-  if (images && instance.vision === false) {
-    addFinding(
-      findings,
-      "warn",
-      scope,
-      "vision-declared",
-      `models.json declares image input but the instance has no vision projector`,
-      `set "input": ["text"] for ${model.id}`,
-    );
-  } else if (!images && instance.vision === true) {
-    addFinding(
-      findings,
-      "info",
-      scope,
-      "vision-unused",
-      "the instance can take images but models.json declares text only",
-      `set "input": ["text", "image"] for ${model.id}`,
-    );
-  }
-
-  const liveCtx = instance.nCtx;
-  if (liveCtx && liveCtx > 0) {
-    if (model.contextWindow > liveCtx) {
-      addFinding(
-        findings,
-        "error",
-        scope,
-        "context-overflow",
-        `models.json declares contextWindow ${model.contextWindow} above the served n_ctx ${liveCtx}`,
-        `set "contextWindow": ${liveCtx}`,
-      );
-    } else if (model.contextWindow < liveCtx * 0.75) {
-      addFinding(
-        findings,
-        "info",
-        scope,
-        "context-undersized",
-        `served n_ctx is ${liveCtx} but pi stops at ${model.contextWindow}`,
-        `set "contextWindow": ${liveCtx} to use the whole instance`,
-      );
-    }
-    if (model.maxTokens > liveCtx) {
-      addFinding(
-        findings,
-        "error",
-        scope,
-        "max-tokens",
-        `maxTokens ${model.maxTokens} exceeds served n_ctx ${liveCtx}`,
-        `set "maxTokens": ${Math.min(liveCtx, 32768)}`,
-      );
-    }
-  }
-
-  const effortFromTemplate = caps.supports_reasoning_effort === true;
-  // pi detects both from the URL, and a LAN endpoint lands on the hosted-OpenAI defaults.
-  const thinkingFormat = compat.thinkingFormat ?? "openai";
-  const sendsReasoningEffort = compat.supportsReasoningEffort !== false && thinkingFormat === "openai";
-  const thinkingFromTemplate = instance.templateThinking === true || caps.supports_preserve_reasoning === true;
-  if (model.reasoning) {
-    if (!effortFromTemplate && !thinkingFromTemplate) {
-      addFinding(
-        findings,
-        "warn",
-        scope,
-        "thinking-unsupported",
-        "reasoning is on in models.json but the template has no thinking switch",
-        `set "reasoning": false for ${model.id}, or check the preset (jinja = true)`,
-      );
-    } else if (sendsReasoningEffort && !effortFromTemplate) {
-      addFinding(
-        findings,
-        "warn",
-        scope,
-        "thinking-ignored",
-        "pi sends reasoning_effort, but this template ignores it: the thinking level does nothing",
-        `"thinkingFormat": "qwen-chat-template" for ${model.id}`,
-      );
-    } else if (thinkingFormat === "openai" && compat.supportsReasoningEffort === false) {
-      addFinding(
-        findings,
-        "warn",
-        scope,
-        "thinking-not-sent",
-        "pi sends no thinking switch at all, so the thinking level does nothing and the server default wins",
-        `"thinkingFormat": "qwen-chat-template" for ${model.id}`,
-      );
-    } else if (effortFromTemplate && thinkingFormat === "qwen-chat-template" && compat.supportsReasoningEffort !== true) {
-      addFinding(
-        findings,
-        "info",
-        scope,
-        "effort-unused",
-        "the template reads reasoning_effort but pi only sends enable_thinking",
-        'drop "thinkingFormat" and set "supportsReasoningEffort": true to expose effort levels',
-      );
-    }
-    if (thinkingFormat === "qwen-chat-template" && caps.supports_preserve_reasoning === false) {
-      addFinding(
-        findings,
-        "info",
-        scope,
-        "preserve-thinking",
-        "pi sends preserve_thinking, which this template ignores",
-      );
-    }
-  } else if (instance.templateThinking === true) {
-    addFinding(
-      findings,
-      "info",
-      scope,
-      "reasoning-off",
-      "the template has a thinking switch but models.json says reasoning: false",
-      `set "reasoning": true for ${model.id}`,
-    );
-  }
-
-  if (instance.totalSlots === 1) {
-    addFinding(
-      findings,
-      "info",
-      scope,
-      "single-slot",
-      "the instance has one slot: simultaneous requests queue instead of interleaving",
-      "raise parallel = N in the preset (KV cache splits per slot)",
-      `${server.root} ${instance.id} single-slot`,
-    );
-  }
-}
-
-function inspectServer(server: Server, findings: Finding[]): void {
-  const presets = server.instances.length;
-  if (server.maxInstances !== undefined && presets > server.maxInstances) {
-    addFinding(
-      findings,
-      "info",
-      server.root,
-      "lru-eviction",
-      `the router knows ${presets} instances but keeps only max_instances ${server.maxInstances}: the least recently used one is unloaded when another loads`,
-      "raise --models-max or keep fewer models loaded",
-    );
-  }
-  const failed = server.instances.filter((instance) => instance.failed).map((instance) => instance.id);
-  if (failed.length > 0) {
-    addFinding(
-      findings,
-      "error",
-      server.root,
-      "instance-failed",
-      `${failed.join(", ")} failed to start and ${failed.length === 1 ? "answers nothing" : "answer nothing"}; check the server log`,
-    );
-  }
-}
-
-function describeServer(server: Server): string {
-  const bits = [`${server.role === "router" ? "router" : "single"} ${server.buildInfo ?? "?"}`];
-  if (server.maxInstances !== undefined) bits.push(`max_instances ${server.maxInstances}`);
-  if (server.autoload !== undefined) bits.push(`autoload ${server.autoload ? "on" : "off"}`);
-  return bits.join(", ");
-}
-
-async function probe(
-  root: string,
-  models: Model<unknown>[],
-  signal: AbortSignal | undefined,
-  headers?: Record<string, string>,
-): Promise<Server> {
-  const server: Server = { root, instances: [], models: models.map((model) => ({ provider: model.provider, id: model.id })) };
-
-  const props = await getJson<ServerProps>(`${root}/props`, signal, headers);
-  if (!props.ok) {
-    server.skip = props.error;
-    return server;
-  }
-  if (!isLlamaProps(props.data)) {
-    server.skip = "not a llama.cpp server";
-    return server;
-  }
-
-  server.role = props.data.role;
-  server.buildInfo = props.data.build_info;
-  server.maxInstances = props.data.max_instances;
-  server.autoload = props.data.models_autoload;
-
-  if (server.role === "router") {
-    const listed = await getJson<{ data?: RouterInstance[] }>(`${root}/models`, signal, headers);
-    const entries = listed.ok ? listed.data.data ?? [] : [];
-    server.instances = entries.map((entry) => ({
-      id: entry.id,
-      aliases: entry.aliases ?? [],
-      status: entry.status?.value ?? "unknown",
-      failed: entry.status?.failed === true,
-      nCtx: entry.meta?.n_ctx,
-      ftype: entry.meta?.ftype,
-      vision: entry.architecture?.input_modalities?.includes("image"),
-    }));
-    const warm = server.instances.filter((instance) => instance.status === "loaded" || instance.status === "sleeping");
-    await Promise.all(
-      warm.map(async (instance) => {
-        // autoload=false keeps a sleeping instance asleep and an unloaded instance cold.
-        const instanceProps = await getJson<ServerProps>(
-          `${root}/props?${new URLSearchParams({ model: instance.id, autoload: "false" })}`,
-          signal,
-          headers,
-        );
-        if (!instanceProps.ok) {
-          instance.note = instanceProps.error;
-          return;
-        }
-        instance.caps = instanceProps.data.chat_template_caps;
-        instance.totalSlots = instanceProps.data.total_slots;
-        instance.sleeping = instanceProps.data.is_sleeping;
-        instance.nCtx = instanceProps.data.default_generation_settings?.n_ctx ?? instance.nCtx;
-        instance.ftype = instanceProps.data.model_ftype ?? instance.ftype;
-        instance.vision = instanceProps.data.modalities?.vision ?? instance.vision;
-        instance.templateThinking = templateSupportsThinking(instanceProps.data);
-      }),
-    );
-    return server;
-  }
-
-  // Single-model llama.cpp: /props already carries the instance.
-  server.instances = [
-    {
-      id: props.data.model_alias ?? "default",
-      aliases: [],
-      status: props.data.is_sleeping ? "sleeping" : "loaded",
-      failed: false,
-      nCtx: props.data.default_generation_settings?.n_ctx,
-      ftype: props.data.model_ftype,
-      totalSlots: props.data.total_slots,
-      sleeping: props.data.is_sleeping,
-      caps: props.data.chat_template_caps,
-      vision: props.data.modalities?.vision,
-      templateThinking: templateSupportsThinking(props.data),
+  return {
+    config: {
+      id: model.id,
+      name: model.name ?? model.id,
+      reasoning: servedValues.reasoning === true,
+      input: servedValues.input ?? ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ...(model.cost ?? {}) },
+      contextWindow: servedValues.contextWindow ?? 128000,
+      maxTokens: servedValues.maxTokens ?? servedValues.contextWindow ?? 128000,
+      compat: compat as ChatModelConfig["compat"],
+      ...(servedValues.thinkingLevelMap ? { thinkingLevelMap: servedValues.thinkingLevelMap } : {}),
+      ...(model.baseUrl ? { baseUrl: model.baseUrl } : {}),
+      ...(model.headers ? { headers: model.headers } : {}),
+      ...(model.samplingParams ? { samplingParams: model.samplingParams } : {}),
     },
-  ];
-  return server;
+    added,
+    thinking: policy?.label ?? "as configured",
+  };
 }
 
-async function buildReport(ctx: ExtensionContext): Promise<Report> {
-  const grouped = candidates(ctx.modelRegistry.getAll() as Model<unknown>[]);
-  const sessionKey = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined;
-  const servers: Server[] = [];
-  const findings: Finding[] = [];
+async function readConfiguredProviders(): Promise<Map<string, ModelsJsonProvider>> {
+  const agentDir = process.env.PI_CODING_AGENT_DIR ?? join(process.env.HOME ?? "", ".pi", "agent");
+  const text = await readFile(join(agentDir, "models.json"), "utf8").catch(() => undefined);
+  if (!text) return new Map();
+  try {
+    const parsed = JSON.parse(text.replace(/^\uFEFF/, "")) as { providers?: Record<string, ModelsJsonProvider> };
+    return new Map(Object.entries(parsed.providers ?? {}));
+  } catch (error) {
+    debug(`models.json unreadable: ${error instanceof Error ? error.message : error}`);
+    return new Map();
+  }
+}
+
+export default async function llamaCompat(pi: ExtensionAPI) {
+  const providers = await readConfiguredProviders();
 
   await Promise.all(
-    [...grouped].map(async ([root, models]) => {
-      // A listed server may have no pi model at all; then it is probed without credentials.
-      const auth = models[0] ? await ctx.modelRegistry.getApiKeyAndHeaders(models[0]) : undefined;
-      const headers = auth?.ok
-        ? { ...(auth.headers ?? {}), ...(auth.apiKey ? { Authorization: `Bearer ${auth.apiKey}` } : {}) }
-        : undefined;
-      const server = await probe(root, models, ctx.signal, headers);
-      if (server.skip === undefined) servers.push(server);
-      else if (process.env.LLAMA_COMPAT_DEBUG) findings.push({ level: "info", scope: root, code: "skipped", message: server.skip });
-    }),
-  );
+    [...providers].map(async ([name, provider]) => {
+      const declared = provider.models ?? [];
+      const api = provider.api ?? "openai-completions";
+      if (name === BUILTIN_PROVIDER || api !== "openai-completions") return;
+      const root = serverRoot(provider.baseUrl ?? declared[0]?.baseUrl ?? "");
+      const router = await getJson<ServerProps>(root ? `${root}/props` : "");
+      if (!root || !isLlamaProps(router)) return;
+      const autoload = router.models_autoload === true;
 
-  for (const server of servers) {
-    inspectServer(server, findings);
-    for (const ref of server.models) {
-      const model = ctx.modelRegistry.find(ref.provider, ref.id) as Model<unknown> | undefined;
-      if (!model) continue;
-      const instance = instanceFor(server, model.id);
-      if (instance) ref.instance = instance.id;
-      inspectModel(model, server, instance, findings, `${model.provider}/${model.id}` === sessionKey);
-    }
-  }
+      // A provider that declares models keeps exactly those; one that declares nothing is filled from the
+      // presets the router advertises, so a new preset needs no config change.
+      const wanted = (advertised: RouterModel[]): ModelsJsonModel[] =>
+        declared.length > 0
+          ? declared
+          : advertised
+              .filter((model) => routable(model, autoload) && !embeddingOnly(model))
+              .map((model) => ({ id: model.id, name: model.id }));
 
-  servers.sort((a, b) => a.root.localeCompare(b.root));
-  findings.sort((a, b) => LEVELS[a.level] - LEVELS[b.level] || a.scope.localeCompare(b.scope));
-  return { checkedAt: new Date().toISOString(), servers, findings };
-}
+      let current: ChatModelConfig[] = [];
+      let detail = "";
+      const rebuild = async (signal?: AbortSignal): Promise<boolean> => {
+        const advertised = (await getJson<{ data?: RouterModel[] }>(`${root}/models`, signal))?.data ?? [];
+        const served = await servedFor(advertised, root, signal);
+        const models = wanted(advertised);
+        // Registering a provider replaces its whole model list, so a single configured model the server does
+        // not offer means the provider stays exactly as models.json describes it rather than losing it.
+        const missing = models.map((model) => model.id).filter((id) => !match(served, id));
+        if (missing.length > 0) {
+          debug(`${name}: ${root} does not offer ${missing.join(", ")}`);
+          return false;
+        }
+        const built = models.map((model) => withServedInfo(model, provider.compat, match(served, model.id) ?? { id: model.id, aliases: [] }));
+        current = built.map((entry) => entry.config);
+        detail = built.map((entry) => `${entry.config.id}: ${entry.added.join(" ") || "nothing new"}, thinking=${entry.thinking}`).join("; ");
+        return true;
+      };
 
-/** Ready-to-paste models.json entry per server, built from what the instances actually serve. */
-function modelsJsonBlocks(report: Report): string[] {
-  const lines: string[] = [];
-  for (const server of report.servers) {
-    const usable = server.instances.filter((instance) => instance.status === "loaded" || instance.status === "sleeping");
-    const contextOf = (instance: Instance) => instance.nCtx ?? 0;
-    const provider = providerNameFor(server);
-    if (usable.length === 0) {
-      lines.push(`// ${provider}: load an instance on ${server.root} to read its served context`);
-      continue;
-    }
-    const hasThinking = (instance: Instance) =>
-      instance.templateThinking === true || instance.caps?.supports_reasoning_effort === true;
-    const reasoning = usable.some(hasThinking);
-    lines.push(`"${provider}": {`);
-    lines.push(`  "baseUrl": "${server.root}/v1",`);
-    lines.push(`  "api": "openai-completions",`);
-    lines.push(`  "apiKey": "none",`);
-    lines.push(`  "compat": {`);
-    lines.push(`    "supportsStore": false,`);
-    lines.push(`    "supportsDeveloperRole": false,`);
-    lines.push(`    "supportsReasoningEffort": false,`);
-    lines.push(`    "supportsUsageInStreaming": true,`);
-    lines.push(`    "supportsStrictMode": false,`);
-    lines.push(`    "maxTokensField": "max_tokens"${reasoning ? "," : ""}`);
-    if (reasoning) lines.push(`    "thinkingFormat": "qwen-chat-template"`);
-    lines.push(`  },`);
-    lines.push(`  "models": [`);
-    usable.forEach((instance, index) => {
-      const context = contextOf(instance);
-      const input = instance.vision ? `["text", "image"]` : `["text"]`;
-      lines.push(`    {`);
-      lines.push(`      "id": "${instance.id}",`);
-      lines.push(`      "name": "${instance.id}${instance.ftype ? ` (${instance.ftype})` : ""}",`);
-      lines.push(`      "reasoning": ${hasThinking(instance)},`);
-      lines.push(`      "input": ${input},`);
-      lines.push(`      "contextWindow": ${context || 1},`);
-      lines.push(`      "maxTokens": ${Math.min(context || 1, 32768)},`);
-      lines.push(`      "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }`);
-      lines.push(`    }${index === usable.length - 1 ? "" : ","}`);
-    });
-    lines.push(`  ]`);
-    lines.push(`},`);
-    lines.push("");
-  }
-  return lines.length === 0 ? ["// no llama.cpp server answered"] : lines;
-}
+      if (!(await rebuild())) return;
 
-function providerNameFor(server: Server): string {
-  const providers = new Set(server.models.map((model) => model.provider));
-  if (providers.size === 1) return [...providers][0]!;
-  const host = new URL(server.root).hostname.split(".")[0]!;
-  return `${host}-${new URL(server.root).port || "80"}`;
-}
-
-export type ReportView = {
-  /** Drop presets that are neither loaded nor failed; a router lists every preset it knows. */
-  hideIdle?: boolean;
-  /** Only error and warn findings. */
-  problemsOnly?: boolean;
-  /** Omit the "fix:" continuation lines. */
-  concise?: boolean;
-};
-
-function renderReport(report: Report, view: ReportView = {}): string[] {
-  const lines: string[] = [];
-  if (report.servers.length === 0) {
-    return [
-      "llama-compat: no llama.cpp server answered",
-      "check the providers in models.json, or set LLAMA_COMPAT_URLS to the server roots",
-    ];
-  }
-  for (const server of report.servers) {
-    const instances = server.instances.filter(
-      (instance) => !view.hideIdle || instance.status === "loaded" || instance.status === "failed",
-    );
-    const idle = server.instances.length - instances.length;
-    lines.push(`${new URL(server.root).host} - ${describeServer(server)}${idle ? `, ${idle} not shown` : ""}`);
-    for (const instance of instances) {
-      const models = server.models.filter((model) => model.instance === instance.id);
-      const pinned = models.length > 0 ? `  <- ${models.map((model) => `${model.provider}/${model.id}`).join(", ")}` : "";
-      lines.push(`  ${instance.status === "loaded" ? "o" : instance.status === "failed" ? "x" : "."} ${instance.id}: ${instanceSummary(instance)}${pinned}`);
-      if (instance.note) lines.push(`      note: ${instance.note}`);
-    }
-  }
-  const findings = view.problemsOnly ? report.findings.filter((finding) => finding.level !== "info") : report.findings;
-  if (findings.length === 0) {
-    lines.push("no mismatches");
-    return lines;
-  }
-  lines.push("");
-  lines.push("findings:");
-  for (const finding of findings) {
-    lines.push(`  ${MARKS[finding.level]} ${finding.scope} [${finding.code}] ${finding.message}`);
-    if (finding.fix && !view.concise) lines.push(`      fix: ${finding.fix}`);
-  }
-  return lines;
-}
-
-/** Body + hint line, always inside pi's own widget line cap. */
-function widgetLines(body: string[], command: string): string[] {
-  const kept = body.slice(0, WIDGET_MAX_LINES - 1);
-  const rest = body.length - kept.length;
-  return [...kept, rest > 0 ? `... ${rest} more line(s) - ${command} full` : `${command} full | ${command} off`];
-}
-
-type Paint = {
-  heading(text: string): string;
-  accent(text: string): string;
-  error(text: string): string;
-  warn(text: string): string;
-  muted(text: string): string;
-};
-
-type ScreenArgs = {
-  title: string;
-  lines: string[];
-  paint: Paint;
-  rows: () => number;
-  requestRender: () => void;
-  quit: () => void;
-};
-
-function colorizeLine(line: string, paint: Paint): string {
-  if (line.startsWith("  x ")) return paint.error(line);
-  if (line.startsWith("  ! ")) return paint.warn(line);
-  if (line.startsWith("  - ") || line.trimStart().startsWith("fix:") || line.startsWith("//")) return paint.muted(line);
-  if (!line.startsWith(" ")) return paint.accent(line);
-  return line;
-}
-
-/** Scrollable full report: the panel above the editor never shows more than 10 lines. */
-function reportScreen(args: ScreenArgs) {
-  let top = 0;
-  const height = () => Math.max(4, args.rows() - 8);
-  const clamp = () => {
-    top = Math.max(0, Math.min(top, args.lines.length - height()));
-  };
-
-  return {
-    render(width: number): string[] {
-      clamp();
-      const view = args.lines.slice(top, top + height());
-      const range = view.length === 0 ? "0" : `${top + 1}-${top + view.length}`;
-      const body = [args.paint.heading(args.title), ...view.map((line) => colorizeLine(line, args.paint)), ""];
-      const hint = args.paint.muted(`up/down scroll  pgup/pgdn page  q close   ${range}/${args.lines.length}`);
-      return [...body, hint].map((line) => truncateToWidth(line, width));
-    },
-
-    handleInput(data: string): void {
-      const page = height();
-      if (matchesKey(data, "escape") || matchesKey(data, "enter") || matchesKey(data, "q")) {
-        args.quit();
-        return;
-      }
-      if (matchesKey(data, "up")) top -= 1;
-      else if (matchesKey(data, "down")) top += 1;
-      else if (matchesKey(data, "pageUp")) top -= page;
-      else if (matchesKey(data, "pageDown")) top += page;
-      else if (matchesKey(data, "home")) top = 0;
-      else if (matchesKey(data, "end")) top = args.lines.length;
-      else return;
-      clamp();
-      args.requestRender();
-    },
-
-    invalidate(): void {},
-  };
-}
-
-async function showScreen(ctx: ExtensionContext, title: string, lines: string[]): Promise<void> {
-  if (ctx.mode !== "tui") {
-    ctx.ui.notify(`${title}: ${lines.length} lines (no terminal here; the llama_compat tool returns the same text)`, "info");
-    return;
-  }
-  await ctx.ui.custom((tui, theme, _keybindings, done) => {
-    const paint: Paint = {
-      heading: (text) => theme.fg("accent", theme.bold(text)),
-      accent: (text) => theme.fg("accent", text),
-      error: (text) => theme.fg("error", text),
-      warn: (text) => theme.fg("warning", text),
-      muted: (text) => theme.fg("muted", text),
-    };
-    return reportScreen({
-      title,
-      lines,
-      paint,
-      rows: () => tui.terminal.rows,
-      requestRender: () => tui.requestRender(),
-      quit: () => done(undefined),
-    });
-  });
-}
-
-function reportFor(report: Report, filter: string | undefined): Report {
-  if (!filter) return report;
-  const keep = (scope: string) => scope.includes(filter);
-  return {
-    ...report,
-    servers: report.servers.filter((server) => keep(server.root) || server.models.some((model) => keep(`${model.provider}/${model.id}`))),
-    findings: report.findings.filter((finding) => keep(finding.scope)),
-  };
-}
-
-export default function llamaCompat(pi: ExtensionAPI) {
-  async function check(ctx: ExtensionContext, filter?: string): Promise<Report> {
-    return reportFor(await buildReport(ctx), filter);
-  }
-
-  pi.registerCommand("llama-check", {
-    description:
-      "Check llama.cpp routers against models.json (usage: /llama-check [text] [full|block|off]; off hides the panel)",
-    handler: async (args, ctx) => {
-      const parts = args.trim().split(/\s+/).filter(Boolean);
-      const mode = parts.find((part) => MODES.includes(part)) ?? "";
-      const filter = parts.find((part) => part !== mode);
-      const scope = filter ? ` (${filter})` : "";
-
-      if (mode === "off" || mode === "hide") {
-        ctx.ui.setWidget(WIDGET_KEY, undefined);
-        ctx.ui.notify("llama-compat: panel hidden - /llama-check shows it again", "info");
-        return;
-      }
-
-      const report = await check(ctx, filter);
-      if (mode === "full") {
-        await showScreen(ctx, `llama.cpp compat${scope}`, renderReport(report));
-        return;
-      }
-      if (mode === "block") {
-        await showScreen(ctx, `models.json block${scope}`, modelsJsonBlocks(report));
-        return;
-      }
-
-      const errors = report.findings.filter((finding) => finding.level === "error").length;
-      const warnings = report.findings.filter((finding) => finding.level === "warn").length;
-      const panel = widgetLines(renderReport(report, { hideIdle: true, problemsOnly: true, concise: true }), "/llama-check");
-      ctx.ui.setWidget(WIDGET_KEY, panel, { placement: "aboveEditor" });
-      if (errors > 0) ctx.ui.notify(`llama-compat: ${errors} error(s), ${warnings} warning(s) - /llama-check full`, "error");
-      else if (warnings > 0) ctx.ui.notify(`llama-compat: ${warnings} warning(s) - /llama-check full`, "warning");
-      else ctx.ui.notify("llama-compat: no mismatches", "info");
-    },
-  });
-
-  pi.registerTool({
-    name: "llama_compat",
-    label: "llama.cpp Compat",
-    description:
-      "Read what each llama.cpp instance can do (tool calling, thinking, slots, served context) and report mismatches with pi's models.json.",
-    promptSnippet: "Check llama.cpp instance capabilities against models.json before using a router model",
-    promptGuidelines: [
-      "Call llama_compat with format \"summary\" before selecting a llama.cpp model for tool work; format \"json\" gives raw caps and format \"block\" a models.json entry.",
-    ],
-    exposure: "codemode",
-    parameters: Type.Object({
-      filter: Type.Optional(Type.String({ description: "Only check servers or models whose name contains this text" })),
-      format: Type.Optional(
-        Type.Union([Type.Literal("summary"), Type.Literal("json"), Type.Literal("block")], {
-          description: "summary = findings text (default), json = raw caps, block = paste-ready models.json entry",
-        }),
-      ),
-    }),
-
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const report = await check(ctx, params.filter);
-      const format = params.format ?? "summary";
-      const lines =
-        format === "json"
-          ? [JSON.stringify(report, null, 2)]
-          : format === "block"
-            ? modelsJsonBlocks(report)
-            : renderReport(report);
-      return {
-        content: [{ type: "text", text: lines.join("\n") }],
-        details: {
-          servers: report.servers.map((server) => server.root),
-          errors: report.findings.filter((finding) => finding.level === "error").length,
-          warnings: report.findings.filter((finding) => finding.level === "warn").length,
+      const config: ProviderConfig = {
+        name: provider.name,
+        baseUrl: provider.baseUrl,
+        api: "openai-completions",
+        headers: provider.headers,
+        authHeader: provider.authHeader,
+        models: current,
+        refreshModels: async (context) => {
+          if (context.allowNetwork && !context.signal.aborted) await rebuild(context.signal);
+          return current;
         },
       };
-    },
-  });
+      // models.json holds the key as a literal or as $NAME interpolation, both accepted here.
+      if (provider.apiKey) config.apiKey = provider.apiKey;
 
-  pi.on("session_start", async (_event, ctx) => {
-    if (process.env.PI_LLAMA_CHECK !== "1") return;
-    try {
-      const report = await check(ctx);
-      const errors = report.findings.filter((finding) => finding.level === "error").length;
-      if (errors > 0) {
-        const panel = widgetLines(renderReport(report, { hideIdle: true, problemsOnly: true, concise: true }), "/llama-check");
-        ctx.ui.setWidget(WIDGET_KEY, panel, { placement: "aboveEditor" });
-        ctx.ui.notify(`llama-compat: ${errors} error(s) in models.json - /llama-check full`, "error");
-      }
-    } catch {
-      // Never block a session on a server probe.
-    }
-  });
+      pi.registerProvider(name, config);
+      debug(`${name} <- ${root}: ${current.length} models: ${detail || "none routable"}`);
+    }),
+  );
 }
-
-export { buildReport, modelsJsonBlocks, probe, renderReport, reportScreen, widgetLines };
