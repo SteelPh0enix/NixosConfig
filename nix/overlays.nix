@@ -4,6 +4,7 @@ inputs: [
   inputs.nix-cachyos-kernel.overlays.pinned
   inputs.llama-cpp.overlays.default
   (import ./overlays/llama-cpp.nix)
+  (import ./overlays/ltrace.nix)
   (import ./overlays/phonto.nix inputs)
   (import ./overlays/rust-toolchain.nix)
 ]
