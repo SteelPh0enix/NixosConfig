@@ -1,51 +1,59 @@
 # llama-compat
 
-Reads `GET /props` (and `GET /models` for routers) from every llama.cpp server pi talks to, and compares
-what the served chat template can actually do with what `~/.pi/agent/models.json` claims about it.
-pi never looks at these caps itself, so a model whose template cannot call tools silently answers without
-tool calls, and a context window that drifted after a re-fit is only noticed mid-session.
+Feeds what a llama.cpp server actually serves into pi's model catalog. Nothing else: no command, no tool, no
+panel, and no model is ever loaded or unloaded (capabilities are read with `autoload=false`).
 
-A server is checked when its **provider is named after llama** (`llama.cpp` built-in, `llama-b`, …) or when
-`LLAMA_COMPAT_URLS` lists its root. Detection always runs and the list only ever adds, so nothing else is
-contacted; model ids are not matched, because llama models on a hosted provider are not a local llama.cpp
-server. Once a server is checked, every model pointing at it is compared whatever its provider is called,
-and a listed server with no models at all still reports its instances. Instance props are read with
-`autoload=false`, so sleeping and unloaded instances stay exactly as they are.
+A `models.json` entry for a llama.cpp router is hand-written, so it drifts: `contextWindow` after a re-fit
+(`--fit`), `reasoning` and `thinkingFormat` when a preset's chat template changes, `input` when a vision
+projector appears or goes away. At startup this extension reads the servers behind the configured providers
+and re-registers them with the server's own answers. `refreshModels` is registered too, so a model-catalog
+refresh re-reads the server without restarting pi.
 
-| Environment | Effect |
+```jsonc
+// both shapes work: a provider you pin models on, and one that takes whatever the router advertises
+"llama-main":        { "baseUrl": "http://host:33333/v1", "api": "openai-completions", "apiKey": "none",
+                       "models": [{ "id": "Qwen 3.8 Flash Next", "name": "qwen-next" }] },
+"llama-fwpc-vulkan": { "baseUrl": "http://host:51536/v1", "api": "openai-completions", "apiKey": "none",
+                       "models": [] }
+```
+
+| Read | Used for |
 |---|---|
-| `LLAMA_COMPAT_URLS` | extra server roots, comma-separated (`http://host:port`, a trailing `/v1` is fine) |
-| `PI_LLAMA_CHECK=1` | check at session start, show the panel only on errors |
-| `LLAMA_COMPAT_DEBUG=1` | list servers that were skipped, and why |
+| `GET /props` | whether the endpoint is a llama.cpp server at all; anything else is left alone |
+| `GET /models` | `contextWindow` from `meta.n_ctx` or the preset's `--ctx-size` arg, `input` from `architecture.input_modalities`, instance ids, aliases, `status.value` |
+| `GET /props?model=X&autoload=false`, loaded or sleeping instances only | served `n_ctx`, vision, the template's `enable_thinking` switch, the effort values it names, `chat_template_caps.supports_reasoning_effort` |
 
-## Use
-
-| Command | Result |
+| Server says | Applied |
 |---|---|
-| `/llama-check` | panel above the editor: loaded instances plus `error`/`warn` findings, at most 10 lines (pi's own widget cap) |
-| `/llama-check full` | whole report - every preset, all findings with their `fix:` - in a scrollable screen (`q`/`Esc` closes, arrows and `PgUp`/`PgDn` scroll) |
-| `/llama-check framework` | only servers or models whose name contains `framework` (combines with `full`) |
-| `/llama-check block` | paste-ready `models.json` entry per server, from the served `n_ctx` and ftype, in the same screen |
-| `/llama-check off` | hide the panel (`hide` works too); `/llama-check` shows it again |
+| served `n_ctx` | `contextWindow`, and `maxTokens` clamped down to it |
+| vision projector present / absent | `input` `["text", "image"]` / `["text"]` |
+| any thinking switch at all | `reasoning: true`, otherwise `false` |
+| template has an `enable_thinking` switch | `compat.thinkingFormat: "qwen-chat-template"`, `supportsReasoningEffort: false` - the bool switch is the only one that can turn thinking off |
+| template reads `reasoning_effort` but has no bool switch | `supportsReasoningEffort: true` and a `thinkingLevelMap` over the efforts the template names, others marked null |
+| always | `supportsStore`/`supportsDeveloperRole`/`supportsStrictMode` false, `supportsUsageInStreaming` true, `maxTokensField: "max_tokens"` |
+| always | `supportsStore`/`supportsDeveloperRole`/`supportsStrictMode` false, `supportsUsageInStreaming` true, `maxTokensField: "max_tokens"` |
 
-The same check is a codemode tool, `llama_compat({ filter, format })`, which returns text: `summary`
-(default), `json` (caps per instance) or `block`. `PI_LLAMA_CHECK=1` runs it at session start and shows
-the panel only when there are errors.
+## Providers with no models
 
-## Findings
+A provider that declares `"models": []` is filled from the presets the router advertises, so adding a preset
+server-side needs no config change. Only presets pi can actually route are registered: a loaded or sleeping
+instance, or a cold one when the router reports `models_autoload` (llama.cpp's own rule). Presets that can
+only answer with vectors (`--embeddings` or `--pooling` in their launch args) are left out.
 
-| Code | Means |
-|---|---|
-| `not-offered` | models.json id is not a preset name/alias on the server → requests 400 |
-| `caps-unknown` | instance is not loaded, so caps cannot be read |
-| `no-tools`, `no-tool-calls` | template takes tools but cannot use/emit them |
-| `object-arguments` | template wants string tool arguments, pi sends JSON objects |
-| `context-overflow`, `max-tokens` | declared window above the served `n_ctx` |
-| `context-undersized` | served `n_ctx` is much larger than what pi uses |
-| `vision-declared`, `vision-unused` | `input` disagrees with the instance's modalities |
-| `thinking-unsupported`, `thinking-ignored`, `thinking-not-sent` | pi's thinking level cannot reach this template |
-| `effort-unused`, `preserve-thinking` | the template offers more than the current `compat` sends |
-| `single-slot` | `parallel = 1`: simultaneous requests queue |
-| `lru-eviction`, `instance-failed` | router-wide state worth knowing |
+A cold preset cannot report its template or its served context, so it starts from its `--ctx-size` arg (pi's
+128K default when the preset passes none) and without thinking. Open `/model` once the preset has been loaded
+and the catalog refresh fills both in.
 
-Tool findings are `error` for the model the session is using and `warn` for the others.
+## Limits
+
+- The built-in `llama.cpp` provider is skipped: its own code already reads the server, and re-registering it
+  would drop its classifier models. Only providers you put in `models.json` are touched.
+- Effort levels are only claimed when the template can take them: a template that validates its effort (most
+  Qwen ones: `xhigh`/`medium`/`low`) 500s on `high`, and pi sends `thinkingLevelMap[level] ?? level`.
+- A cold preset answers nothing about itself, so it keeps its configured values rather than guessing.
+- Registering a provider replaces its whole model list, so if the server does not offer one of the configured
+  models, the provider is left exactly as `models.json` describes it.
+- The server is probed at startup with a 2s budget per provider, in parallel; an unreachable server leaves the
+  configuration untouched.
+
+`LLAMA_COMPAT_DEBUG=1` writes one stderr line per provider: what was filled in, or why nothing was.

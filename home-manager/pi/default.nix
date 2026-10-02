@@ -13,8 +13,9 @@
     environment.PI_WEBFETCH_BIN.value = "${pkgs.agent-browser}/bin/agent-browser";
     # SearXNG is served by fwpc, so the extension's 127.0.0.1:7777 default never connects from other hosts.
     environment.SEARXNG_URL.value = "http://steelph0enix.framework:7777";
-    # llama-compat auto-detects llama-named providers; these routers are qwen-named, so they are listed.
-    environment.LLAMA_COMPAT_URLS.value = "http://steelph0enix.framework:33333,http://steelph0enix.pc:51536";
+    # llama-compat reads models.json, finds the llama.cpp servers behind its providers, and feeds the served
+    # context, thinking and vision facts back into pi's catalog; uncomment to see what it changed.
+    # environment.LLAMA_COMPAT_DEBUG.value = "1";
 
     # Handed to pi as CLI flags on every run instead of being placed in the agent dir.
     rules = ./APPEND_SYSTEM.md;
@@ -33,7 +34,7 @@
 
     # jq-merged into ~/.pi/agent/settings.json at every start, so unlisted keys survive.
     settings = {
-      defaultProvider = "qwen-next";
+      defaultProvider = "llama-main";
       defaultModel = "Qwen 3.8 Flash Next";
       defaultThinkingLevel = "high";
       theme = "noctalia";

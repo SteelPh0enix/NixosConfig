@@ -1,24 +1,27 @@
 {
   "providers": {
-    "qwen-next": {
+    "llama-main": {
       "baseUrl": "http://steelph0enix.framework:33333/v1",
       "api": "openai-completions",
       "apiKey": "none",
-      "compat": {
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "thinkingFormat": "qwen-chat-template"
-      },
       "models": [
         {
           "id": "Qwen 3.8 Flash Next",
-          "name": "qwen-next",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 262144,
-          "maxTokens": 32768
+          "name": "qwen-next"
         }
       ]
+    },
+    "llama-pc": {
+      "baseUrl": "http://steelph0enix.pc:51536/v1",
+      "api": "openai-completions",
+      "apiKey": "none",
+      "models": []
+    },
+    "llama-fwpc-vulkan": {
+      "baseUrl": "http://steelph0enix.framework:51536/v1",
+      "api": "openai-completions",
+      "apiKey": "none",
+      "models": []
     }
   }
 }
