@@ -11,6 +11,8 @@
     enable = true;
 
     environment.PI_WEBFETCH_BIN.value = "${pkgs.agent-browser}/bin/agent-browser";
+    # SearXNG is served by fwpc, so the extension's 127.0.0.1:7777 default never connects from other hosts.
+    environment.SEARXNG_URL.value = "http://steelph0enix.framework:7777";
 
     # Handed to pi as CLI flags on every run instead of being placed in the agent dir.
     rules = ./APPEND_SYSTEM.md;
@@ -18,7 +20,9 @@
       ./extensions/searxng.ts
       ./extensions/webfetch.ts
     ];
-    themes = [ ./themes/noctalia.json ];
+    # No theme here: Noctalia's community `pi-agent` template (hyprland/noctalia.nix) writes
+    # ~/.pi/agent/themes/noctalia.json from the live palette. Passing a copy via `themes` would
+    # only collide on the name `noctalia`.
     promptTemplates = [ ./prompts ];
 
     # Installed into ~/.pi/agent/models.json only when that file is missing; rm it to re-seed.
