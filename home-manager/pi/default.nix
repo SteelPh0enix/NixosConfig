@@ -38,6 +38,8 @@
       treeFilterMode = "default";
       enableSkillCommands = true;
       enableInstallTelemetry = false;
+      # +name keeps read, bash, edit, write and adds codemode
+      defaultTools = [ "+codemode" ];
       packages = [ ]; # keep the key: it overwrites whatever settings.json already declares
       retry = {
         maxRetries = 5;
