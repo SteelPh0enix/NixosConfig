@@ -1,6 +1,6 @@
 // The two lines of the footer as coloured segments of measured width. Nothing here imports at runtime — colours are
 // named tones and widths are measured here — so test-utils/preview.mjs can render it under plain node.
-export type Tone = "label" | "value" | "live" | "dim" | "warn" | "error" | "separator" | "ident" | "model" | "number" | "percent" | "held" | "evaluating" | "generating" | "free" | "none";
+export type Tone = "label" | "value" | "live" | "dim" | "warn" | "error" | "separator" | "ident" | "model" | "number" | "percent" | "held" | "evaluating" | "pending" | "generating" | "free" | "none";
 /** `bg` is the layer under `tone`, used only where two layers share a cell. */
 export type Segment = { text: string; tone: Tone; bg?: Tone };
 export type Cell = Segment[];
@@ -62,45 +62,52 @@ const num = (v: number | undefined, width: number, s: Style = {}): Segment => {
   return str(s.estimated ? `~${body}`.padStart(width) : pad(body, width), s);
 };
 
-/** How much of one cell each layer covers, 0 to 1. A layer that covers none of it is 0 and never claims the cell. */
-export type BarCell = { held: number; evaluating: number; generating: number };
-export type BarState = { cells: number; used: number; evaluating: number; generating: number; total: number };
+/** How much of one cell each band covers, 0 to 1. A band that covers none of it is 0 and never claims the cell. */
+export type BarCell = { held: number; evaluating: number; pending: number; generating: number };
+export type BarState = { cells: number; used: number; evaluating: number; pending: number; generating: number; total: number };
 
-/**
- * Where the three bands end, in fractions of the bar. Over capacity held gives way and the live bands keep the
- * right edge, so tokens landing now are never squeezed out of sight by a context figure that has run past `n_ctx`.
- */
-function barEnds(s: BarState): [held: number, evaluating: number, generating: number] {
-  if (!(s.total > 0)) return [0, 0, 0];
-  const held = s.used / s.total;
-  const evaluating = (s.used + Math.max(0, s.evaluating)) / s.total;
-  const generating = (s.used + Math.max(0, s.evaluating) + Math.max(0, s.generating)) / s.total;
-  const shift = Math.max(0, generating - 1);
-  return [clamp(held - shift), clamp(Math.max(held, evaluating) - shift), clamp(generating)];
+/** The bands in the order they sit in the bar: what is held, what is being evaluated, the prompt yet to evaluate
+ * (which comes before what is produced), and what is being produced. */
+const BANDS = ["held", "evaluating", "pending", "generating"] as const;
+
+/** Where the bands end, in fractions of the bar. Over capacity held gives way and the rest keep the right edge,
+ * so what is landing now is never squeezed out of sight by a context figure that has run past `n_ctx`. */
+function barEnds(s: BarState): number[] {
+  if (!(s.total > 0)) return [0, 0, 0, 0];
+  const at = (v: number) => (s.used + Math.max(0, v)) / s.total;
+  const ends: number[] = [];
+  const shift = Math.max(0, at(s.evaluating + s.pending + s.generating) - 1);
+  for (const v of [s.used / s.total, at(s.evaluating), at(s.evaluating + s.pending), at(s.evaluating + s.pending + s.generating)]) {
+    ends.push(clamp(Math.max(v - shift, ends[ends.length - 1] ?? 0)));
+  }
+  return ends;
 }
 
 /** Coverage of every cell, left to right — the bar without colours or glyphs, which is what the tests read. */
 export function barCells(s: BarState): BarCell[] {
   const n = Math.max(1, Math.round(s.cells));
-  const [heldEnd, evaluatingEnd, generatingEnd] = barEnds(s);
-  const band = (from: number, to: number) => (i: number) => Math.max(0, Math.min(to, (i + 1) / n) - Math.max(from, i / n)) * n;
-  const held = band(0, heldEnd);
-  const evaluating = band(heldEnd, evaluatingEnd);
-  const generating = band(evaluatingEnd, generatingEnd);
-  return Array.from({ length: n }, (_, i) => ({ held: held(i), evaluating: evaluating(i), generating: generating(i) }));
+  const ends = barEnds(s);
+  const reach = (i: number, from: number, to: number) => Math.max(0, Math.min(to, (i + 1) / n) - Math.max(from, i / n)) * n;
+  return Array.from({ length: n }, (_, i) => {
+    const cell = { held: 0, evaluating: 0, pending: 0, generating: 0 } as BarCell;
+    BANDS.forEach((band, b) => (cell[band] = reach(i, b === 0 ? 0 : ends[b - 1]!, ends[b]!)));
+    return cell;
+  });
 }
 
-const LAYERS = ["held", "evaluating", "generating"] as const;
+/** Top down. `pending` is a forecast rather than a layer: it loses to every real band and is never a background. */
+const PRECEDENCE = ["generating", "evaluating", "held", "pending"] as const;
 
 /**
- * The context bar: what the context holds, what prefill is evaluating and generation producing right now, and the
- * room left — one full block per cell, coloured by the layer that owns it. A layer claims a cell by touching it, so
- * one token held is a block; where layers share a cell the topmost one is the foreground and the one under it the
- * background, drawn as a shade block so both show through. One cell can hold all three, and one block can stand for
- * thousands of tokens.
+ * The context bar: what the context holds, what prefill is evaluating and generation producing right now, the
+ * prompt this request has yet to evaluate, and the room left — one full block per cell, coloured by the band that
+ * owns it. A band claims a cell by touching it, so one token held is a block and one block stands for thousands of
+ * tokens. What is still to come is the quiet track in the colour it will turn into, so the green `█` of evaluating
+ * visibly eats into the green `░` of pending. Where bands share a cell the topmost one is the foreground and the one
+ * under it the background, drawn as a shade block so both show through.
  */
 export function contextBar(s: BarState, l: Load = "normal"): Segment[] {
-  const toneOf = (layer: (typeof LAYERS)[number]): Tone => (layer === "held" ? ZONE[l].held : layer);
+  const toneOf = (layer: (typeof BANDS)[number] | "pending"): Tone => (layer === "held" ? ZONE[l].held : layer);
   const out: Segment[] = [];
   const put = (glyph: string, tone: Tone, bg?: Tone) => {
     const last = out[out.length - 1];
@@ -108,13 +115,10 @@ export function contextBar(s: BarState, l: Load = "normal"): Segment[] {
     else out.push(bg === undefined ? { text: glyph, tone } : { text: glyph, tone, bg });
   };
   for (const cell of barCells(s)) {
-    const stack = LAYERS.filter((layer) => cell[layer] > 0);
-    if (stack.length === 0) put(TRACK, "free");
-    else {
-      const top = toneOf(stack[stack.length - 1]!);
-      const under = stack.length > 1 ? toneOf(stack[stack.length - 2]!) : undefined;
-      put(stack.length > 1 ? SHADE : FULL, top, under);
-    }
+    const stack = PRECEDENCE.filter((layer) => cell[layer] > 0);
+    const real = stack.filter((layer) => layer !== "pending");
+    if (real.length === 0) put(TRACK, stack.length > 0 ? "pending" : "free");
+    else put(real.length > 1 ? SHADE : FULL, toneOf(real[0]!), real.length > 1 ? toneOf(real[1]!) : undefined);
   }
   return out;
 }
@@ -129,6 +133,9 @@ export type Facts = {
   prompt?: number;
   promptEstimated?: boolean;
   eval?: number;
+  /** Prefill progress: of the tokens this request has to evaluate, how many are evaluated already. */
+  pfDone?: number;
+  pfTarget?: number;
   reuse?: number;
   out?: number;
   reqs?: number;
@@ -155,6 +162,12 @@ const rate = (accepted?: number, drafted?: number): string => (drafted ? `${Math
 const pair = (a?: number, b?: number): string => (a === undefined || b === undefined ? "—" : `${a}/${b}`);
 const quiet = (s: string): Segment => str(s, { tone: "dim" });
 
+/** Prefill progress in the same three significant digits as the percent of the context bar; `—` when nothing has to be evaluated. */
+const progress = (done: number | undefined, target: number, estimated?: boolean): Segment => {
+  if (done === undefined || !(target > 0)) return str(pad("—", 7));
+  return str((estimated ? `~${percent(done, target)}` : percent(done, target)).padStart(7), { estimated });
+};
+
 /**
  * The metric cells, most important group first: what the machine is doing, what this request is made of, what the
  * session has cost, what else is on the server, speculation, latency, and the gory detail.
@@ -170,6 +183,7 @@ export function metricGroups(f: Facts): Group[] {
       cells: [
         [lab("fp"), num(f.prompt, 6, { estimated: f.promptEstimated })],
         [lab("ev"), num(f.eval, 6, { live: f.live === "prefill" })],
+        [lab("pf"), progress(f.pfDone, f.pfTarget ?? 0, f.pfDone !== undefined && f.promptEstimated)],
         [lab("re"), num(f.reuse, 6)],
         [lab("out"), num(f.out, 5, { live: f.live === "decode" })],
       ],
@@ -248,6 +262,7 @@ export type BaseLineInput = {
   thinking?: string | null;
   used: number | null;
   evaluating?: number;
+  pending?: number;
   generating?: number;
   total: number;
   minBar?: number;
@@ -306,7 +321,7 @@ export function baseLine(i: BaseLineInput): Segment[] {
     emit(pctTxt, ZONE[l].percent);
   }
   emit(GUTTER, "none");
-  out.push(...contextBar({ cells: Math.max(1, avail()), used: i.used ?? 0, evaluating: i.evaluating ?? 0, generating: i.generating ?? 0, total: i.total }, l));
+  out.push(...contextBar({ cells: Math.max(1, avail()), used: i.used ?? 0, evaluating: i.evaluating ?? 0, pending: i.pending ?? 0, generating: i.generating ?? 0, total: i.total }, l));
   emit(GUTTER, "none");
   emit(totalTxt, "number");
   if (showRight) {

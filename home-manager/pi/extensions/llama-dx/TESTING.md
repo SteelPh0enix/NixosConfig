@@ -6,7 +6,7 @@ none of them needs pi running:
 | script | needs | use it for |
 |---|---|---|
 | `preview.mjs` | nothing | what the two lines look like at a given width |
-| `check.mjs` | nothing (fakes llama.cpp) | polling, the flight zone, the `/metrics` cells, taking pi's footer back |
+| `check.mjs` | nothing (fakes llama.cpp) | polling, the moving bands of a request, the `/metrics` cells, taking pi's footer back |
 | `harness.mjs` | a real llama.cpp instance | one real request end to end |
 
 After a change: `preview.mjs --check` for the layout, `check.mjs` for anything else, then one `harness.mjs` run and
@@ -22,16 +22,28 @@ touch no server and no pi, so they are always safe.
 ## the layout: `node test-utils/preview.mjs`
 
 ```
-node test-utils/preview.mjs [--width 80,120,160] [--only idle,prefilling] [--plain] [--check] [--legend]
+node test-utils/preview.mjs [--width 80,120,160] [--only idle,prefilling] [--plain] [--check] [--legend] [--demo] [--cells 48]
 ```
 
 Renders the real `metricGroups`/`metricsLine`/`baseLine` at chosen widths and phases (idle, prefilling, decoding,
 near full, just compacted, no `--metrics`), so the look can be judged without starting pi. `--plain` prints without
 colours, `--only` picks scenarios, `--legend` prints the `/llama-dx info` list instead of the footer.
 
+`--demo` is the one to run after anything touches the bar: every combination of the bands (empty, one token held,
+held, the whole incoming prompt before evaluation starts, mid-prefill, the three frontiers, all the real bands in
+one cell, the forecast reaching past 90%, over capacity, unknown used, one generated token, past 70%, past 90%),
+then one whole request through the bar and finishing, then the two lines at widths where identity has to give way.
+`--cells 60` judges it at a real granularity. Its colours are the noctalia palette resolved by hand, so they match
+the theme in use rather than the tokens; under `--plain` the pending track looks exactly like the free one, since
+only their colours differ.
+
 `--check` asserts the layout invariants at every width from 40 to 280 and exits non-zero: the base line is exactly
 the terminal width, the metrics line never exceeds it (groups drop from the right instead), the bar keeps at least
-ten cells, and the bar's filled part matches `(used + flight) / total` within 1.5 cells.
+ten cells, the number of filled cells is exactly the number of cells the real bands reach
+(`ceil((used + evaluating + generating) / total * cells)`, no tolerance, since a band claims every cell it touches),
+the cells reached once the forecast counts too match the same figure with `pending` added, the bands appear in
+order, and every band's total coverage equals its share of the bar to the last decimal. The last three come from
+`barCells()`, the coverage of the bar without glyphs or colours.
 
 ## the whole extension: `node test-utils/check.mjs`
 
@@ -45,8 +57,9 @@ fake llama.cpp on `127.0.0.1:<port>`, then renders the footer after every poll. 
 exit status is non-zero if any of them failed.
 
 The fake answers `/slots` **by how many times it has been polled**, so a run always takes the same steps and the
-timers of the machine under test cannot change the outcome: four polls of prefill (1600 tokens each, to 6000),
-generation starting at poll nine, idle after poll twelve, which is what the idle detection needs to end the request.
+timers of the machine under test cannot change the outcome: a 10000-token prompt of which 4000 are cached, so 6000
+have to be evaluated over four polls of prefill (1600 tokens each), generation starts at poll nine, and the slot
+goes idle after poll twelve, which is what the idle detection needs to end the request.
 `/props` answers like a router everywhere except under `/nope`, where it answers like something that is not
 llama.cpp. `/metrics` returns a fixed scrape (deferred, processing, `n_busy_slots_per_decode`, the
 speculative-decode counters, `n_tokens_max`). At poll ten the fake delivers one stream chunk carrying `timings` with
@@ -58,9 +71,11 @@ What it asserts, in order:
 - the live `pp` rate from `/slots` carries the `~`, and the server's own `pp`/`tg` (713 and 58 here) replace it once
   `timings` arrive
 - the `q`/`fl`/`bd` cells appear once `/metrics` has answered
-- prefill shows up in the evaluating layer, generation in the generating layer, and the two are separate; while the
-  request runs the live layer lands on the held one in a shared cell (read from `barCells()`, not from the glyphs)
-- once the request ends, what it evaluated and produced joins the held layer, so the bar keeps the committed tokens
+- prefill shows up in the evaluating band, generation in the generating one, and the two are separate; while the
+  request runs the moving band lands on the held one in a shared cell (read from `barCells()`, not from the glyphs)
+- the prompt still to evaluate is on the bar before it is evaluated, shrinks monotonically to nothing as prefill
+  finishes, and `pf` on the metrics line says how far that evaluation has got
+- once the request ends, what it evaluated and produced joins the held band, so the bar keeps the committed tokens
 - the prompt size is `~`-estimated first and becomes llama.cpp's exact 10k
 - `tt` gets a value
 - every indicator the metrics line can hold is explained by `/llama-dx info`, and so are the `~`, `—` and bright
@@ -93,18 +108,19 @@ which is correct rather than broken.
 
 A warm `qwen-27B` with `--repeat 60`, both lines of three polls, the middle of the bar elided so they fit here.
 `fp ~737` carries the `~` because the prompt size is still the body-size estimate; `pp` stays `—` until the window
-over `/slots` is long enough to be a rate rather than one batch step; the green band from 1.4 on is the evaluating
-layer growing while the prompt is evaluated, and the `▒` at its left edge is where it lands on the held layer (the
-second one, from 2.1, is the first generated tokens landing on the evaluating layer); `tt` appears with the first
-content token:
+over `/slots` is long enough to be a rate rather than one batch step; the green `█` from 1.4 on is the evaluating
+band growing while the prompt is read, the `▒` at its left edge is where it lands on the held band, and the faint
+green in front of it is what is left of the prompt to come — at this ratio (a 695-token prompt against a context of
+146,944) that whole prompt does not fill one cell, so `pf` is where its progress actually shows; the second `▒`,
+from 2.1, is the first generated tokens landing on the evaluating band; `tt` appears with the first content token:
 
 ```
-  0.7 │ pp — tg — t/s │ fp  ~737  ev     0  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████░░…░░  146,944  qwen-27B • high
-  1.4 │ pp — tg — t/s │ fp  ~841  ev   799  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒██░░…░░  146,944  qwen-27B • high
-  2.1 │ pp  534 tg — t/s │ fp   845  ev   803  re    42  out    5 │ … │ q 0  fl  1/1  bd 1.00 │ sc100%  3/3  st 74% │ tt   1.6s
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒███▒░░…░░  146,944  qwen-27B • high
+  0.7 │ pp — tg — t/s │ fp  ~737  ev     0  pf ~0.00%  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
+      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████░░░…░░░  146,944  qwen-27B • high
+  1.4 │ pp — tg — t/s │ fp  ~841  ev   486  pf ~69.9%  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
+      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒███░░…░░░  146,944  qwen-27B • high
+  2.1 │ pp  534 tg — t/s │ fp   845  ev   803  pf   100%  re    42  out    5 │ … │ q 0  fl  1/1  bd 1.00 │ sc100%  3/3  st 74% │ tt   1.6s
+      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒███▒░░░…░░░  146,944  qwen-27B • high
 ```
 
 The last lines carry the stream's own `usage` and `timings`, so the numbers in the cells can be checked against what

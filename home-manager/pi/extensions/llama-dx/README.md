@@ -3,19 +3,22 @@
 llama.cpp's diagnostics for the request pi is making right now, in pi's footer. Two lines:
 
 ```
-pp  622 tg   58 t/s  │  fp 15.2k  ev 6.6k  re 8.6k  out  340  │  #3  ↑25k  ↓600  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 61%  13/21  st 63%  │  tt   8.1s  │  @pc:51536  # 1/1  max  16k  3.9c/t  exact
-~/src/steel-pi (master)  24,300 9.4%  █████████▒████▒██░░░░░░…░░░░░░░  262,144  qwen3-coder-27b • high
+pp ~712 tg   — t/s  │  fp ~15.2k  ev 2.7k  pf  41.3%  re 8.6k  out    0  │  #3  ↑25k  ↓260  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 63%  22/35  st 86%  │  tt    —  │  @pc:51536  # 1/1  max  16k  3.9c/t  fitted
+~/src/steel-pi (master)  24,300 9.4%  █████████▒███░░░░░░░░…░░░░░░░  262,144  qwen3-coder-27b • high
 ```
 
 The bottom line is the one that matters: where you are, what you are on, and between them the **context bar** —
 tokens held, the percent they are of the instance's `n_ctx`, and the bar itself taking every column the two names
-leave. Three layers over one row of full blocks: what the context **holds**, what prefill is **evaluating** into it
-this second, what generation is **producing** this second, and the `░` room left. A layer claims every cell it
-touches, so one block stands for `n_ctx / cells` tokens and the bar moves in whole cells. Where layers share a cell
-the newer one is the foreground and the one it lands on the background, drawn as `▒` so both show through: a block
-can be held *and* generating at once, and the live layer always sits on top of the colour underneath it. Over
-capacity held gives way and the live layers keep the right edge. `node test-utils/preview.mjs --demo` prints every
-combination in your own palette. A third line appears above these only when another extension has set a status text.
+leave. Four bands over one row of full blocks: what the context **holds**, what prefill is **evaluating** into it
+this second, the prompt it has **yet to evaluate**, what generation is **producing** this second, and the room left.
+A band claims every cell it touches, so one block stands for `n_ctx / cells` tokens and the bar moves in whole
+cells. What is still to come is the quiet track *in the colour it is about to turn into*: the green `█` of evaluating
+eats into the green `░` of the incoming prompt, and you can see where the request is going to leave the context
+before it has evaluated a single token. Where bands share a cell the topmost one is the foreground and the one it
+lands on the background, drawn as `▒` so both show through — a block can be held *and* generating at once, but never
+pending, which is a forecast rather than something the context holds. Over capacity held gives way and the moving
+bands keep the right edge. `node test-utils/preview.mjs --demo` prints every combination in your own palette. A third
+line appears above these only when another extension has set a status text.
 
 The top line holds the rest, grouped and separated by `│`. **What is dropped is decided by width alone, never by
 the state of the request**: groups disappear from the right as the terminal narrows, in the order
@@ -25,7 +28,7 @@ dances when a number changes.
 | group | cells |
 |---|---|
 | throughput | `pp` `tg` t/s — prompt processing and generation, from `timings` once llama.cpp has measured enough of them (200 prompt tokens, 16 generated); until then `~` values |
-| this request | `fp` full prompt, `ev` tokens that had to be evaluated, `re` taken from the KV cache, `out` generated |
+| this request | `fp` full prompt, `ev` tokens that had to be evaluated, `pf` how far that evaluation has got (`ev` over what has to be evaluated; `—` when the whole prompt came from the cache), `re` taken from the KV cache, `out` generated |
 | session | `#` requests llama.cpp served, `↑` in, `↓` out, `R` read from cache — pi's own totals, never a parallel bookkeeping |
 | server | `q` deferred requests, `fl` processing over slots, `bd` busy slots per decode (above 1.00 several requests drag each other) |
 | speculation | `sc` accepted/drafted this request, `st` over the instance's lifetime |
@@ -43,7 +46,10 @@ only arrives once prefill is over, so the extension asks for `timings_per_token`
 while the request runs, which is the only way to watch prefill and the only per-instance `n_ctx`. The prompt size is
 not available from the server, so it is estimated from the outgoing body and recalibrated against the previous
 request's exact `usage.prompt_tokens`. The used zone is pi's own context figure, taken the moment the request went
-out — what is arriving since then belongs to the live layers.
+out — what is arriving since then belongs to the moving bands. What a request still has to evaluate is no estimate
+either: while it runs, `/slots` gives the whole prompt and the cached part of it, so the pending band and `pf` are
+the server's own numbers (`input_tokens = n_prompt_tokens - n_prompt_tokens_cache`); only before the first `/slots`
+answer of a request is that total the same body-size estimate as `fp`.
 
 `/metrics` is scraped at the start of a request and then once a second while it runs, always with `autoload=false`:
 on a router a plain read would load the instance. Its two throughput gauges are deliberately not read, since every
@@ -51,10 +57,11 @@ scrape resets the buckets behind them. `--metrics` answers `501`, which is the o
 off; a scrape that times out keeps the last one that answered.
 
 Colours are theme tokens: `accent` for what is held (`warning` past 70%, `error` past 90%, pi's own compaction
-thresholds, and the frontier behind it follows), `success` for what prefill is evaluating, `text` for what is
-generating — the live edge is the brightest block on the line — `borderMuted` for the room left and the separators,
-`dim` for labels and session totals, and the bright `accent` for the phase that is live right now on the metrics line.
-A cell where two layers meet asks the theme for both colours, so it is the one place the footer sets a background.
+thresholds, and the frontier behind it follows), `success` for what prefill is evaluating **and** for the prompt
+still to come — the same green, one density quieter, so `░` becoming `█` is the progress of prefill — `text` for what
+is generating (the live edge is the brightest block on the line), `borderMuted` for the room left and the separators,
+`dim` for labels and session totals, and the bright `accent` for the phase running right now on the metrics line. A
+cell where two real bands meet asks the theme for both colours, so it is the one place the footer sets a background.
 
 `/llama-dx` prints what the footer currently thinks; `/llama-dx info` lists every indicator of the metrics line and
 what it means (the table above, cell by cell); `/llama-dx reset` zeroes the request counter and the speed history;
@@ -67,9 +74,9 @@ only the server/spec-lifetime cells need it. A model that is not served by llama
 `/props` — hands the footer back to pi.
 
 Limits: bar granularity is `--chunk-size`/`--batch-size`, so a 2048-batched instance has few real steps per cell.
-With `--parallel > 1` the slot is picked as "the processing one" and the live layers can describe someone else's
+With `--parallel > 1` the slot is picked as "the processing one" and the moving bands can describe someone else's
 request. Nothing is written to the session: pi records token counts only, never `timings`, so these numbers exist
-while the request runs and, dimmed, after it. Once it ends, what it evaluated and produced joins the held layer —
+while the request runs and, dimmed, after it. Once it ends, what it evaluated and produced joins the held band —
 otherwise the bar would shrink by exactly those tokens until the next request re-measured the context.
 
 ## Files

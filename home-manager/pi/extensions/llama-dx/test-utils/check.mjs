@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Dev-only check: runs the whole extension against a fake llama.cpp server, so polling, the flight zone, the
+// Dev-only check: runs the whole extension against a fake llama.cpp server, so polling, the bands of a request, the
 // /metrics cells and the footer hand-back can be verified offline in a few seconds.
 //   node test-utils/check.mjs [--port 39451] [--dump]
 // Asserts what must be visible in the footer; --dump prints it as plain text at every poll.
@@ -22,7 +22,10 @@ const server = (await import("node:http")).createServer((req, res) => {
   if (req.url.startsWith("/slots")) {
     const processed = Math.min(6000, polls * 1600);
     const decoded = polls > 8 ? Math.min(120, (polls - 8) * 40) : 0;
-    return send(JSON.stringify([{ id: 0, n_ctx: 262144, is_processing: polls < 12, n_prompt_tokens: processed + decoded, n_prompt_tokens_processed: processed, n_prompt_tokens_cache: 4000, next_token: [{ n_decoded: decoded }] }]));
+    // A 10000-token prompt, 4000 of them cached, so 6000 have to be evaluated and the prompt still to evaluate
+    // shrinks to nothing over the four polls of prefill. n_prompt_tokens counts the cached part too, as llama.cpp's
+    // own usage does (`input_tokens = n_prompt_tokens - n_prompt_tokens_cache`).
+    return send(JSON.stringify([{ id: 0, n_ctx: 262144, is_processing: polls < 12, n_prompt_tokens: 10000 + decoded, n_prompt_tokens_processed: processed, n_prompt_tokens_cache: 4000, next_token: [{ n_decoded: decoded }] }]));
   }
   if (req.url.startsWith("/metrics"))
     return send(
@@ -56,10 +59,10 @@ const lines = () => (footer === null ? ["(no footer)"] : footer.render(200));
 /** What the bar of the current state shows, read off the layers rather than off the glyphs. */
 const bar = () => {
   const v = view();
-  if (!v) return { evaluating: 0, generating: 0, frontier: false };
-  const cells = barCells({ cells: 20, used: v.used ?? 0, evaluating: v.evaluating, generating: v.generating, total: v.total });
-  const sum = (layer) => cells.reduce((a, c) => a + c[layer], 0);
-  return { evaluating: sum("evaluating"), generating: sum("generating"), frontier: cells.some((c) => c.held > 0 && c.evaluating > 0) };
+  if (!v) return { evaluating: 0, pending: 0, generating: 0, frontier: false };
+  const cells = barCells({ cells: 20, used: v.used ?? 0, evaluating: v.evaluating, pending: v.pending, generating: v.generating, total: v.total });
+  const sum = (band) => cells.reduce((a, c) => a + c[band], 0);
+  return { evaluating: sum("evaluating"), pending: sum("pending"), generating: sum("generating"), frontier: cells.some((c) => c.held > 0 && c.evaluating > 0) };
 };
 
 const problems = [];
@@ -89,9 +92,15 @@ expect("the live pp rate is marked as not the server's own", /pp ?~\s*[\d.]+/.te
 expect("the server's own speeds replace it once timings arrive", /pp\s+713\b.*tg\s+58\b/.test(seen.at(-1) ?? ""));
 expect("the server cells appear once /metrics answers", /\bq\b.*\bfl\b.*\bbd\b/.test(all));
 expect("prefill shows up in the evaluating layer", bars.some((b) => b.evaluating > 0 && b.generating === 0));
+expect("the prompt still to evaluate is shown before it is evaluated", bars[0].pending > 0 && bars[2].pending > 0);
+expect(
+  "it shrinks to nothing as prefill finishes",
+  bars.some((b, i) => i > 0 && b.pending < bars[i - 1].pending) && bars.every((b, i) => i === 0 || bars[i - 1].pending >= b.pending) && bars.at(-1).pending === 0,
+);
+expect("prefill progress is on the metrics line", /\bpf\b\s+~?\d/.test(all));
 expect("generation shows up in its own layer", bars.some((b) => b.generating > 0));
 expect("the live layer lands on the held one, sharing a cell", bars.some((b) => b.frontier));
-expect("the prompt size is estimated first", /fp ~\s*[\d.]+/.test(all));
+expect("the prompt size is estimated first", /fp\s+~[\d.]+/.test(all));
 expect("and is replaced by llama.cpp's exact number", /fp\s+10k\b/.test(seen.at(-1) ?? ""));
 expect("time to first token is measured", /\btt\b\s+\S/.test(all));
 expect("the footer stays mounted while it is llama.cpp", footer !== null);
