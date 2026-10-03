@@ -64,6 +64,19 @@ With `--parallel > 1` the slot is picked as "the processing one" and the flight 
 request. Nothing is written to the session: pi records token counts only, never `timings`, so these numbers exist
 while the request runs and, dimmed, after it.
 
-`preview.mjs` renders the real layout at chosen widths without starting pi (`--check` asserts the bar always fills
-its width at any width from 40 to 280), `harness.mjs` drives the extension outside pi against a real server. Both
-import `index.ts` directly, which is why its layout half imports nothing at runtime.
+## Files
+
+| file | what it holds |
+|---|---|
+| `index.ts` | wiring to pi's events, and `/llama-dx` |
+| `layout.ts` | both lines as coloured segments of measured width; imports nothing at runtime |
+| `server.ts` | the llama.cpp endpoints: `/props`, `/slots`, `/metrics` |
+| `state.ts` | the polled request, the measured speeds, and the numbers the footer shows |
+| `footer.ts` | the component pi renders, and taking pi's footer back when the server is not llama.cpp |
+
+pi is handed the **directory**, not `index.ts`, because these import each other. `test-utils/` holds the dev-only
+scripts, all of them plain node importing the `.ts` files: `preview.mjs` renders the layout at chosen widths
+(`--check` asserts the bar fills its width at any width from 40 to 280), `harness.mjs` runs one real request against
+a real instance (`--root http://steelph0enix.pc:51536 --model qwen-27B`, model load included) so the polling and the
+flight zone can be watched, and `check.mjs` runs the whole extension against a fake instance and asserts what must
+be visible in the footer — run it after any change to the layout or the request tracking.

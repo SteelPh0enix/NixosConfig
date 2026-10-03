@@ -26,7 +26,9 @@
       # llama-dx shows what the server is doing with the current request: prefill progress and speed,
       # tokens left to process, decode speed, KV reuse and speculative-decode acceptance, in a bar under
       # the input box. Needs --slots on each instance (a llama.cpp default). LLAMA_DX_DEBUG=1 logs polls.
-      ./extensions/llama-dx/index.ts
+      # The whole directory, since it is several .ts files importing each other and a single path is copied alone.
+      # test-utils/ holds the dev-only scripts: preview, harness against a real instance, check against a fake one.
+      ./extensions/llama-dx
     ];
     # No theme here: Noctalia's community `pi-agent` template (hyprland/noctalia.nix) writes
     # ~/.pi/agent/themes/noctalia.json from the live palette. Passing a copy via `themes` would

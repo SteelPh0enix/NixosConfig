@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Dev-only preview of the footer: renders the real layout at chosen widths and request phases, so the look can be
-// judged in a terminal without starting pi. Imports the extension file itself — that is why its layout half has no
-// runtime imports. `node preview.mjs [--width 120,160] [--only idle,prefilling] [--plain] [--check]`
-import { metricGroups, metricsLine, baseLine, flatten } from "./index.ts";
+// judged in a terminal without starting pi. Imports ../layout.ts directly, which is why that file has no runtime
+// imports. `node preview.mjs [--width 120,160] [--only idle,prefilling] [--plain] [--check]`
+import { metricGroups, metricsLine, baseLine, flatten } from "../layout.ts";
 
 const NOCTALIA = {
   label: "#4a76a3",
