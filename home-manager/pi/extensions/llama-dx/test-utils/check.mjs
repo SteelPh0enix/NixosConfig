@@ -4,6 +4,8 @@
 //   node test-utils/check.mjs [--port 39451] [--dump]
 // Asserts what must be visible in the footer; --dump prints it as plain text at every poll.
 import llamaDx from "../index.ts";
+import { metricGroups } from "../layout.ts";
+import { view } from "../state.ts";
 
 const argv = process.argv.slice(2);
 const arg = (name, fallback) => (argv.includes(`--${name}`) ? argv[argv.indexOf(`--${name}`) + 1] : fallback);
@@ -42,7 +44,7 @@ const ctx = {
   mode: "tui",
   model: { id: "qwen", baseUrl: `http://127.0.0.1:${port}/v1`, contextWindow: 262144, reasoning: true },
   thinkingLevel: "high",
-  ui: { setFooter: (f) => (footer = f ? f({ requestRender: () => {} }, theme, footerData) : null), notify: (m) => notes.push(m) },
+  ui: { setFooter: (f) => (footer = f ? f({ requestRender: () => {} }, theme, footerData) : null), notify: (m) => notes.push(m), theme },
   sessionManager: { getSessionId: () => "s", getLeafId: () => "l", getCwd: () => "/home/dev/src", getEntries: () => [{ type: "usage", usage: { input: 12200, output: 340, cacheRead: 9800 } }] },
   getContextUsage: () => ({ tokens: 9200, contextWindow: 262144, percent: 1 }),
 };
@@ -86,6 +88,16 @@ expect("the footer stays mounted while it is llama.cpp", footer !== null);
 await fire("agent_end", {});
 const done = shown();
 expect("the request is counted", /#1/.test(done));
+
+// Every indicator the line can hold has to be explained by `/llama-dx info`: two places, one set of cells.
+await handlers.get("cmd:llama-dx")("info", ctx);
+const explained = new Set((notes.at(-1) ?? "").split("\n").map((l) => /^ {2}(\S+)\s{2}/.exec(l)?.[1]).filter(Boolean));
+const cells = new Set(
+  metricGroups({ ...view()?.facts }).flatMap((g) => g.cells.flatMap((c) => c.filter((s) => s.tone === "label").map((s) => s.text.trim()))),
+);
+const missing = [...cells].filter((c) => !explained.has(c));
+expect(`every indicator on the line is explained (${missing.join(" ") || "all"})`, cells.size >= 15 && missing.length === 0);
+expect("the ~ , — and bright markers are explained too", explained.has("~") && explained.has("—") && explained.has("bright"));
 
 await handlers.get("cmd:llama-dx")("reset", ctx);
 expect("reset zeroes the counter", notes.at(-1)?.includes("cleared"));

@@ -4,10 +4,12 @@
 // compressed; only the width decides what is there, never the state of the request.
 //
 // layout.ts composes the two lines, server.ts talks to llama.cpp, state.ts turns what comes back into numbers,
-// footer.ts colours them and mounts the result; this file only wires them to pi's events.
+// footer.ts colours them and mounts the result, legend.ts says what the indicators on the top line mean;
+// this file only wires them to pi's events and to /llama-dx.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { syncFooter } from "./footer.ts";
+import { legend } from "./legend.ts";
 import { full, percent } from "./layout.ts";
 import { dropRequest, finishRequest, observeStream, onServerAnswer, paint, resetAll, runtime, sess, startRequest, stopPolling, trackModel, view } from "./state.ts";
 
@@ -46,11 +48,20 @@ export default function llamaDx(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("llama-dx", {
-    description: "llama.cpp footer: /llama-dx prints its state, /llama-dx reset zeroes the counters",
+    description: "llama.cpp footer: /llama-dx prints its state, /llama-dx info explains every indicator, /llama-dx reset zeroes the counters",
+    getArgumentCompletions: (prefix) => {
+      const args = ["info", "reset"].filter((a) => a.startsWith(prefix));
+      return args.length > 0 ? args.map((value) => ({ value, label: value })) : null;
+    },
     handler: async (args, ctx) => {
-      if (args.trim() === "reset") {
+      const arg = args.trim();
+      if (arg === "reset") {
         resetAll();
         ctx.ui.notify("llama-dx: request counter and speed history cleared", "info");
+      } else if (arg === "info") {
+        // pi wraps its status text in dim, which would leave the whole list faint; every run of the legend is
+        // coloured by hand, so the status styling is dropped before the first line.
+        ctx.ui.notify(`\x1b[0m${legend(ctx.ui.theme, runtime.width || 78)}`, "info");
       } else {
         const v = view();
         ctx.ui.notify(

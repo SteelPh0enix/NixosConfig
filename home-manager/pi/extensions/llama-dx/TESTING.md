@@ -12,15 +12,22 @@ none of them needs pi running:
 After a change: `preview.mjs --check` for the layout, `check.mjs` for anything else, then one `harness.mjs` run and
 a real pi session before rebuilding the system.
 
+**No live test may run on pi's default model.** The default model is the instance the testing agent itself is being
+served by, so a request made through it is taken out of that agent's own KV cache — the session doing the testing
+loses its context. Anything that reaches a server names the testing instance explicitly: `harness.mjs` pins
+`--root http://steelph0enix.pc:51536` with `--model qwen-27B`, a pi run pins
+`--provider llama-pc --model qwen-27B`. A live command carrying neither is a bug. `preview.mjs` and `check.mjs`
+touch no server and no pi, so they are always safe.
+
 ## the layout: `node test-utils/preview.mjs`
 
 ```
-node test-utils/preview.mjs [--width 80,120,160] [--only idle,prefilling] [--plain] [--check]
+node test-utils/preview.mjs [--width 80,120,160] [--only idle,prefilling] [--plain] [--check] [--legend]
 ```
 
 Renders the real `metricGroups`/`metricsLine`/`baseLine` at chosen widths and phases (idle, prefilling, decoding,
 near full, just compacted, no `--metrics`), so the look can be judged without starting pi. `--plain` prints without
-colours, `--only` picks scenarios.
+colours, `--only` picks scenarios, `--legend` prints the `/llama-dx info` list instead of the footer.
 
 `--check` asserts the layout invariants at every width from 40 to 280 and exits non-zero: the base line is exactly
 the terminal width, the metrics line never exceeds it (groups drop from the right instead), the bar keeps at least
@@ -54,6 +61,8 @@ What it asserts, in order:
 - prefill shows up as a partially filled cell in the flight zone
 - the prompt size is `~`-estimated first and becomes llama.cpp's exact 10k
 - `tt` gets a value
+- every indicator the metrics line can hold is explained by `/llama-dx info`, and so are the `~`, `—` and bright
+  markers; the cells come from `metricGroups(view().facts)`, so a cell the legend does not know turns this red
 - the request is counted, `/llama-dx reset` reports clearing, and a model whose server is not llama.cpp hands the
   footer back
 
@@ -101,7 +110,7 @@ llama.cpp actually reported.
 
 `tsc` from pi's own install, against pi's own `.d.ts` files. The repo has no `node_modules`, and `tsc` finds them
 by walking up from the file it is given, so the check runs on a copy with a symlink next to it; it follows imports,
-so naming only `index.ts` covers all six files.
+so naming only `index.ts` covers all seven files.
 
 ```sh
 pi_bin=$(grep -m1 -o '/nix/store/[a-z0-9-]*pi-coding-agent-[^/]*/bin/pi' "$(readlink -f "$(command -v pi)")")
@@ -119,7 +128,8 @@ jiti, not node, loads the extension in pi, and it is handed the **directory** ra
 files import each other:
 
 ```sh
-LLAMA_DX_DEBUG=1 pi --extension "$PWD" -p "reply with exactly: ok"
+# the model is named, never left to the default: see the rule at the top
+LLAMA_DX_DEBUG=1 pi --extension "$PWD" --provider llama-pc --model qwen-27B -p "reply with exactly: ok"
 ```
 
 stderr then shows the verdict of the `/props` probe (`llama-dx: http://…: llama.cpp=true`) and the finished request

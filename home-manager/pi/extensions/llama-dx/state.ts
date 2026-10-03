@@ -72,6 +72,8 @@ export const runtime = {
   tui: undefined as TUI | undefined,
   /** Root and context window of the model pi is on, so the footer has something to show before the first request. */
   model: { root: undefined as string | undefined, nCtx: 0 },
+  /** Columns the footer last filled, so printed text breaks where the footer does. */
+  width: 0,
 };
 
 let req: Req | undefined;

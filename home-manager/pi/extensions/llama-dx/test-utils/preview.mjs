@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Dev-only preview of the footer: renders the real layout at chosen widths and request phases, so the look can be
 // judged in a terminal without starting pi. Imports ../layout.ts directly, which is why that file has no runtime
-// imports. `node preview.mjs [--width 120,160] [--only idle,prefilling] [--plain] [--check]`
+// imports. `node preview.mjs [--width 120,160] [--only idle,prefilling] [--plain] [--check] [--legend]`
 import { metricGroups, metricsLine, baseLine, flatten } from "../layout.ts";
+import { legend } from "../legend.ts";
 
 const NOCTALIA = {
   label: "#4a76a3",
@@ -26,6 +27,9 @@ const ansi = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return `\x1b[38;2;${r};${g};${b}m`;
 };
+
+// Only the theme tokens legend.ts reaches for.
+const TOKEN = { muted: "#9bb0c7", accent: "#c4a82e", text: "#e4eaf3", dim: "#2578a9" };
 
 const colorize = (segments) => segments.map((s) => (NOCTALIA[s.tone] ? `${ansi(NOCTALIA[s.tone])}${s.text}\x1b[0m` : s.text)).join("");
 const cols = (s) => [...s].length;
@@ -81,6 +85,12 @@ if (argv.includes("--check")) {
 }
 
 const show = (segments, width) => (plain ? flatten(segments) : colorize([...segments, { text: " ".repeat(Math.max(0, width - cols(flatten(segments)))), tone: "none" }]));
+
+if (argv.includes("--legend")) {
+  const theme = plain ? { fg: (_token, s) => s } : { fg: (token, s) => (TOKEN[token] ? `${ansi(TOKEN[token])}${s}\x1b[0m` : s) };
+  for (const width of widths) console.log(`\n${"═".repeat(width)}  ${width} columns\n${legend(theme, width)}`);
+  process.exit(0);
+}
 
 for (const width of widths) {
   console.log(`\n${"═".repeat(width)}  ${width} columns`);
