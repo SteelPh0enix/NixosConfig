@@ -64,6 +64,7 @@ class DxFooter implements Component {
   }
 
   render(width: number): string[] {
+    runtime.width = width;
     const lines: string[] = [];
     const status = statusLine(this.footerData, width, this.theme);
     if (status !== undefined) lines.push(status);

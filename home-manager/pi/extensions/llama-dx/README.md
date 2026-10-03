@@ -50,8 +50,9 @@ Colours are theme tokens: `accent` for what is held (`warning` past 70%, `error`
 thresholds), `success` for what is landing, `borderMuted` for the room left and the separators, `dim` for labels and
 session totals, and the bright `accent` for the phase that is live right now.
 
-`/llama-dx` prints what the footer currently thinks; `/llama-dx reset` zeroes the request counter and the speed
-history; `LLAMA_DX_DEBUG=1` writes one stderr line per poll and per finished request. State is per session and per
+`/llama-dx` prints what the footer currently thinks; `/llama-dx info` lists every indicator of the metrics line and
+what it means (the table above, cell by cell); `/llama-dx reset` zeroes the request counter and the speed history;
+`LLAMA_DX_DEBUG=1` writes one stderr line per poll and per finished request. State is per session and per
 model: starting a session or switching model drops the counters, so nothing measured on another machine survives.
 
 Requirements: `--slots` per instance (llama.cpp default, off only with `--no-slots`), the router reachable at
@@ -73,10 +74,11 @@ while the request runs and, dimmed, after it.
 | `server.ts` | the llama.cpp endpoints: `/props`, `/slots`, `/metrics` |
 | `state.ts` | the polled request, the measured speeds, and the numbers the footer shows |
 | `footer.ts` | the component pi renders, and taking pi's footer back when the server is not llama.cpp |
+| `legend.ts` | what each indicator of the metrics line means, which `/llama-dx info` prints |
 
 pi is handed the **directory**, not `index.ts`, because these import each other.
 
 **[TESTING.md](TESTING.md)** is what to run after a change: `preview.mjs` for the look at any width, `check.mjs`
 for the whole extension against a fake llama.cpp (no server, no pi, a few seconds), `harness.mjs` for one real
-request against the instance on `steelph0enix.pc`, plus the `tsc` command and the way to load the extension in pi
-without rebuilding the system.
+request against the instance on `steelph0enix.pc` — never pi's default model, whose cache the testing agent is
+living in — plus the `tsc` command and the way to load the extension in pi without rebuilding the system.
