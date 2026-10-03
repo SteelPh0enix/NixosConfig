@@ -2,11 +2,10 @@ import type { ExtensionAPI, ProviderConfig, ProviderModelConfig } from "@earendi
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-// pi cannot know what a llama.cpp server actually serves: the served n_ctx after a re-fit, whether the
+// pi doesn't know what llama.cpp server actually serves: the served n_ctx after a re-fit, whether the
 // chat template has a thinking switch and which one it reads, whether the instance has a vision projector.
-// This extension reads that from the server and re-registers the configured provider with it, so the
-// hand-written numbers in models.json stop mattering. It never loads or unloads a model, and it shows
-// nothing: no command, no tool, no panel.
+// This extension reads that from the server and re-registers the configured provider with it, making llama-server
+// the primary source of truth about a model instead of models.json
 
 const PROBE_TIMEOUT_MS = 2000;
 /** Its own built-in provider already reads /models and /props; re-registering it would drop its classifiers. */
@@ -15,6 +14,7 @@ const BUILTIN_PROVIDER = "llama.cpp";
 type Caps = {
   supports_tools?: boolean;
   supports_reasoning_effort?: boolean;
+  supports_preserve_reasoning?: boolean;
 };
 
 type ServerProps = {
@@ -36,7 +36,6 @@ type RouterModel = {
   architecture?: { input_modalities?: string[] };
 };
 
-/** What one instance of a router is able to do, as far as the server will say without loading it. */
 type Served = {
   id: string;
   aliases: string[];
@@ -44,12 +43,8 @@ type Served = {
   /** What the preset was started with, from its launch args; weaker than the served n_ctx. */
   requested?: number;
   vision?: boolean;
-  /** The template has an enable_thinking switch. */
-  thinkingSwitch?: boolean;
-  /** The template reads OpenAI's reasoning_effort. */
-  effortCap?: boolean;
-  /** The effort values the template names; empty when it validates none. */
-  efforts?: string[];
+  /** What the chat template can do about thinking; absent when the template could not be read. */
+  thinking?: TemplateThinking;
 };
 
 /** The chat variant of a registered model config. */
@@ -69,22 +64,76 @@ type Derived = {
 type ThinkingPolicy = {
   reasoning: boolean;
   thinkingFormat?: string;
+  chatTemplateKwargs?: ModelsJsonCompat;
   supportsReasoningEffort?: boolean;
   thinkingLevelMap?: ChatModelConfig["thinkingLevelMap"];
   label: string;
 };
 
+/** What a served chat template says about thinking, read out of the template itself. */
+type TemplateThinking = {
+  /** The variable it switches thinking on and off with, e.g. enable_thinking. */
+  switchName?: string;
+  /** The variable it takes the effort from, e.g. reasoning_effort. */
+  effortName?: string;
+  /** The effort values the template names; empty when it reads an effort without naming a value. */
+  efforts: string[];
+  /** Whether it keeps past thoughts in context when asked (Qwen3's preserve_thinking). */
+  preserveThinking: boolean;
+  /** chat_template_caps.supports_reasoning_effort. */
+  effortCap?: boolean;
+};
+
 const PI_EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"];
+
+/** llama.cpp reads OpenAI's own field into the template context, so a template named that way needs no kwargs. */
+const OPENAI_EFFORT_FIELD = "reasoning_effort";
 
 const EFFORT_NAME = String.raw`\w*reasoning_effort`;
 const EFFORT_LITERAL = String.raw`['"]([a-z][a-z0-9_-]*)['"]`;
+const EFFORT_VARIABLE = /(?<![\w.])([a-z_]*reasoning_effort)(?![\w.])/g;
+const THINKING_VARIABLE = /(?<![\w.])([a-z0-9_]*thinking[a-z0-9_]*)(?![\w.])/g;
+const PRESERVE_THINKING = /(?<![\w.])preserve_thinking(?![\w.])/;
+const CONTROL_TAG = /^\{[%{]-?\s*(?:if|elif|set)\b/;
+
+/** preserve_thinking keeps past thoughts and thinking_budget sizes them; neither switches thinking on. */
+const isSwitchName = (name: string) => !/preserve|budget|tokens|content|signature|length/.test(name);
+
+/** The switch names that mean "think or don't"; anything else that mentions thinking only ranks behind them. */
+const SWITCH_NAME = /^(?:enable_|add_|do_|allow_)?thinking(?:_enabled)?$/;
+
+/** A template's jinja expressions, with comments and string literals gone: prose about thinking is not a switch. */
+function jinjaTags(template: string): string[] {
+  const uncommented = template.replace(/\{#[\s\S]*?#\}/g, "");
+  return (uncommented.match(/\{[{%][\s\S]*?[%}]\}/g) ?? []).map((tag) => tag.replace(/'[^'\\]*'|"[^"\\]*"/g, '""'));
+}
+
+/** The variable the template switches thinking on; known switch names first, then the one that enables. */
+function switchIn(tags: string[]): string | undefined {
+  const namesIn = (controlOnly: boolean) => [
+    ...new Set(
+      tags
+        .filter((tag) => !controlOnly || CONTROL_TAG.test(tag))
+        .flatMap((tag) => [...tag.matchAll(THINKING_VARIABLE)].map((match) => match[1]!)),
+    ),
+  ].filter(isSwitchName);
+  const inControl = namesIn(true);
+  const found = (inControl.length > 0 ? inControl : namesIn(false)).sort(
+    (a, b) =>
+      Number(SWITCH_NAME.test(b)) - Number(SWITCH_NAME.test(a)) ||
+      Number(b.includes("enable")) - Number(a.includes("enable")) ||
+      a.length - b.length,
+  );
+  return found[0];
+}
 
 /**
- * The effort values a chat template accepts, taken from the values it branches on, defaults to or validates.
- * Undefined when the template is unknown, empty when it reads reasoning_effort without naming a value.
+ * The effort variable a template reads and the values it accepts, from the values it branches on, defaults
+ * to or validates. Undefined when there is no template; no values when it reads an effort without naming one.
  */
-function effortsIn(template: unknown): string[] | undefined {
-  if (typeof template !== "string") return undefined;
+function effortIn(template: string, tags: string[]): { name: string; values: string[] } | undefined {
+  const names = tags.flatMap((tag) => [...tag.matchAll(EFFORT_VARIABLE)].map((match) => match[1]!));
+  if (names.length === 0) return undefined;
   const found = new Set<string>();
   const collect = (text: string) => {
     for (const literal of text.matchAll(new RegExp(EFFORT_LITERAL, "g"))) found.add(literal[1]!);
@@ -97,27 +146,79 @@ function effortsIn(template: unknown): string[] | undefined {
   ] as const) {
     for (const match of template.matchAll(new RegExp(pattern, "g"))) (tuple ? collect(match[1]!) : found.add(match[1]!));
   }
-  return [...found].sort();
+  const unique = [...new Set(names)];
+  const name = unique.includes(OPENAI_EFFORT_FIELD)
+    ? OPENAI_EFFORT_FIELD
+    : unique.sort((a, b) => a.length - b.length)[0]!;
+  return { name, values: [...found].sort() };
 }
 
-function thinkingPolicy(served: Served): ThinkingPolicy | undefined {
-  // A bool switch can turn thinking off, an effort cannot, so it wins where a template has both. pi checks
-  // thinkingFormat before reasoning_effort, so only one of the two is ever sent.
-  if (served.thinkingSwitch === true) {
-    return { reasoning: true, thinkingFormat: "qwen-chat-template", supportsReasoningEffort: false, label: "bool" };
-  }
-  if (served.effortCap !== true) {
-    if (served.thinkingSwitch === false && served.effortCap === false) return { reasoning: false, label: "none" };
-    return undefined;
-  }
-  if (!served.efforts || served.efforts.length === 0) {
-    return { reasoning: true, supportsReasoningEffort: true, label: "efforts (unvalidated)" };
-  }
-  // pi sends thinkingLevelMap[level] ?? level, so a level the template would reject has to be marked null.
+/** Everything the served template says about thinking; undefined when there is no template to read. */
+function templateThinking(props: ServerProps): TemplateThinking | undefined {
+  if (typeof props.chat_template !== "string") return undefined;
+  const tags = jinjaTags(props.chat_template);
+  const effort = effortIn(props.chat_template, tags);
+  return {
+    switchName: switchIn(tags),
+    effortName: effort?.name,
+    efforts: effort?.values ?? [],
+    preserveThinking:
+      props.chat_template_caps?.supports_preserve_reasoning ?? tags.some((tag) => PRESERVE_THINKING.test(tag)),
+    effortCap: props.chat_template_caps?.supports_reasoning_effort,
+  };
+}
+
+const THINKING_ENABLED = { $var: "thinking.enabled" };
+const THINKING_EFFORT = { $var: "thinking.effort", omitWhenOff: true };
+
+/** pi sends thinkingLevelMap[level] ?? level, so a level the template would reject has to be marked null. */
+function effortMap(efforts: string[]): Record<string, string | null> {
   const map: Record<string, string | null> = {};
-  for (const level of PI_EFFORT_LEVELS) map[level] = served.efforts.includes(level) ? level : null;
-  const supported = PI_EFFORT_LEVELS.filter((level) => map[level] !== null);
-  return { reasoning: true, supportsReasoningEffort: true, thinkingLevelMap: map, label: `efforts (${supported.join(", ") || "none"})` };
+  for (const level of PI_EFFORT_LEVELS) map[level] = efforts.includes(level) ? level : null;
+  return map;
+}
+
+const levelsIn = (efforts: string[]) => PI_EFFORT_LEVELS.filter((level) => efforts.includes(level));
+
+function thinkingPolicy(served: Served): ThinkingPolicy | undefined {
+  const template = served.thinking;
+  if (!template) return undefined;
+  const named = template.efforts.length > 0;
+  // pi fills chat_template_kwargs from thinkingFormat alone and then never sends reasoning_effort, so a
+  // template naming its own variables is driven through the generic chat-template format, which carries a
+  // switch and an effort in one request. Only a plain OpenAI reasoning_effort belongs at the top level.
+  const ownEffort = template.effortName !== undefined && template.effortName !== OPENAI_EFFORT_FIELD;
+  const driven = template.switchName !== undefined || ownEffort;
+  if (!driven) {
+    if (template.effortCap !== true) {
+      if (template.effortCap === false && template.effortName === undefined) return { reasoning: false, label: "none" };
+      return undefined;
+    }
+    if (!named) return { reasoning: true, supportsReasoningEffort: true, label: "reasoning_effort (unvalidated)" };
+    return {
+      reasoning: true,
+      supportsReasoningEffort: true,
+      thinkingLevelMap: effortMap(template.efforts),
+      label: `reasoning_effort (${levelsIn(template.efforts).join(", ") || "none"})`,
+    };
+  }
+  const kwargs: ModelsJsonCompat = {};
+  if (template.switchName) kwargs[template.switchName] = THINKING_ENABLED;
+  // A value the template never named would reach it as pi's own level name, so an effort stays unsent when
+  // its values are unknown and the switch alone can carry the request.
+  const effortVar = template.effortName;
+  const effortSent = effortVar !== undefined && (named || template.effortCap === true || template.switchName === undefined);
+  if (effortVar && effortSent) kwargs[effortVar] = THINKING_EFFORT;
+  if (template.preserveThinking) kwargs.preserve_thinking = true;
+  const sent = Object.keys(kwargs).filter((key) => key !== "preserve_thinking");
+  return {
+    reasoning: true,
+    thinkingFormat: "chat-template",
+    chatTemplateKwargs: kwargs,
+    supportsReasoningEffort: false,
+    thinkingLevelMap: named && effortSent ? effortMap(template.efforts) : undefined,
+    label: `${sent.join("+")}${named && effortSent ? ` (${levelsIn(template.efforts).join(", ")})` : ""}`,
+  };
 }
 
 type ModelsJsonModel = {
@@ -227,9 +328,7 @@ function servedFor(models: RouterModel[], root: string, signal?: AbortSignal): P
         ...served,
         nCtx: props.default_generation_settings?.n_ctx ?? served.nCtx,
         vision: props.modalities?.vision ?? served.vision,
-        thinkingSwitch: typeof props.chat_template === "string" ? props.chat_template.includes("enable_thinking") : undefined,
-        effortCap: props.chat_template_caps?.supports_reasoning_effort,
-        efforts: effortsIn(props.chat_template),
+        thinking: templateThinking(props),
       };
     }),
   );
@@ -260,6 +359,8 @@ function withServedInfo(model: ModelsJsonModel, providerCompat: ModelsJsonCompat
   if (policy) {
     if (policy.thinkingFormat) compat.thinkingFormat = policy.thinkingFormat;
     else delete compat.thinkingFormat;
+    if (policy.chatTemplateKwargs) compat.chatTemplateKwargs = policy.chatTemplateKwargs;
+    else delete compat.chatTemplateKwargs;
     llamaCompat.supportsReasoningEffort = policy.supportsReasoningEffort ?? false;
   }
 
