@@ -21,6 +21,7 @@ const SECTIONS: { name: string; rows: Row[] }[] = [
     rows: [
       { cell: "fp", meaning: "the whole prompt: reused tokens and evaluated ones together" },
       { cell: "ev", meaning: "of it, the tokens that had to be computed now" },
+      { cell: "pf", meaning: "prefill progress: computed over the tokens this request has to compute" },
       { cell: "re", meaning: "of it, the tokens taken from the KV cache" },
       { cell: "out", meaning: "tokens this request generated" },
     ],
@@ -68,8 +69,9 @@ const SECTIONS: { name: string; rows: Row[] }[] = [
     rows: [
       { cell: "held", meaning: "█ what the context already holds; warning past 70%, error past 90%" },
       { cell: "eval", meaning: "█ prompt tokens prefill is putting into the KV right now" },
+      { cell: "pending", meaning: "░ the prompt this request has yet to evaluate, in the green it is about to turn into" },
       { cell: "gen", meaning: "█ tokens being produced right now, the brightest block on the line" },
-      { cell: "▒", meaning: "two layers in one cell: the newer colour in front of the one it lands on" },
+      { cell: "▒", meaning: "two bands in one cell: the newer colour in front of the one it lands on" },
       { cell: "free", meaning: "░ the room left in n_ctx" },
     ],
   },

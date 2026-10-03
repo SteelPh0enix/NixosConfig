@@ -20,6 +20,7 @@ const TONE: Record<Tone, ThemeColor | undefined> = {
   percent: "text",
   held: "accent",
   evaluating: "success",
+  pending: "success",
   generating: "text",
   free: "borderMuted",
   none: undefined,
@@ -86,7 +87,7 @@ class DxFooter implements Component {
     lines.push(colorize(metricsLine(metricGroups(v.facts), width), this.theme));
     lines.push(
       colorize(
-        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: runtime.ctx?.model?.id, thinking: thinkingOf(), used: v.used, evaluating: v.evaluating, generating: v.generating, total: v.total }),
+        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: runtime.ctx?.model?.id, thinking: thinkingOf(), used: v.used, evaluating: v.evaluating, pending: v.pending, generating: v.generating, total: v.total }),
         this.theme,
         width,
       ),

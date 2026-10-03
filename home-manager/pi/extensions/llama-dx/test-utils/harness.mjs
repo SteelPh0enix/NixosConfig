@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Dev-only: drives the extension outside pi with a stubbed ExtensionAPI, against a real llama-server, so the
-// polling, the flight zone and the used-zone snapshot can be watched while an actual request runs. A cold instance
+// polling, the bands of a running request and the held band can be watched live. A cold instance
 // is included in `--seconds`: the first tick shows the model loading, then prefill, then generation.
 //   node test-utils/harness.mjs [--root http://steelph0enix.pc:51536] [--model qwen-27B] [--ctx 32768] [--seconds 75]
 import llamaDx from "../index.ts";

@@ -369,7 +369,7 @@ function sessionState(): Totals {
 }
 
 /** What a number is: the running request's own numbers, with the previous request's holding the holes. */
-export function view(): { facts: Facts; used: number | null; evaluating: number; generating: number; total: number } | undefined {
+export function view(): { facts: Facts; used: number | null; evaluating: number; pending: number; generating: number; total: number } | undefined {
   const root = req?.root ?? last?.root ?? runtime.model.root;
   if (!isLlama(root)) return undefined;
   const r = req ?? last;
@@ -394,6 +394,8 @@ export function view(): { facts: Facts; used: number | null; evaluating: number;
     prompt: n.prompt,
     promptEstimated: n.estimated,
     eval: n.evalToks,
+    pfDone: n.evalToks,
+    pfTarget: prefillTarget(n),
     reuse: n.reuse,
     out: n.out,
     reqs: sess.reqs,
@@ -417,18 +419,23 @@ export function view(): { facts: Facts; used: number | null; evaluating: number;
     facts.specLifeAccepted = m?.accepted;
     facts.specLifeDrafted = m?.drafted;
   }
-  return { facts, used: base, ...active(), total: n.nCtx || session.context?.contextWindow || runtime.model.nCtx };
+  return { facts, used: base, ...active(n), total: n.nCtx || session.context?.contextWindow || runtime.model.nCtx };
 }
 
+/** The prompt tokens a request has to evaluate: its whole prompt, the cached part of it excluded. */
+const prefillTarget = (n: Nums): number => Math.max(0, (n.prompt ?? 0) - (n.reuse ?? 0));
+
 /**
- * What is landing in the KV right now: what prefill has evaluated and what generation has produced, which follow
- * each other in the bar in that order.
+ * What is landing in the KV right now and what is still to come: what prefill has evaluated, the prompt tokens it
+ * has yet to evaluate, and what generation has produced. A running request's prompt size is the server's own
+ * number from `/slots` (which counts the cached part too), so what is left to evaluate needs no estimating;
+ * without `--slots` the stream's generated-token count stands in for generation's.
  */
-function active(): { evaluating: number; generating: number } {
+function active(n: Nums): { evaluating: number; generating: number; pending: number } {
   const r = req;
-  if (r === undefined || r.ended !== undefined) return { evaluating: 0, generating: 0 };
-  // Without --slots the server counters stay at 0, so the stream's own generated-token count stands in.
-  return { evaluating: r.processed, generating: Math.max(r.decoded, r.timings?.predicted_n ?? 0) };
+  if (r === undefined || r.ended !== undefined) return { evaluating: 0, generating: 0, pending: 0 };
+  const done = n.evalToks ?? 0;
+  return { evaluating: done, generating: Math.max(r.decoded, r.timings?.predicted_n ?? 0), pending: Math.max(0, prefillTarget(n) - done) };
 }
 
 /**
