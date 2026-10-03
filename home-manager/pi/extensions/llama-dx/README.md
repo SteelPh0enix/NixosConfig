@@ -74,9 +74,9 @@ while the request runs and, dimmed, after it.
 | `state.ts` | the polled request, the measured speeds, and the numbers the footer shows |
 | `footer.ts` | the component pi renders, and taking pi's footer back when the server is not llama.cpp |
 
-pi is handed the **directory**, not `index.ts`, because these import each other. `test-utils/` holds the dev-only
-scripts, all of them plain node importing the `.ts` files: `preview.mjs` renders the layout at chosen widths
-(`--check` asserts the bar fills its width at any width from 40 to 280), `harness.mjs` runs one real request against
-a real instance (`--root http://steelph0enix.pc:51536 --model qwen-27B`, model load included) so the polling and the
-flight zone can be watched, and `check.mjs` runs the whole extension against a fake instance and asserts what must
-be visible in the footer — run it after any change to the layout or the request tracking.
+pi is handed the **directory**, not `index.ts`, because these import each other.
+
+**[TESTING.md](TESTING.md)** is what to run after a change: `preview.mjs` for the look at any width, `check.mjs`
+for the whole extension against a fake llama.cpp (no server, no pi, a few seconds), `harness.mjs` for one real
+request against the instance on `steelph0enix.pc`, plus the `tsc` command and the way to load the extension in pi
+without rebuilding the system.

@@ -74,11 +74,12 @@ for (let i = 0; i < 14; i++) {
 }
 const all = seen.join("\n");
 
-expect("the prompt-processed cell is shown", /\bpp\b/.test(all));
-expect("the live rate is marked as not the server's own", /~\s*\d/.test(all));
+expect("the live pp rate is marked as not the server's own", /pp ?~\s*[\d.]+/.test(all));
+expect("the server's own speeds replace it once timings arrive", /pp\s+713\b.*tg\s+58\b/.test(seen.at(-1) ?? ""));
 expect("the server cells appear once /metrics answers", /\bq\b.*\bfl\b.*\bbd\b/.test(all));
 expect("prefill shows up in the flight zone", /[▓▊▋▌▍▎▏]/.test(all));
-expect("the exact prompt size replaces the estimate", /fp\s*10[,.]?0k|fp\s*10000|fp\s*10k/.test(all));
+expect("the prompt size is estimated first", /fp ~\s*[\d.]+/.test(all));
+expect("and is replaced by llama.cpp's exact number", /fp\s+10k\b/.test(seen.at(-1) ?? ""));
 expect("time to first token is measured", /\btt\b\s+\S/.test(all));
 expect("the footer stays mounted while it is llama.cpp", footer !== null);
 
