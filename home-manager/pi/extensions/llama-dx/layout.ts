@@ -1,7 +1,8 @@
 // The two lines of the footer as coloured segments of measured width. Nothing here imports at runtime — colours are
 // named tones and widths are measured here — so test-utils/preview.mjs can render it under plain node.
-export type Tone = "label" | "value" | "live" | "dim" | "warn" | "error" | "separator" | "ident" | "model" | "number" | "percent" | "used" | "flight" | "free" | "none";
-export type Segment = { text: string; tone: Tone };
+export type Tone = "label" | "value" | "live" | "dim" | "warn" | "error" | "separator" | "ident" | "model" | "number" | "percent" | "held" | "evaluating" | "generating" | "free" | "none";
+/** `bg` is the layer under `tone`, used only where two layers share a cell. */
+export type Segment = { text: string; tone: Tone; bg?: Tone };
 export type Cell = Segment[];
 export type Group = { name: string; cells: Cell[] };
 
@@ -9,8 +10,12 @@ const GAP = "  ";
 const SEP = "  │  ";
 const GUTTER = "  ";
 
-/** Block Elements only: ▰▱ and friends are missing from Berkeley Mono and fall back to another font mid-bar. */
-const EIGHTHS = ["▏", "▎", "▍", "▌", "▋", "▊", "▉"];
+/** The whole alphabet of the context bar: three Block Elements glyphs, so nothing falls back to another font
+ * mid-bar and no partial block leaves a gap next to a full one. ▰▱ and friends are missing from Berkeley Mono. */
+const FULL = "█";
+/** Where layers share a cell: the one on top in the foreground, the one under it in the background. */
+const SHADE = "▒";
+const TRACK = "░";
 
 const clamp = (v: number, min = 0, max = 1): number => Math.min(max, Math.max(min, v));
 
@@ -27,17 +32,17 @@ export const percent = (used: number, total: number): string => {
   return p >= 100 ? "100%" : p >= 10 ? `${p.toFixed(1)}%` : `${p.toFixed(2)}%`;
 };
 
-/** pi's own compaction thresholds, shared by the percent text and the bar's used zone. */
+/** pi's own compaction thresholds, shared by the percent text and the bar's held layer. */
 export type Load = "normal" | "warn" | "error";
 export const load = (used: number, total: number): Load => {
   const p = total > 0 ? (used / total) * 100 : 0;
   return p > 90 ? "error" : p > 70 ? "warn" : "normal";
 };
 
-const ZONE: Record<Load, { used: Tone; percent: Tone }> = {
-  normal: { used: "used", percent: "percent" },
-  warn: { used: "warn", percent: "warn" },
-  error: { used: "error", percent: "error" },
+const ZONE: Record<Load, { held: Tone; percent: Tone }> = {
+  normal: { held: "held", percent: "percent" },
+  warn: { held: "warn", percent: "warn" },
+  error: { held: "error", percent: "error" },
 };
 
 export const fmtMs = (ms: number): string => (ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`);
@@ -57,31 +62,59 @@ const num = (v: number | undefined, width: number, s: Style = {}): Segment => {
   return str(s.estimated ? `~${body}`.padStart(width) : pad(body, width), s);
 };
 
+/** How much of one cell each layer covers, 0 to 1. A layer that covers none of it is 0 and never claims the cell. */
+export type BarCell = { held: number; evaluating: number; generating: number };
+export type BarState = { cells: number; used: number; evaluating: number; generating: number; total: number };
+
 /**
- * The context bar: KV already held, the tokens landing right now, and the room left. Both edges round to 1/8 of a
- * cell, so a prompt creeping through prefill visibly creeps instead of jumping whole cells.
+ * Where the three bands end, in fractions of the bar. Over capacity held gives way and the live bands keep the
+ * right edge, so tokens landing now are never squeezed out of sight by a context figure that has run past `n_ctx`.
  */
-export function contextBar(cells: number, used: number, flight: number, total: number, l: Load = "normal"): Segment[] {
-  const n = Math.max(1, Math.round(cells));
-  const tones = { used: ZONE[l].used, flight: "flight" as Tone, free: "free" as Tone };
-  const eighth = (v: number) => EIGHTHS[clamp(Math.round(v * 8) - 1, 0, EIGHTHS.length - 1)];
+function barEnds(s: BarState): [held: number, evaluating: number, generating: number] {
+  if (!(s.total > 0)) return [0, 0, 0];
+  const held = s.used / s.total;
+  const evaluating = (s.used + Math.max(0, s.evaluating)) / s.total;
+  const generating = (s.used + Math.max(0, s.evaluating) + Math.max(0, s.generating)) / s.total;
+  const shift = Math.max(0, generating - 1);
+  return [clamp(held - shift), clamp(Math.max(held, evaluating) - shift), clamp(generating)];
+}
+
+/** Coverage of every cell, left to right — the bar without colours or glyphs, which is what the tests read. */
+export function barCells(s: BarState): BarCell[] {
+  const n = Math.max(1, Math.round(s.cells));
+  const [heldEnd, evaluatingEnd, generatingEnd] = barEnds(s);
+  const band = (from: number, to: number) => (i: number) => Math.max(0, Math.min(to, (i + 1) / n) - Math.max(from, i / n)) * n;
+  const held = band(0, heldEnd);
+  const evaluating = band(heldEnd, evaluatingEnd);
+  const generating = band(evaluatingEnd, generatingEnd);
+  return Array.from({ length: n }, (_, i) => ({ held: held(i), evaluating: evaluating(i), generating: generating(i) }));
+}
+
+const LAYERS = ["held", "evaluating", "generating"] as const;
+
+/**
+ * The context bar: what the context holds, what prefill is evaluating and generation producing right now, and the
+ * room left — one full block per cell, coloured by the layer that owns it. A layer claims a cell by touching it, so
+ * one token held is a block; where layers share a cell the topmost one is the foreground and the one under it the
+ * background, drawn as a shade block so both show through. One cell can hold all three, and one block can stand for
+ * thousands of tokens.
+ */
+export function contextBar(s: BarState, l: Load = "normal"): Segment[] {
+  const toneOf = (layer: (typeof LAYERS)[number]): Tone => (layer === "held" ? ZONE[l].held : layer);
   const out: Segment[] = [];
-  const put = (glyph: string, tone: Tone) => {
+  const put = (glyph: string, tone: Tone, bg?: Tone) => {
     const last = out[out.length - 1];
-    if (last && last.tone === tone) last.text += glyph;
-    else out.push({ text: glyph, tone });
+    if (last && last.tone === tone && last.bg === bg) last.text += glyph;
+    else out.push(bg === undefined ? { text: glyph, tone } : { text: glyph, tone, bg });
   };
-  const end = (v: number) => (total > 0 ? clamp(v / total) : 0);
-  const usedAt = end(used);
-  const flightAt = end(used + Math.max(0, flight));
-  for (let i = 0; i < n; i++) {
-    const u = (usedAt - i / n) * n;
-    const f = (flightAt - i / n) * n;
-    if (u >= 1) put("█", tones.used);
-    else if (u > 0) put(eighth(u), tones.used);
-    else if (f >= 1) put("▓", tones.flight);
-    else if (f > 0) put(eighth(f), tones.flight);
-    else put("░", tones.free);
+  for (const cell of barCells(s)) {
+    const stack = LAYERS.filter((layer) => cell[layer] > 0);
+    if (stack.length === 0) put(TRACK, "free");
+    else {
+      const top = toneOf(stack[stack.length - 1]!);
+      const under = stack.length > 1 ? toneOf(stack[stack.length - 2]!) : undefined;
+      put(stack.length > 1 ? SHADE : FULL, top, under);
+    }
   }
   return out;
 }
@@ -214,7 +247,8 @@ export type BaseLineInput = {
   model?: string;
   thinking?: string | null;
   used: number | null;
-  flight?: number;
+  evaluating?: number;
+  generating?: number;
   total: number;
   minBar?: number;
 };
@@ -242,12 +276,12 @@ export function baseLine(i: BaseLineInput): Segment[] {
   let showPercent = known;
   let showRight = true;
 
-  const barCells = () => {
+  const avail = () => {
     const blocks = [leftW, usedTxt.length + (showPercent ? 1 + pctTxt.length : 0), totalTxt.length, showRight ? rightW : 0];
     return i.width - blocks.reduce((a, b) => a + b, 0) - GUTTER.length * blocks.filter((b) => b > 0).length;
   };
 
-  for (let guard = 0; guard < 12 && barCells() < minBar; guard++) {
+  for (let guard = 0; guard < 12 && avail() < minBar; guard++) {
     if (showRight && rightRaw !== rightShort && rightW >= cols(rightShort)) {
       rightRaw = rightShort;
       rightW = cols(rightShort);
@@ -272,7 +306,7 @@ export function baseLine(i: BaseLineInput): Segment[] {
     emit(pctTxt, ZONE[l].percent);
   }
   emit(GUTTER, "none");
-  out.push(...contextBar(Math.max(1, barCells()), i.used ?? 0, i.flight ?? 0, i.total, l));
+  out.push(...contextBar({ cells: Math.max(1, avail()), used: i.used ?? 0, evaluating: i.evaluating ?? 0, generating: i.generating ?? 0, total: i.total }, l));
   emit(GUTTER, "none");
   emit(totalTxt, "number");
   if (showRight) {

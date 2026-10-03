@@ -18,14 +18,27 @@ const TONE: Record<Tone, ThemeColor | undefined> = {
   model: "muted",
   number: "text",
   percent: "text",
-  used: "accent",
-  flight: "success",
+  held: "accent",
+  evaluating: "success",
+  generating: "text",
   free: "borderMuted",
   none: undefined,
 };
 
+/** A segment with a `bg` is a cell where two layers meet: the one on top in the foreground, the one under it in the background. */
+const styleSegments = (segments: Segment[], theme: Theme): string => {
+  const colors = theme.colors;
+  return segments
+    .map((s) => {
+      const fg = TONE[s.tone];
+      if (fg === undefined) return s.text;
+      return s.bg === undefined ? theme.fg(fg, s.text) : theme.style(s.text, { fg, bg: colors[TONE[s.bg]!] });
+    })
+    .join("");
+};
+
 const colorize = (segments: Segment[], theme: Theme, to?: number): string => {
-  const text = segments.map((s) => (TONE[s.tone] ? theme.fg(TONE[s.tone]!, s.text) : s.text)).join("");
+  const text = styleSegments(segments, theme);
   const room = to === undefined ? 0 : to - cols(flatten(segments));
   return room > 0 ? `${text}${" ".repeat(room)}` : text;
 };
@@ -73,7 +86,7 @@ class DxFooter implements Component {
     lines.push(colorize(metricsLine(metricGroups(v.facts), width), this.theme));
     lines.push(
       colorize(
-        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: runtime.ctx?.model?.id, thinking: thinkingOf(), used: v.used, flight: v.flight, total: v.total }),
+        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: runtime.ctx?.model?.id, thinking: thinkingOf(), used: v.used, evaluating: v.evaluating, generating: v.generating, total: v.total }),
         this.theme,
         width,
       ),

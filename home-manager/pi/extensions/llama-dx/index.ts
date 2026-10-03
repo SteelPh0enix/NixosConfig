@@ -1,6 +1,6 @@
 // llama.cpp's diagnostics as pi's footer. Two lines: the metrics line on top, and below it the working directory,
-// the model, and between them a context bar filling whatever room is left — KV held, tokens landing right now,
-// room left. Groups on the metrics line drop from the right as the terminal narrows, so nothing is ever
+// the model, and between them a context bar filling whatever room is left — KV held, tokens being evaluated and
+// produced right now, room left. Groups on the metrics line drop from the right as the terminal narrows, so nothing is ever
 // compressed; only the width decides what is there, never the state of the request.
 //
 // layout.ts composes the two lines, server.ts talks to llama.cpp, state.ts turns what comes back into numbers,
