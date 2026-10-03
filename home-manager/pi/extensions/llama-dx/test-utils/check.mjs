@@ -4,7 +4,7 @@
 //   node test-utils/check.mjs [--port 39451] [--dump]
 // Asserts what must be visible in the footer; --dump prints it as plain text at every poll.
 import llamaDx from "../index.ts";
-import { metricGroups } from "../layout.ts";
+import { barCells, metricGroups } from "../layout.ts";
 import { view } from "../state.ts";
 
 const argv = process.argv.slice(2);
@@ -37,7 +37,9 @@ await new Promise((r) => server.listen(port, "127.0.0.1", r));
 const handlers = new Map();
 llamaDx({ on: (event, handler) => handlers.set(event, handler), registerCommand: (name, def) => handlers.set(`cmd:${name}`, def.handler) });
 
-const theme = { fg: (_token, s) => s };
+// A theme that answers like pi's but paints nothing: the assertions read the text of the two lines, and `colors`
+// is there because a cell where two layers of the bar meet asks for its background.
+const theme = { fg: (_token, s) => s, colors: { accent: "#c4a82e", success: "#00a66c", text: "#e4eaf3", borderMuted: "#2578a9", warning: "#d14358", error: "#b32d2d", muted: "#9b6bc1", dim: "#2578a9" }, style: (s) => s };
 let footer = null;
 const footerData = { getGitBranch: () => "master", getExtensionStatuses: () => new Map(), onBranchChange: () => () => {} };
 const ctx = {
@@ -51,24 +53,31 @@ const ctx = {
 const notes = [];
 const fire = async (event, ...rest) => handlers.get(event)?.(...rest, ctx);
 const lines = () => (footer === null ? ["(no footer)"] : footer.render(200));
+/** What the bar of the current state shows, read off the layers rather than off the glyphs. */
+const bar = () => {
+  const v = view();
+  if (!v) return { evaluating: 0, generating: 0, frontier: false };
+  const cells = barCells({ cells: 20, used: v.used ?? 0, evaluating: v.evaluating, generating: v.generating, total: v.total });
+  const sum = (layer) => cells.reduce((a, c) => a + c[layer], 0);
+  return { evaluating: sum("evaluating"), generating: sum("generating"), frontier: cells.some((c) => c.held > 0 && c.evaluating > 0) };
+};
 
 const problems = [];
 const expect = (what, ok) => {
   console.log(`${ok ? "ok  " : "FAIL"} ${what}`);
   if (!ok) problems.push(what);
 };
-/** The cells of the last rendered metrics line, e.g. `pp`, `q`, `tt`. */
-const shown = () => lines()[0];
-
 await fire("session_start", {});
 expect("footer taken on a llama.cpp model", footer !== null);
 
 await fire("before_provider_request", { payload: { model: "qwen", messages: [{ role: "user", content: "hello ".repeat(2000) }] } });
 const seen = [];
+const bars = [];
 for (let i = 0; i < 14; i++) {
   await new Promise((r) => setTimeout(r, 260));
   polls += 1;
   seen.push(lines().join("\n"));
+  bars.push(bar());
   if (polls === 10)
     await fire("provider_stream_event", {
       data: { choices: [{ delta: { content: "hi" } }], timings: { cache_n: 4000, prompt_n: 6000, prompt_per_second: 712.5, predicted_n: 120, predicted_per_second: 57.5, draft_n: 90, draft_n_accepted: 54 }, usage: { prompt_tokens: 10000 } },
@@ -79,15 +88,18 @@ const all = seen.join("\n");
 expect("the live pp rate is marked as not the server's own", /pp ?~\s*[\d.]+/.test(all));
 expect("the server's own speeds replace it once timings arrive", /pp\s+713\b.*tg\s+58\b/.test(seen.at(-1) ?? ""));
 expect("the server cells appear once /metrics answers", /\bq\b.*\bfl\b.*\bbd\b/.test(all));
-expect("prefill shows up in the flight zone", /[▓▊▋▌▍▎▏]/.test(all));
+expect("prefill shows up in the evaluating layer", bars.some((b) => b.evaluating > 0 && b.generating === 0));
+expect("generation shows up in its own layer", bars.some((b) => b.generating > 0));
+expect("the live layer lands on the held one, sharing a cell", bars.some((b) => b.frontier));
 expect("the prompt size is estimated first", /fp ~\s*[\d.]+/.test(all));
 expect("and is replaced by llama.cpp's exact number", /fp\s+10k\b/.test(seen.at(-1) ?? ""));
 expect("time to first token is measured", /\btt\b\s+\S/.test(all));
 expect("the footer stays mounted while it is llama.cpp", footer !== null);
 
 await fire("agent_end", {});
-const done = shown();
+const done = lines()[0];
 expect("the request is counted", /#1/.test(done));
+expect("what a finished request committed joins the held layer", /15,320/.test(lines()[1] ?? ""));
 
 // Every indicator the line can hold has to be explained by `/llama-dx info`: two places, one set of cells.
 await handlers.get("cmd:llama-dx")("info", ctx);

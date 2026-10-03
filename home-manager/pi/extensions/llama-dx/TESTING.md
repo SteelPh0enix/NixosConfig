@@ -58,7 +58,9 @@ What it asserts, in order:
 - the live `pp` rate from `/slots` carries the `~`, and the server's own `pp`/`tg` (713 and 58 here) replace it once
   `timings` arrive
 - the `q`/`fl`/`bd` cells appear once `/metrics` has answered
-- prefill shows up as a partially filled cell in the flight zone
+- prefill shows up in the evaluating layer, generation in the generating layer, and the two are separate; while the
+  request runs the live layer lands on the held one in a shared cell (read from `barCells()`, not from the glyphs)
+- once the request ends, what it evaluated and produced joins the held layer, so the bar keeps the committed tokens
 - the prompt size is `~`-estimated first and becomes llama.cpp's exact 10k
 - `tt` gets a value
 - every indicator the metrics line can hold is explained by `/llama-dx info`, and so are the `~`, `—` and bright
@@ -91,16 +93,18 @@ which is correct rather than broken.
 
 A warm `qwen-27B` with `--repeat 60`, both lines of three polls, the middle of the bar elided so they fit here.
 `fp ~737` carries the `~` because the prompt size is still the body-size estimate; `pp` stays `—` until the window
-over `/slots` is long enough to be a rate rather than one batch step; the extra `▍` from 1.4 on is the flight zone
-growing while the prompt is evaluated; `tt` appears with the first content token:
+over `/slots` is long enough to be a rate rather than one batch step; the green band from 1.4 on is the evaluating
+layer growing while the prompt is evaluated, and the `▒` at its left edge is where it lands on the held layer (the
+second one, from 2.1, is the first generated tokens landing on the evaluating layer); `tt` appears with the first
+content token:
 
 ```
   0.7 │ pp — tg — t/s │ fp  ~737  ev     0  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████▊░░…░░  146,944  qwen-27B • high
+      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████░░…░░  146,944  qwen-27B • high
   1.4 │ pp — tg — t/s │ fp  ~841  ev   799  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████▊▍░░…░░  146,944  qwen-27B • high
+      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒██░░…░░  146,944  qwen-27B • high
   2.1 │ pp  534 tg — t/s │ fp   845  ev   803  re    42  out    5 │ … │ q 0  fl  1/1  bd 1.00 │ sc100%  3/3  st 74% │ tt   1.6s
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████▊▍░░…░░  146,944  qwen-27B • high
+      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒███▒░░…░░  146,944  qwen-27B • high
 ```
 
 The last lines carry the stream's own `usage` and `timings`, so the numbers in the cells can be checked against what
@@ -138,7 +142,8 @@ one file, build a throwaway derivation around `${./extensions/llama-dx}` and lis
 
 ## what these do not cover
 
-the colours (theme tokens are only mapped, never compared against a theme file), the used zone under compaction or
+the colours as the terminal shows them (`preview.mjs --demo` paints the noctalia palette by hand; the assertions
+only map theme tokens, never compare them against a theme file), the used zone under compaction or
 branching in a real session, `--parallel > 1` (the fake answers with one slot, and the real instance is usually
 idle at 1/1), and the fitted `pp` estimate, which only replaces the plain mean once a server has five measured
 requests to fit against.

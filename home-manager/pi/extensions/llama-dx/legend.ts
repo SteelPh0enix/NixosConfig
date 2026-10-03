@@ -64,6 +64,16 @@ const SECTIONS: { name: string; rows: Row[] }[] = [
     ],
   },
   {
+    name: "context bar, on the bottom line",
+    rows: [
+      { cell: "held", meaning: "█ what the context already holds; warning past 70%, error past 90%" },
+      { cell: "eval", meaning: "█ prompt tokens prefill is putting into the KV right now" },
+      { cell: "gen", meaning: "█ tokens being produced right now, the brightest block on the line" },
+      { cell: "▒", meaning: "two layers in one cell: the newer colour in front of the one it lands on" },
+      { cell: "free", meaning: "░ the room left in n_ctx" },
+    ],
+  },
+  {
     name: "markers",
     rows: [
       { cell: "~", meaning: "not llama.cpp's own number: the live rate, or the estimate from history" },
@@ -79,7 +89,7 @@ const ROLE: Record<"head" | "cell" | "meaning" | "note", ThemeColor> = { head: "
 export function legend(theme: Pick<Theme, "fg">, width: number): string {
   const cells = Math.max(...SECTIONS.flatMap((s) => s.rows.map((r) => cols(r.cell))));
   const run = (role: keyof typeof ROLE, text: string) => (text ? theme.fg(ROLE[role], text) : text);
-  const out = [run("head", cut("the metrics line, group by group", width)), ""];
+  const out = [run("head", cut("the footer, group by group", width)), ""];
   for (const s of SECTIONS) {
     out.push(run("head", s.name));
     for (const r of s.rows) {
