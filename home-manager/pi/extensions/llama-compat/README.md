@@ -21,16 +21,15 @@ refresh re-reads the server without restarting pi.
 |---|---|
 | `GET /props` | whether the endpoint is a llama.cpp server at all; anything else is left alone |
 | `GET /models` | `contextWindow` from `meta.n_ctx` or the preset's `--ctx-size` arg, `input` from `architecture.input_modalities`, instance ids, aliases, `status.value` |
-| `GET /props?model=X&autoload=false`, loaded or sleeping instances only | served `n_ctx`, vision, the template's `enable_thinking` switch, the effort values it names, `chat_template_caps.supports_reasoning_effort` |
+| `GET /props?model=X&autoload=false`, loaded or sleeping instances only | served `n_ctx`, vision, the thinking switch and the effort variable the template declares, the effort values it accepts, `chat_template_caps.supports_reasoning_effort` and `supports_preserve_reasoning` |
 
 | Server says | Applied |
 |---|---|
 | served `n_ctx` | `contextWindow`, and `maxTokens` clamped down to it |
 | vision projector present / absent | `input` `["text", "image"]` / `["text"]` |
-| any thinking switch at all | `reasoning: true`, otherwise `false` |
-| template has an `enable_thinking` switch | `compat.thinkingFormat: "qwen-chat-template"`, `supportsReasoningEffort: false` - the bool switch is the only one that can turn thinking off |
-| template reads `reasoning_effort` but has no bool switch | `supportsReasoningEffort: true` and a `thinkingLevelMap` over the efforts the template names, others marked null |
-| always | `supportsStore`/`supportsDeveloperRole`/`supportsStrictMode` false, `supportsUsageInStreaming` true, `maxTokensField: "max_tokens"` |
+| any thinking switch or effort at all | `reasoning: true`, otherwise `false` |
+| template declares its own variables (a switch such as `enable_thinking` or `thinking`, or a `*_reasoning_effort`) | `compat.thinkingFormat: "chat-template"` with `chatTemplateKwargs` carrying the switch and, when the template names the values it accepts, the effort too; `preserve_thinking` only when the template declares it |
+| template only reads OpenAI's `reasoning_effort` | `supportsReasoningEffort: true` and a `thinkingLevelMap` over the efforts the template names, others marked null |
 | always | `supportsStore`/`supportsDeveloperRole`/`supportsStrictMode` false, `supportsUsageInStreaming` true, `maxTokensField: "max_tokens"` |
 
 ## Providers with no models
@@ -50,6 +49,11 @@ and the catalog refresh fills both in.
   would drop its classifier models. Only providers you put in `models.json` are touched.
 - Effort levels are only claimed when the template can take them: a template that validates its effort (most
   Qwen ones: `xhigh`/`medium`/`low`) 500s on `high`, and pi sends `thinkingLevelMap[level] ?? level`.
+- Switch and effort names come out of the template's own jinja expressions, ignoring its comments and strings.
+  A template that switches thinking under a name never seen before still works; one that only mentions
+  thinking in prose is read as having no switch.
+- What `models.json` writes under `modelOverrides` is applied on top of all of this, so a model can always be
+  pinned by hand.
 - A cold preset answers nothing about itself, so it keeps its configured values rather than guessing.
 - Registering a provider replaces its whole model list, so if the server does not offer one of the configured
   models, the provider is left exactly as `models.json` describes it.
