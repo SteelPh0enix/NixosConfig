@@ -61,7 +61,8 @@ const SECTIONS: { name: string; rows: Row[] }[] = [
       { cell: "#", meaning: "the watched slot, over the number of slots" },
       { cell: "max", meaning: "n_tokens_max, the largest context the instance has held" },
       { cell: "c/t", meaning: "characters per token, from the last exact prompt size" },
-      { cell: "exact", meaning: "speeds are llama.cpp's own timings; fitted means they are ours" },
+      { cell: "exact", meaning: "these speeds are llama.cpp's own timings" },
+      { cell: "fitted", meaning: "these speeds are ours: a live rate from the slot, or the mean of recent ones" },
     ],
   },
   {

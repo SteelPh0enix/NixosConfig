@@ -38,20 +38,30 @@ dances when a number changes.
 A `~` means "not llama.cpp's own number", never "roughly": the live rate from `/slots` (held while its counter
 stalls, since prefill advances in whole batch steps), or the mean of the last ten measurements for this server and
 model — `pp` fitted against context, since it declines as the context grows. A new request opens at the speeds
-already measured on that server and glides from there, and its counters keep the previous request's numbers until it
-has measured its own. `—` means there is nothing to hold.
+already measured on that server and glides from there, and a new request keeps the previous one's counters until it
+knows its own prompt, when it drops them. `—` means there is nothing to hold.
 
-Two sources, because neither is enough alone: the response stream (`timings`, `usage` — exact, but the first chunk
-only arrives once prefill is over, so the extension asks for `timings_per_token`), and `GET /slots?model=X` polled
-while the request runs, which is the only way to watch prefill and the only per-instance `n_ctx`. The prompt size is
-not available from the server, so it is estimated from the outgoing body and recalibrated against the previous
-request's exact `usage.prompt_tokens`. The used zone is pi's own context figure, taken the moment the request went
-out — what is arriving since then belongs to the moving bands. What a request still has to evaluate is no estimate
-either: while it runs, `/slots` gives the whole prompt and the cached part of it, so the pending band and `pf` are
-the server's own numbers (`input_tokens = n_prompt_tokens - n_prompt_tokens_cache`); only before the first `/slots`
-answer of a request is that total the same body-size estimate as `fp`.
+Two sources, because neither is enough alone: the response stream, which the extension asks llama.cpp to fill with
+`timings_per_token` and `return_progress`, and `GET /slots?model=X`, polled once a second while the request runs for
+what only it knows — `n_ctx`, whether the slot is busy, and a live rate for the counters.
 
-`/metrics` is scraped at the start of a request and then once a second while it runs, always with `autoload=false`:
+`pf` and the pending band are llama.cpp's own arithmetic, not a guess: `prompt_progress` names `total`, `cache` and
+`processed`, and the progress is `(processed - cache) / (total - cache)`, exactly as its README defines it. The two
+other ways the prompt size is learned are worse, and both are in the code because old servers lack the progress
+chunks: the `timings` of a *finished* task (`prompt_n + cache_n` — while a task runs they are repeated after every
+token and count only what has been evaluated *so far*, so taking them for the whole prompt is what made `pf` hit 100%
+halfway through prefill), and the size of the outgoing body recalibrated against the last exact prompt (`c/t`).
+`/slots` cannot help: its `n_prompt_tokens` is the size of the slot's whole KV — cached prefix, what it has batched
+and what it has generated — not the size of this prompt.
+
+The used zone is pi's own context figure, taken the moment the request went out; what is arriving since then belongs
+to the moving bands.
+
+`/slots` is polled slowly on purpose: it posts a task to the server queue and answers with the whole prompt and
+answer detokenized, which at a 57k context costs about 2 ms and 1.8 MB per answer, so a fast poll is load on the
+machine the footer is watching. The bands do not miss it: they move on the stream's own chunks.
+
+`/metrics` is scraped at the start of a request and then every two seconds while it runs, always with `autoload=false`:
 on a router a plain read would load the instance. Its two throughput gauges are deliberately not read, since every
 scrape resets the buckets behind them. `--metrics` answers `501`, which is the only answer that turns those cells
 off; a scrape that times out keeps the last one that answered.

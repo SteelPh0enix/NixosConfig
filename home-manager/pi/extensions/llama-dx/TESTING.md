@@ -56,14 +56,21 @@ Imports `../index.ts` — the extension as pi loads it — and drives it through
 fake llama.cpp on `127.0.0.1:<port>`, then renders the footer after every poll. Every assertion is printed and the
 exit status is non-zero if any of them failed.
 
-The fake answers `/slots` **by how many times it has been polled**, so a run always takes the same steps and the
+The fake follows a `step` counter **that the check itself advances**, so a run always takes the same steps and the
 timers of the machine under test cannot change the outcome: a 10000-token prompt of which 4000 are cached, so 6000
-have to be evaluated over four polls of prefill (1600 tokens each), generation starts at poll nine, and the slot
-goes idle after poll twelve, which is what the idle detection needs to end the request.
+have to be evaluated over eight steps of prefill (800 tokens each), generation starts at step twelve, and the slot
+goes idle after step sixteen, which is what the idle detection needs to end the request. `/slots` answers the way
+llama.cpp does: `n_prompt_tokens` is the slot's whole KV (`cache + processed + decoded`), never the size of this
+prompt, and the first answer of a request still carries the task before it — different counters, a slot that is not
+processing. What the check feeds `provider_stream_event` mirrors the same `step`: `prompt_progress` with
+`total = 10000, cache = 4000, processed = 4000 + evaluated`, so the two sources always describe the same moment.
 `/props` answers like a router everywhere except under `/nope`, where it answers like something that is not
 llama.cpp. `/metrics` returns a fixed scrape (deferred, processing, `n_busy_slots_per_decode`, the
-speculative-decode counters, `n_tokens_max`). At poll ten the fake delivers one stream chunk carrying `timings` with
-enough measured tokens for llama.cpp's own numbers to be trusted, plus the exact `usage.prompt_tokens`.
+speculative-decode counters, `n_tokens_max`). At step thirteen one chunk carries `timings` with enough measured
+tokens for llama.cpp's own speeds to be trusted, plus the exact `usage.prompt_tokens`.
+
+A run takes about four seconds, since the extension is polled on its own timer and the check only reads the footer
+in between.
 
 What it asserts, in order:
 
@@ -73,8 +80,13 @@ What it asserts, in order:
 - the `q`/`fl`/`bd` cells appear once `/metrics` has answered
 - prefill shows up in the evaluating band, generation in the generating one, and the two are separate; while the
   request runs the moving band lands on the held one in a shared cell (read from `barCells()`, not from the glyphs)
-- the prompt still to evaluate is on the bar before it is evaluated, shrinks monotonically to nothing as prefill
-  finishes, and `pf` on the metrics line says how far that evaluation has got
+- the prompt still to evaluate is on the bar before it is evaluated and, from the first progress chunk on, only
+  shrinks — to nothing; `pf` reads 100% exactly when the tokens have run out, never earlier, and never falls back
+  while the request runs; those two are the shape of the bug this footer had, where `pf` leapt to 100% mid-prefill
+- a `timings` chunk of a *running* request counts only what llama.cpp has evaluated so far, so it must not be taken
+  for the whole prompt: a second request is fed one and must still show `fp 10k` and `pf 26.7%`
+- a slot that has never been seen busy — a queue, a loading model, the previous task's counters still in `/slots` —
+  ends nothing and lends nothing
 - once the request ends, what it evaluated and produced joins the held band, so the bar keeps the committed tokens
 - the prompt size is `~`-estimated first and becomes llama.cpp's exact 10k
 - `tt` gets a value
@@ -106,22 +118,27 @@ generation. `--repeat N` appends N copies of the prompt so prefill lasts long en
 the default prompt (65 tokens out of the chat template) there is nothing for `pp` to measure and it stays `—`,
 which is correct rather than broken.
 
-A warm `qwen-27B` with `--repeat 60`, both lines of three polls, the middle of the bar elided so they fit here.
-`fp ~737` carries the `~` because the prompt size is still the body-size estimate; `pp` stays `—` until the window
-over `/slots` is long enough to be a rate rather than one batch step; the green `█` from 1.4 on is the evaluating
-band growing while the prompt is read, the `▒` at its left edge is where it lands on the held band, and the faint
-green in front of it is what is left of the prompt to come — at this ratio (a 695-token prompt against a context of
-146,944) that whole prompt does not fill one cell, so `pf` is where its progress actually shows; the second `▒`,
-from 2.1, is the first generated tokens landing on the evaluating band; `tt` appears with the first content token:
+A warm `qwen-27B`, four polls of one request, the middle of the bar elided so the lines fit here. `fp 2.2k` is
+exact from the first render, because `prompt_progress` arrives before prefill has evaluated anything; `re 42` is the
+cached prefix, so `pf` divides by 2183 and not by 2225. `pp` stays `—` until the window over `/slots` is long enough
+to be a rate rather than one batch step, then takes llama.cpp's own from the chunks; the green `█` is the evaluating
+band growing, the `▒` at its left edge is where it lands on the held band, the faint green in front of it is what is
+left of the prompt to come, and the second `▒` from 4.2 is the first generated tokens landing on the evaluating band;
+`tt` appears with the first content token:
 
 ```
-  0.7 │ pp — tg — t/s │ fp  ~737  ev     0  pf ~0.00%  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  ██████░░░…░░░  146,944  qwen-27B • high
-  1.4 │ pp — tg — t/s │ fp  ~841  ev   486  pf ~69.9%  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ sc —  —  st 74% │ tt —
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒███░░…░░░  146,944  qwen-27B • high
-  2.1 │ pp  534 tg — t/s │ fp   845  ev   803  pf   100%  re    42  out    5 │ … │ q 0  fl  1/1  bd 1.00 │ sc100%  3/3  st 74% │ tt   1.6s
-      │ /home/dev/src/steel-pi (master)  9,200 6.26%  █████▒███▒░░░…░░░  146,944  qwen-27B • high
+  0.7 │ pp — tg — t/s │ fp  2.2k  ev     0  pf  0.00%  re    42  out    0 │ … │ q 0  fl  1/1  bd 1.00 │ tt —
+      │ /home/dev/src/steel-pi (master)  9,200 6.38%  ██████▒░░░…░░░  144,128  qwen-27B • high
+  2.8 │ pp  779 tg — t/s │ fp  2.2k  ev  1.7k  pf  76.4%  re    42  out    0 │ … │ tt —
+      │ /home/dev/src/steel-pi (master)  9,200 6.38%  ██████▒██░░░…░░░  144,128  qwen-27B • high
+  3.5 │ pp  836 tg — t/s │ fp  2.2k  ev  2.2k  pf  99.8%  re    42  out    0 │ … │ tt —
+      │ /home/dev/src/steel-pi (master)  9,200 6.38%  ██████▒██░░░…░░░  144,128  qwen-27B • high
+  4.2 │ pp  639 tg  44 t/s │ fp  2.2k  ev  2.2k  pf   100%  re    42  out   29 │ … │ tt   3.5s
+      │ /home/dev/src/steel-pi (master)  9,200 6.38%  ██████▒█▒░░░…░░░  144,128  qwen-27B • high
 ```
+
+`--prompt` with fresh text, not `--repeat`: a repeated prompt of the run before sits in the KV entirely, and then
+`re` swallows it, `ev` is a handful of tokens and `pf` legitimately reads 100% at once.
 
 The last lines carry the stream's own `usage` and `timings`, so the numbers in the cells can be checked against what
 llama.cpp actually reported.
