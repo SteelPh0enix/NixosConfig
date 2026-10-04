@@ -17,6 +17,7 @@
     ./nixvim
     ./pi
     ./theming.nix
+    ./flashpoint.nix
     ./vesktop.nix
     ./xdg.nix
   ];

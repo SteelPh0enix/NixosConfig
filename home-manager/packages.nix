@@ -27,7 +27,8 @@
     teams-for-linux
     teamspeak6-client
     ungoogled-chromium
-    winePackages.stagingFull
+    # winePackages is the 32-bit-only build; wineWow64Packages also runs 64-bit Windows exes
+    wineWow64Packages.stagingFull
     winetricks
     xournalpp
     zenmap

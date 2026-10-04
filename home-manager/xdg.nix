@@ -30,6 +30,7 @@
       "application/x-7z-compressed" = "org.gnome.FileRoller.desktop";
       "application/x-tar" = "org.gnome.FileRoller.desktop";
       "application/gzip" = "org.gnome.FileRoller.desktop";
+      "x-scheme-handler/flashpoint" = "flashpoint.desktop";
       # x-scheme-handler/mailto deliberately unset: no mail client installed ("Open with…" still works).
     };
   };

@@ -3,6 +3,7 @@ inputs: [
   inputs.rust-overlay.overlays.default
   inputs.nix-cachyos-kernel.overlays.pinned
   inputs.llama-cpp.overlays.default
+  (import ./overlays/flashpoint.nix)
   (import ./overlays/llama-cpp.nix)
   (import ./overlays/ltrace.nix)
   (import ./overlays/phonto.nix inputs)
