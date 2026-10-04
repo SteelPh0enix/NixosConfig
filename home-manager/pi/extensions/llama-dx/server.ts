@@ -7,6 +7,8 @@ export type Slot = {
   id?: number;
   n_ctx?: number;
   is_processing?: boolean;
+  /** The size of the slot's whole KV (`prompt.tokens.size()`): cached prefix, what it has batched and what it has
+   * generated — never the size of the prompt being processed, which is why the prompt total comes from the stream. */
   n_prompt_tokens?: number;
   n_prompt_tokens_processed?: number;
   n_prompt_tokens_cache?: number;

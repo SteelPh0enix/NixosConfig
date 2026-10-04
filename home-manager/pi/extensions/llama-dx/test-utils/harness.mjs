@@ -16,12 +16,12 @@ const NOCTALIA = {
   accent: "#c4a82e", text: "#e4eaf3", dim: "#2578a9", muted: "#9b6bc1", warning: "#d14358", error: "#b32d2d",
   borderMuted: "#2578a9", success: "#00a66c",
 };
+const rgbOf = (c) => [1, 3, 5].map((i) => parseInt((NOCTALIA[c] ?? c ?? "#888888").slice(i, i + 2), 16));
 const theme = {
-  fg: (token, s) => {
-    const hex = NOCTALIA[token] ?? "#888888";
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    return `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
-  },
+  colors: NOCTALIA,
+  fg: (token, s) => `\x1b[38;2;${rgbOf(token).join(";")}m${s}\x1b[0m`,
+  // a cell where two layers of the bar meet: foreground and background in one escape
+  style: (s, { fg, bg }) => `\x1b[38;2;${rgbOf(fg).join(";")}${bg ? `;48;2;${rgbOf(bg).join(";")}` : ""}m${s}\x1b[0m`,
 };
 
 const handlers = new Map();

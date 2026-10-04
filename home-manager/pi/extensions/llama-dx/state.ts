@@ -7,9 +7,11 @@ import { debug } from "./debug.ts";
 import type { Facts } from "./layout.ts";
 import { fetchSlots, isLlama, keyOf, metricsShown, metricsSupport, pickSlot, probeRoot, scrapeMetrics, serverRoot, shortHost, type Metrics, type Timings } from "./server.ts";
 
-const POLL_MS = 250;
-/** /metrics is scraped less often than /slots: it posts a task to the server queue and answers ~2.5 kB. */
-const METRICS_EVERY_MS = 1000;
+/** `/slots` is dear: it posts a task to the server queue and answers with the whole prompt and answer detokenized
+ * (~1.8 MB at a 57k context, measured). The stream carries what happens to *this* request, so it only needs to
+ * say whether the slot is busy and how big it is. */
+const POLL_MS = 1000;
+const METRICS_EVERY_MS = 2000;
 const WINDOW_MS = 3000;
 /** Shorter than this the window covers a single batch step, which is a spike rather than a speed. */
 const MIN_SPAN_MS = 1200;
@@ -28,7 +30,6 @@ type Req = {
   instance: string;
   chars: number;
   estPrompt: number;
-  seenPrompt: number;
   processed: number;
   cached: number;
   decoded: number;
@@ -36,6 +37,12 @@ type Req = {
   slots: number;
   slotId?: number;
   processing: boolean;
+  /** Whether the watched slot has been seen busy: a task that has not started cannot have ended. */
+  busy: boolean;
+  /** llama.cpp's own prefill progress: the whole prompt, its cached prefix, and how much of it is evaluated. */
+  progress?: { total: number; cache: number; done: number };
+  /** The slot's counters as they were last poll; a smaller one means the slot moved to another task. */
+  raw?: { processed: number; decoded: number };
   started: number;
   /** What pi called the context when this request went out: the bar's used zone, without what is landing now. */
   base: number | null;
@@ -203,7 +210,12 @@ function record(r: Req, n: Nums): void {
 /** The numbers of one request: llama.cpp's own once they arrived, the live counters until then. */
 function numbers(r: Req, t = Date.now()): Nums {
   const timing = r.timings;
-  const ctx = (timing?.cache_n ?? r.cached) + (timing?.prompt_n ?? r.processed) + (timing?.predicted_n ?? r.decoded);
+  // Only a finished task's timings describe its whole prompt: `timings_per_token` repeats them after every token with
+  // `prompt_n` counting what has been evaluated *so far*. llama.cpp's progress chunks carry the real total for the
+  // same reason, and they arrive before prefill has done anything with the prompt.
+  const exact = timing !== undefined && r.ended !== undefined;
+  const total = r.progress?.total ?? (exact ? (timing.prompt_n ?? 0) + (timing.cache_n ?? 0) : 0);
+  const ctx = total + (timing?.predicted_n ?? r.decoded);
   // A server number measured over a handful of tokens is worse than no number: below the trust threshold the cell
   // keeps its own smoothed live rate, or the recent estimate, and carries the ~ marker.
   const ppExact = (timing?.prompt_n ?? 0) >= TRUST_PP ? timing?.prompt_per_second : undefined;
@@ -216,10 +228,10 @@ function numbers(r: Req, t = Date.now()): Nums {
     tgEstimated: tgExact === undefined,
     spec: timing?.draft_n ? [timing.draft_n_accepted ?? 0, timing.draft_n] : undefined,
     ttft: r.firstToken,
-    prompt: timing ? (timing.prompt_n ?? 0) + (timing.cache_n ?? 0) : Math.max(r.seenPrompt, r.estPrompt),
-    estimated: timing === undefined,
-    evalToks: timing?.prompt_n ?? r.processed,
-    reuse: timing?.cache_n ?? r.cached,
+    prompt: total > 0 ? total : r.estPrompt,
+    estimated: total === 0,
+    evalToks: Math.max(timing?.prompt_n ?? 0, r.progress?.done ?? 0, r.processed),
+    reuse: r.progress?.cache ?? (exact ? (timing.cache_n ?? 0) : r.cached),
     out: timing?.predicted_n ?? r.decoded,
     nCtx: r.nCtx,
   };
@@ -228,18 +240,18 @@ function numbers(r: Req, t = Date.now()): Nums {
   return n;
 }
 
-/** The holes of the running request filled with the previous one's numbers; the KV context survives between them. */
+/**
+ * The holes of the running request filled with the previous one's numbers; the KV context survives between them.
+ * Once the request knows its own prompt it needs none of them: the tokens they count are not this request's.
+ */
 function hold(n: Nums): void {
   const p = settled;
   if (!p) return;
-  if (!n.prompt) {
-    n.prompt = p.prompt;
-    n.estimated = true;
-  }
+  if (!n.nCtx) n.nCtx = p.nCtx;
+  if (!n.estimated) return;
   if (!n.evalToks) n.evalToks = p.evalToks;
   if (!n.reuse) n.reuse = p.reuse;
   if (!n.out) n.out = p.out;
-  if (!n.nCtx) n.nCtx = p.nCtx;
 }
 
 function finalize(r: Req): void {
@@ -261,8 +273,9 @@ async function refreshMetrics(r: Req): Promise<void> {
 }
 
 /**
- * One /slots at a time. A llama.cpp that is up to its neck in prefill answers them slowly, and letting the poll
- * timer queue them up every 250ms only makes every one of them time out — which stops the panel moving entirely.
+ * One /slots at a time. It posts a task to the server queue and answers with the whole prompt detokenized, so a
+ * llama.cpp that is up to its neck in prefill answers it slowly, and queueing them up only makes every one of them
+ * time out — which stops the panel moving entirely.
  */
 let polling = false;
 
@@ -286,25 +299,37 @@ async function pollOnce(): Promise<void> {
   const processed = slot.n_prompt_tokens_processed ?? 0;
   const decoded = slot.next_token?.[0]?.n_decoded ?? 0;
 
-  r.processed = Math.max(r.processed, processed);
-  r.decoded = Math.max(r.decoded, decoded);
-  // /slots counts the whole KV slot, generation included, so the prompt size is what is left after subtracting.
-  r.seenPrompt = Math.max(r.seenPrompt, (slot.n_prompt_tokens ?? 0) - decoded);
-  r.cached = Math.max(r.cached, slot.n_prompt_tokens_cache ?? 0);
+  // What the slot counts belongs to this request only while it is busy with it: until it takes the task it answers
+  // with the previous one (`task_prev`), and a task that ends clears its stats. Once it is busy, a counter that went
+  // down since last poll means the slot moved to another task, so this one starts over instead of holding it.
   r.nCtx = slot.n_ctx ?? r.nCtx;
   r.slots = slots.length;
   r.slotId = slot.id;
   r.processing = slot.is_processing === true;
-  samples = [...samples.filter((s) => t - s.t <= WINDOW_MS), { t, processed, decoded }];
+  if (r.processing) {
+    if (r.raw && (processed < r.raw.processed || decoded < r.raw.decoded)) {
+      r.processed = 0;
+      r.decoded = 0;
+      r.cached = 0;
+      samples = [];
+    }
+    r.raw = { processed, decoded };
+    r.processed = Math.max(r.processed, processed);
+    r.decoded = Math.max(r.decoded, decoded);
+    r.cached = Math.max(r.cached, slot.n_prompt_tokens_cache ?? 0);
+    samples = [...samples.filter((s) => t - s.t <= WINDOW_MS), { t, processed, decoded }];
+  }
+  r.busy ||= r.processing;
   if (metricsSupport.get(keyOf(r)) !== false && t - (r.metricsAt ?? 0) >= METRICS_EVERY_MS) {
     r.metricsAt = t;
     void refreshMetrics(r);
   }
 
   // The llama.cpp task ends before pi's agent loop does (tools follow), and is_processing drops between
-  // prefill chunks, so only a lasting idle with work done means the request is over.
+  // prefill chunks, so only a lasting idle with work done means the request is over. A slot that has never been
+  // seen busy is a queue or a loading model, not a finished request.
   idlePolls = r.processing ? 0 : idlePolls + 1;
-  if (idlePolls >= 2 && (processed > 0 || decoded > 0)) {
+  if (idlePolls >= 2 && r.busy && (r.processed > 0 || r.decoded > 0)) {
     r.ended = t;
     finalize(r);
   }
@@ -454,13 +479,13 @@ export function startRequest(payload: Record<string, unknown>, ctx: ExtensionCon
     instance: String(payload.model ?? ctx.model?.id ?? "?"),
     chars: JSON.stringify(payload.messages ?? "").length + (Array.isArray(payload.tools) ? JSON.stringify(payload.tools).length : 0),
     estPrompt: Math.round(JSON.stringify(payload.messages ?? "").length / charsPerToken),
-    seenPrompt: 0,
     processed: 0,
     cached: 0,
     decoded: 0,
     nCtx: ctx.model?.contextWindow ?? 0,
     slots: 0,
     processing: false,
+    busy: false,
     started: Date.now(),
     base: ctx.getContextUsage()?.tokens ?? null,
     counted: false,
@@ -473,20 +498,33 @@ export function startRequest(payload: Record<string, unknown>, ctx: ExtensionCon
   if (!isLlama(root)) return undefined;
   void refreshMetrics(req); // learns whether this server has --metrics at all
   pollTimer = setInterval(() => void poll(), POLL_MS);
-  return { ...payload, timings_per_token: true };
+  // `return_progress` makes llama.cpp post its own prefill progress (`prompt_progress`) into the stream once per
+  // batch, which is the only exact figure for what it has to evaluate: `/slots` answers with the size of the
+  // slot's whole KV, cached prefix and generated tokens included, so it cannot say how big this prompt is.
+  return { ...payload, timings_per_token: true, return_progress: true };
 }
 
-/** What the stream told us: the timings of a finished llama.cpp task, the exact prompt size, the first token. */
+/**
+ * What the stream told us: prefill progress, the first token, and the timings llama.cpp repeats every chunk — those
+ * describe the whole task only once it has ended, which is when `finalize` reads them.
+ */
 export function observeStream(data: unknown): void {
   if (!data || typeof data !== "object" || !req) return;
-  const event = data as { timings?: Timings; usage?: { prompt_tokens?: number }; choices?: { delta?: { content?: string | null; reasoning_content?: string | null } }[] };
+  const event = data as { timings?: Timings; usage?: { prompt_tokens?: number }; prompt_progress?: { total?: number; cache?: number; processed?: number }; choices?: { delta?: { content?: string | null; reasoning_content?: string | null } }[] };
   const delta = event.choices?.[0]?.delta;
   if (req.firstToken === undefined && (delta?.content || delta?.reasoning_content)) req.firstToken = Date.now() - req.started;
   if (event.timings) req.timings = event.timings;
-  if (event.usage?.prompt_tokens) {
-    req.estPrompt = event.usage.prompt_tokens;
-    // Nearly the same body goes out next turn, so this ratio is a good estimate then.
-    charsPerToken = req.chars / event.usage.prompt_tokens;
+  const p = event.prompt_progress;
+  if (p?.total) {
+    req.progress = { total: p.total, cache: p.cache ?? 0, done: Math.max(0, (p.processed ?? 0) - (p.cache ?? 0)) };
+    debug(`progress total=${p.total} cache=${p.cache} processed=${p.processed}`);
+  }
+  // llama.cpp sends its usage only when asked for, so the prompt size arrives from `usage` or from the progress
+  // chunks. Nearly the same body goes out next turn, so the ratio measured here is a good estimate of it then.
+  const exact = event.usage?.prompt_tokens ?? p?.total;
+  if (exact) {
+    req.estPrompt = exact;
+    charsPerToken = req.chars / exact;
   }
   paint();
 }
