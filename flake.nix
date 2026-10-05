@@ -47,13 +47,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # pi coding agent: pinned upstream source + committed lockfiles, so the npm build is
-    # reproducible. Installed by home-manager/pi; builds from source, as pi.cachix.org is keyed on
-    # this flake's own nixpkgs lock.
-    pi = {
-      url = "github:lukasl-dev/pi.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # pi coding agent, official flake. It ships packages only (no home-manager module), so
+    # home-manager/pi wires up the config with plain home-manager. No public binary cache, so a
+    # `nix flake update pi` means a few minutes of local building.
+    pi.url = "github:earendil-works/pi/stable";
 
     # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
     # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.

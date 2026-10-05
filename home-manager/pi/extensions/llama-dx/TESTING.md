@@ -145,16 +145,18 @@ llama.cpp actually reported.
 
 ## types
 
-`tsc` from pi's own install, against pi's own `.d.ts` files. The repo has no `node_modules`, and `tsc` finds them
-by walking up from the file it is given, so the check runs on a copy with a symlink next to it; it follows imports,
-so naming only `index.ts` covers all seven files.
+`tsc` from nixpkgs, against pi's own `.d.ts` files: pi's runtime tree ships no dev dependencies, so there is no
+`typescript` inside the install. The repo has no `node_modules`, and `tsc` finds them by walking up from the file it
+is given, so the check runs on a copy with a symlink next to it; it follows imports, so naming only `index.ts` covers
+all seven files.
 
 ```sh
-pi_bin=$(grep -m1 -o '/nix/store/[a-z0-9-]*pi-coding-agent-[^/]*/bin/pi' "$(readlink -f "$(command -v pi)")")
-NM="$(dirname "$(dirname "$pi_bin")")/lib/node_modules"   # pi's typescript, @types/node, pi's own types
+TSC="$(nix build --no-link --print-out-paths nixpkgs#typescript)/bin/tsc"
+pi_root=$(dirname "$(dirname "$(readlink -f "$(command -v pi)")")")   # /nix/store/…-pi-<version>
+NM="$pi_root/lib/pi/node_modules"   # @types/node and pi's own types
 rm -rf /tmp/dx-typecheck && mkdir -p /tmp/dx-typecheck && ln -s "$NM" /tmp/dx-typecheck/node_modules
 cp ./*.ts /tmp/dx-typecheck/
-cd /tmp/dx-typecheck && "$NM"/typescript/bin/tsc --noEmit --strict --noUnusedLocals --noImplicitOverride \
+cd /tmp/dx-typecheck && "$TSC" --noEmit --strict --noUnusedLocals --noImplicitOverride \
   --skipLibCheck --target es2023 --module esnext --moduleResolution bundler \
   --allowImportingTsExtensions --types node index.ts
 ```
@@ -162,7 +164,8 @@ cd /tmp/dx-typecheck && "$NM"/typescript/bin/tsc --noEmit --strict --noUnusedLoc
 ## in pi itself
 
 jiti, not node, loads the extension in pi, and it is handed the **directory** rather than `index.ts` because the
-files import each other:
+files import each other. home-manager links this directory to `~/.pi/agent/extensions/llama-dx`, so a plain `pi`
+already loads it; `-e` adds a second copy and only makes sense for an unlinked checkout:
 
 ```sh
 # the model is named, never left to the default: see the rule at the top
@@ -171,7 +174,8 @@ LLAMA_DX_DEBUG=1 pi --extension "$PWD" --provider llama-pc --model qwen-27B -p "
 
 stderr then shows the verdict of the `/props` probe (`llama-dx: http://…: llama.cpp=true`) and the finished request
 (`llama-dx: #1 prompt=… eval=… reuse=… out=… pp=… tg=…`). To confirm the Nix side copies the whole tree rather than
-one file, build a throwaway derivation around `${./extensions/llama-dx}` and list its output; `programs.pi.coding-agent.extensions` passes each entry to `--extension` as a store path.
+one file, build a throwaway derivation around `${./extensions/llama-dx}` and list its output; `home.file` links that
+same store path into `~/.pi/agent/extensions`.
 
 ## what these do not cover
 
