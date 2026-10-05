@@ -256,17 +256,12 @@ in
       labels = [
         "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
         "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-        # Built locally from a repo's docker/Dockerfile (see SteelPh0enix/mc-modpack-10-2026); the
-        # runner uses the local image because container.force_pull defaults to false, so there is no
-        # registry to run. Rebuild with: <repo>/scripts/ci-image.sh build
-        "mc-modpack-builder:docker://mc-modpack-builder:latest"
       ];
       settings = {
         runner = {
           labels = [
             "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
             "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-            "mc-modpack-builder:docker://mc-modpack-builder:latest"
           ];
         };
         container = {
