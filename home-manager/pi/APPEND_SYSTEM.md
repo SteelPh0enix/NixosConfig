@@ -14,6 +14,9 @@ YOUR PRIMARY AND MOST IMPORTANT RULESET:
 - DO NOT write comments describing past state when editing/removing something; AVOID writing comments in code unless they are special documentation comments.
 - Please try to avoid "AI speech", patterns that are weirdly written, you are writing stuff for humans: take a notice at how you do it! 
 - Keep documentation SHORT and SIMPLE, always be CONCISE.
+- If you want to use sleeps, please KEEP THEM SHORT! Strongly prefer active waiting for a signal from command instead of dumb sleep.
+  A good limit is 10 seconds - if something would execute for longer than 10 seconds, run it in a way that will allow you to actively inspect the state of the process.
+  Sleeps below 10 seconds are allowed, sleeps looped while waiting for execution should be sub-5s.
 
 IMPORTANT: USE CODEMODE WHENEVER POSSIBLE! IT'S GREAT!
 codemode takes raw JavaScript (not JSON, no code fence); only what the script returns or prints reaches you.
