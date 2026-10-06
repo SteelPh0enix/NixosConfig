@@ -22,6 +22,13 @@ let
     enableInstallTelemetry = false;
     # +name keeps read, bash, edit, write and adds codemode
     defaultTools = [ "+codemode" ];
+    # Compaction triggers at contextWindow - reserveTokens, the summary's own output is capped at
+    # 0.8 * reserveTokens, and keepRecentTokens is what survives a compaction unsummarized. At the
+    # 16384 default a 262k-context model kept truncating the summaries it needed to stay under.
+    compaction = {
+      reserveTokens = 32768;
+      keepRecentTokens = 32768;
+    };
     packages = [ ]; # keep the key: it overwrites whatever settings.json already declares
     retry = {
       maxRetries = 5;
