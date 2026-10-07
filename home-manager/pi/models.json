@@ -7,7 +7,10 @@
       "models": [
         {
           "id": "Qwen 3.8 Flash Next",
-          "name": "qwen-next"
+          "name": "qwen-next",
+          "reasoning": true,
+          "contextWindow": 524288,
+          "maxTokens": 32768
         }
       ]
     },
