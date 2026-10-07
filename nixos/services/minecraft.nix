@@ -15,7 +15,7 @@ in
   imports = [ (mcserver + /modules/minecraft-server.nix) ];
 
   services.minecraft-forge-server.instances.createplus = {
-    enable = true;
+    enable = false;
     package = pkgs.callPackage (mcserver + /packages/minecraft-server) { pack = createplus; };
 
     port = 25565;
