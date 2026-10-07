@@ -104,6 +104,9 @@ in
     # The whole directory, since it is several .ts files importing each other. test-utils/ holds the
     # dev-only scripts: preview, harness against a real instance, check against a fake one.
     "${agentDir}/extensions/llama-dx".source = ./extensions/llama-dx;
+    # Background subagents: spawn named tasks bound to a provider/model, watch them, collect results.
+    # Multi-file (index/config/state/task/ui), so the whole directory is copied as-is.
+    "${agentDir}/extensions/subagents".source = ./extensions/subagents;
     # Link every template by name instead of replacing the whole directory.
     "${agentDir}/prompts" = {
       source = ./prompts;
