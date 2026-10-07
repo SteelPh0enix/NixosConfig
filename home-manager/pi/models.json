@@ -9,7 +9,7 @@
           "id": "Qwen 3.8 Flash Next",
           "name": "qwen-next",
           "reasoning": true,
-          "contextWindow": 524288,
+          "contextWindow": 262144,
           "maxTokens": 32768
         }
       ]
