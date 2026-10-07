@@ -2,8 +2,6 @@
 // `subagent_wait` drains. One registry per extension instance (each session
 // gets its own), so a subagent's tasks are never visible to the main agent.
 
-import type { SubagentConfig } from "./config.ts";
-
 export type TaskState = "running" | "done" | "failed" | "killed";
 
 export interface TaskRecord {
@@ -21,12 +19,12 @@ export interface TaskRecord {
   lastActivityAt: number;
   /** Last assistant message text seen so far (streaming progress + final report). */
   lastText: string;
-  /** Final assistant text (the report). */
+  /** Final assistant text (the report). Only ever handed out by `subagent_result`. */
   output: string;
   /** Accumulated model usage so the main session's token totals stay accurate. */
   usage: { tokens: number; cost: number };
   error?: string;
-  /** Last ~2000 chars of output, for the `/subagents <id>` detail view. */
+  /** Tail of the output, for the `/subagents <id>` detail view and result blocks. */
   recentOutput: string;
   /** Groups this task holds a lease in (empty when the subagent is untracked). */
   groups: string[];
@@ -36,44 +34,50 @@ export interface TaskRecord {
   runner?: unknown;
 }
 
-/** The compact shape emitted on `pi.events` and rendered in the status bar. */
-export interface StatusTask {
+/**
+ * Compact view of a task for tool `details` and status events. Tool details are
+ * persisted into the session file, so they never carry the full report.
+ */
+export interface TaskSummary {
   id: string;
   name: string;
   model: string;
   state: TaskState;
+  /** Milliseconds the task ran (or has been running, measured at call time). */
   elapsed: number;
   lastActivity: string;
+  error?: string;
+  recentOutput: string;
 }
 
-function elapsed(record: TaskRecord, now = Date.now()): number {
-  const end = record.finishedAt ?? record.startedAt;
-  return Math.max(0, now - end);
-}
+const SUMMARY_OUTPUT_LIMIT = 1000;
 
-export function toStatus(record: TaskRecord): StatusTask {
+export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
   return {
     id: record.id,
     name: record.name,
     model: record.model,
     state: record.state,
-    elapsed: elapsed(record),
+    elapsed: Math.max(0, now - (record.finishedAt ?? record.startedAt)),
     lastActivity: record.lastActivity,
+    error: record.error,
+    recentOutput: record.recentOutput.slice(-SUMMARY_OUTPUT_LIMIT),
   };
 }
 
 /**
  * Completion queue for `subagent_wait`.
  *
- * - `claimFinished()` returns every finished-but-unclaimed task and marks them
- *   claimed, so the main agent sees each result exactly once.
- * - `waitForCompletion()` resolves as soon as a task finishes, or rejects the
- *   wait after a timeout (returning whether anything is actually available).
+ * - `claimFinished(ids)` hands out finished-but-unclaimed tasks and marks them
+ *   claimed, so the main agent sees each result exactly once. When `ids` is
+ *   given, only those tasks are claimed; the rest stay queued for later.
+ * - `waitForCompletion(timeoutMs, ids, signal)` resolves true as soon as a
+ *   claimable task finishes, and false on timeout or abort.
  */
 export class TaskRegistry {
   private tasks = new Map<string, TaskRecord>();
   private finished: string[] = [];
-  private waiters: Array<(hasWork: boolean) => void> = [];
+  private waiters: Array<() => void> = [];
   private counter = 0;
 
   /** Generate a unique id for a new task (e.g. "task-1"). */
@@ -94,7 +98,7 @@ export class TaskRegistry {
     return [...this.tasks.values()];
   }
 
-  /** Mark a task finished and wake any waiters. */
+  /** Mark a task finished (whatever the outcome) and wake any waiters. */
   markFinished(id: string): void {
     const record = this.tasks.get(id);
     if (record && record.state === "running") {
@@ -102,62 +106,58 @@ export class TaskRegistry {
       record.finishedAt = Date.now();
     }
     if (!this.finished.includes(id)) this.finished.push(id);
-    this.notify(true);
+    this.notify();
   }
 
-  /** Mark a task as killed (still counts as finished for waiters). */
-  markKilled(id: string): void {
-    const record = this.tasks.get(id);
-    if (record && record.state === "running") {
-      record.state = "killed";
-      record.finishedAt = Date.now();
-      this.finished.push(id);
-      this.notify(true);
-    }
-  }
-
-  /** All finished tasks not yet handed to `subagent_wait`, marked claimed. */
-  claimFinished(): TaskRecord[] {
-    const ids = this.finished;
-    this.finished = [];
-    const result: TaskRecord[] = [];
-    for (const id of ids) {
+  claimFinished(ids?: string[]): TaskRecord[] {
+    const claimed: TaskRecord[] = [];
+    const queued: string[] = [];
+    for (const id of this.finished) {
       const record = this.tasks.get(id);
-      if (record) {
-        record.claimed = true;
-        result.push(record);
+      if (!record) continue;
+      if (ids && !ids.includes(id)) {
+        queued.push(id);
+        continue;
       }
+      record.claimed = true;
+      claimed.push(record);
     }
-    return result;
+    this.finished = queued;
+    return claimed;
   }
 
-  /**
-   * Resolve once a task finishes, or after `timeoutMs`.
-   * Returns true if work is available to claim.
-   */
-  waitForCompletion(timeoutMs: number): Promise<boolean> {
-    if (this.finished.length > 0) return Promise.resolve(true);
+  /** Resolve true on claimable work, false after `timeoutMs` or on abort. */
+  waitForCompletion(timeoutMs: number, ids?: string[], signal?: AbortSignal): Promise<boolean> {
+    if (this.hasClaimable(ids)) return Promise.resolve(true);
+    if (signal?.aborted) return Promise.resolve(false);
     return new Promise<boolean>((resolve) => {
       let settled = false;
-      const onWork = () => {
+      const settle = (value: boolean) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve(this.finished.length > 0);
-      };
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
+        signal?.removeEventListener("abort", onAbort);
         this.waiters = this.waiters.filter((w) => w !== onWork);
-        resolve(false);
-      }, timeoutMs);
+        resolve(value);
+      };
+      // A finish outside `ids` must keep the wait going, so re-check on every wake.
+      const onWork = () => {
+        if (this.hasClaimable(ids)) settle(true);
+      };
+      const onAbort = () => settle(false);
+      const timer = setTimeout(() => settle(false), timeoutMs);
+      signal?.addEventListener("abort", onAbort, { once: true });
       this.waiters.push(onWork);
     });
   }
 
-  private notify(hasWork: boolean): void {
+  private hasClaimable(ids?: string[]): boolean {
+    return this.finished.some((id) => this.tasks.has(id) && (!ids || ids.includes(id)));
+  }
+
+  private notify(): void {
     const waiters = this.waiters;
     this.waiters = [];
-    for (const w of waiters) w(hasWork);
+    for (const waiter of waiters) waiter();
   }
 }

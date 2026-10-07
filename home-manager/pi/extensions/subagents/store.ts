@@ -41,7 +41,7 @@ export class LeaseStore {
   private readonly db: DatabaseSync;
   private readonly instanceId: string;
   private started = false;
-  private stopped = false;
+  private closed = false;
   private reapTimer?: ReturnType<typeof setInterval>;
   private heartbeatTimer?: ReturnType<typeof setInterval>;
 
@@ -66,37 +66,44 @@ export class LeaseStore {
   /**
    * Hold a slot in each requested group for `subagent`, atomically.
    * Returns the created lease ids, or null if any group is full (nothing reserved).
+   * Database problems throw, so a broken store is never mistaken for a full group.
    */
   acquire(subagent: string, requests: LeaseRequest[]): number[] | null {
     if (requests.length === 0) return [];
+    this.assertOpen();
     const now = Date.now();
     const ids: number[] = [];
+    const live = this.db.prepare("SELECT COUNT(*) AS c FROM leases WHERE grp = ? AND expires_at > ?");
+    const ins = this.db.prepare(
+      "INSERT INTO leases (grp, subagent, instance_id, pid, acquired_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+    );
+    const reap = this.db.prepare("DELETE FROM leases WHERE grp = ? AND expires_at <= ?");
+    this.db.exec("BEGIN IMMEDIATE");
+    let committed = false;
     try {
-      this.db.exec("BEGIN IMMEDIATE");
-      const live = this.db.prepare("SELECT COUNT(*) AS c FROM leases WHERE grp = ? AND expires_at > ?");
-      const ins = this.db.prepare(
-        "INSERT INTO leases (grp, subagent, instance_id, pid, acquired_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
-      );
-      const reap = this.db.prepare("DELETE FROM leases WHERE grp = ? AND expires_at <= ?");
       for (const { group, limit } of requests) {
         reap.run(group, now);
-        if ((live.get(group, now) as { c: number })?.c >= limit) {
-          this.db.exec("ROLLBACK");
-          return null;
-        }
+        if ((live.get(group, now) as { c: number })?.c >= limit) return null;
         const info = ins.run(group, subagent, this.instanceId, process.pid, now, now + LEASE_TTL_MS);
         ids.push(info.lastInsertRowid as number);
       }
       this.db.exec("COMMIT");
+      committed = true;
       return ids;
-    } catch {
-      this.db.exec("ROLLBACK");
-      return null;
+    } finally {
+      if (!committed) {
+        try {
+          this.db.exec("ROLLBACK");
+        } catch {
+          // The transaction was already gone; the original error stands.
+        }
+      }
     }
   }
 
   /** Renew this instance's leases that are about to expire. */
   heartbeat(): void {
+    if (this.closed) return;
     const now = Date.now();
     this.db
       .prepare("UPDATE leases SET expires_at = ? WHERE instance_id = ? AND expires_at <= ?")
@@ -105,36 +112,43 @@ export class LeaseStore {
 
   /** Remove expired leases; returns how many were removed. */
   reap(): number {
+    if (this.closed) return 0;
     return Number(this.db.prepare("DELETE FROM leases WHERE expires_at <= ?").run(Date.now()).changes);
   }
 
   /** Remove all of this instance's leases (on clean shutdown). */
   releaseAll(): void {
+    if (this.closed) return;
     this.db.prepare("DELETE FROM leases WHERE instance_id = ?").run(this.instanceId);
   }
 
   /** Remove one lease by id (on task completion). */
   release(id: number): void {
+    if (this.closed) return;
     this.db.prepare("DELETE FROM leases WHERE id = ?").run(id);
   }
 
   /** Remove all leases for a group; returns the count removed. */
   dropGroup(group: string): number {
+    if (this.closed) return 0;
     return Number(this.db.prepare("DELETE FROM leases WHERE grp = ?").run(group).changes);
   }
 
   /** All active leases, for the `/subagents leases` command. */
   list(): Lease[] {
+    if (this.closed) return [];
     return this.db
       .prepare(
-        "SELECT id, grp, subagent, instance_id, pid, acquired_at, expires_at FROM leases ORDER BY grp, subagent",
+        `SELECT id, grp, subagent, instance_id AS instanceId, pid,
+                acquired_at AS acquiredAt, expires_at AS expiresAt
+         FROM leases ORDER BY grp, subagent`,
       )
       .all() as unknown as Lease[];
   }
 
   /** Start the reap + heartbeat timers (idempotent). Call once per process. */
   start(): void {
-    if (this.started || this.stopped) return;
+    if (this.started || this.closed) return;
     this.started = true;
     this.reap();
     this.heartbeat();
@@ -144,13 +158,17 @@ export class LeaseStore {
     this.heartbeatTimer.unref?.();
   }
 
-  /** Stop the timers and release this instance's leases. */
+  /** Stop the timers, free this instance's slots, and close the database. */
   close(): void {
-    if (!this.started) return;
-    this.stopped = true;
+    if (this.closed) return;
     clearInterval(this.reapTimer);
     clearInterval(this.heartbeatTimer);
     this.releaseAll();
+    this.closed = true;
     this.db.close();
+  }
+
+  private assertOpen(): void {
+    if (this.closed) throw new Error("subagent lease store is closed");
   }
 }

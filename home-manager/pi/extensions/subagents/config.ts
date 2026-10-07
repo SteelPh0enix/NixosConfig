@@ -4,12 +4,15 @@
 // `tools` setting that decides which of the main agent's tools it gets:
 //   - omitted  -> every main-agent tool except the subagent tools themselves
 //   - a list   -> that exact list, and nothing else (subagent tools dropped)
-//   - a dict   -> { enable?: string[], disable?: string[] } layered on top of
-//                 the default set; enable and disable are mutually exclusive.
+//   - { enable }   -> an allowlist, same as a list
+//   - { disable }  -> the default set minus those tools
+// Validation runs against the TypeBox schemas below; entries that fail are
+// reported and skipped instead of taking the whole config down.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Type, type Static } from "typebox";
+import { Type } from "typebox";
+import { Value } from "typebox/value";
 
 // The five tools this extension exposes to the main agent. Always excluded from
 // a subagent so a subagent can neither spawn nor manage other subagents.
@@ -21,19 +24,18 @@ export const SUBAGENT_TOOL_NAMES: string[] = [
   "subagent_kill",
 ];
 
-// A subagent's tool setting: either an exact allowlist or selective enable/disable.
+// Exact allowlist, or the selective form. `additionalProperties: false` makes
+// { enable, disable } match neither branch, so the two stay mutually exclusive.
 const ToolConfigSchema = Type.Union([
   Type.Array(Type.String({ minLength: 1 }), { minItems: 1, description: "Exact tool allowlist" }),
-  Type.Object(
-    {
-      enable: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
-      disable: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
-    },
-    { description: "Selective enable/disable relative to the default toolset" },
-  ),
+  Type.Object({ enable: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }) }, { additionalProperties: false }),
+  Type.Object({ disable: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }) }, { additionalProperties: false }),
 ]);
 
-const SubagentConfigSchema = Type.Object({
+/** Group name -> max concurrent subagents in that group (integer >= 1). */
+const GroupsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
+
+export const SubagentConfigSchema = Type.Object({
   provider: Type.String({ minLength: 1 }),
   model: Type.String({ minLength: 1 }),
   description: Type.Optional(Type.String()),
@@ -45,14 +47,11 @@ export interface SubagentConfig {
   provider: string;
   model: string;
   description?: string;
-  tools?: ToolConfig;
+  tools?: string[] | { enable?: string[]; disable?: string[] };
   /** Groups this subagent occupies a slot in (each must be in the `groups` map). */
   groups?: string[];
 }
 
-export type ToolConfig = Static<typeof ToolConfigSchema>;
-
-/** Everything `createAgentSession` needs to build a subagent's tool set. */
 export interface ResolvedTools {
   /** Exact allowlist; when present it is the only set of tools the subagent gets. */
   tools?: string[];
@@ -62,26 +61,18 @@ export interface ResolvedTools {
 
 /**
  * Resolve a subagent's tool setting into `createAgentSession` options.
- * Subagent tools are always excluded (isolation), regardless of the setting.
+ * Subagent tools are always excluded (isolation), whatever the setting says.
  */
 export function resolveTools(config: SubagentConfig | undefined): ResolvedTools {
-  if (!config?.tools) {
-    return { excludeTools: [...SUBAGENT_TOOL_NAMES] };
-  }
-  if (Array.isArray(config.tools)) {
-    const excluded = new Set(SUBAGENT_TOOL_NAMES);
-    const tools = config.tools.filter((name) => !excluded.has(name));
-    return { tools, excludeTools: [] };
-  }
-  if (config.tools.enable && config.tools.disable) {
-    throw new Error("subagent `tools` must be either a fixed list or { enable/disable }, not both");
-  }
-  const exclude = new Set<string>(SUBAGENT_TOOL_NAMES);
-  for (const name of config.tools.disable ?? []) exclude.add(name);
-  for (const name of config.tools.enable ?? []) exclude.delete(name);
-  // Re-add the subagent tools: they are the isolation boundary and stay excluded.
-  for (const name of SUBAGENT_TOOL_NAMES) exclude.add(name);
-  return { excludeTools: [...exclude] };
+  const excluded = new Set<string>(SUBAGENT_TOOL_NAMES);
+  if (!config?.tools) return { excludeTools: [...excluded] };
+
+  // Allowlist forms: the subagent tools are simply not part of the list.
+  const allow = Array.isArray(config.tools) ? config.tools : config.tools.enable;
+  if (allow) return { tools: allow.filter((name) => !excluded.has(name)), excludeTools: [] };
+
+  for (const name of config.tools.disable ?? []) excluded.add(name);
+  return { excludeTools: [...excluded] };
 }
 
 export interface LoadedConfig {
@@ -105,23 +96,15 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isValidGroupsMap(value: unknown): value is Record<string, number> {
-  if (!isObject(value)) return false;
-  return Object.values(value).every(
-    (v) => typeof v === "number" && Number.isInteger(v) && v >= 1,
-  );
-}
-
-function isValidToolConfig(value: unknown): boolean {
-  if (Array.isArray(value)) return value.length > 0 && value.every((t) => typeof t === "string" && t.length > 0);
-  if (!isObject(value)) return false;
-  const enable = value.enable;
-  const disable = value.disable;
-  const hasEnable = enable !== undefined;
-  const hasDisable = disable !== undefined;
-  if (hasEnable && hasDisable) return false;
-  const checkList = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every((t) => typeof t === "string" && t.length > 0);
-  return !hasEnable || !hasDisable || (checkList(enable) && checkList(disable));
+/** First validation complaint about an entry, in words a config author can use. */
+function firstError(name: string, value: unknown): string {
+  for (const err of Value.Errors(SubagentConfigSchema, value)) {
+    const where = err.instancePath || "#";
+    // A union only ever reports "must be array", so name the accepted forms instead.
+    if (where === "/tools") return "tools must be a non-empty list, or { enable } / { disable }";
+    return `${where} ${err.message}`;
+  }
+  return `${name} is malformed`;
 }
 
 /**
@@ -150,28 +133,18 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
       continue;
     }
     if (data.groups !== undefined) {
-      if (!isValidGroupsMap(data.groups)) {
-        errors.push(`${source} config groups must be a { "<name>": <positive-integer> } map; skipped`);
+      if (!Value.Check(GroupsSchema, data.groups)) {
+        errors.push(`${source} config groups must be a { "<name>": <positive integer> } map; skipped`);
       } else {
-        for (const [groupName, limit] of Object.entries(data.groups)) groups.set(groupName, limit);
+        for (const [groupName, limit] of Object.entries(data.groups as Record<string, number>)) groups.set(groupName, limit);
       }
     }
     for (const [name, raw] of Object.entries(data.subagents)) {
-      if (
-        !isObject(raw) ||
-        typeof raw.provider !== "string" ||
-        raw.provider.trim() === "" ||
-        typeof raw.model !== "string" ||
-        raw.model.trim() === "" ||
-        (raw.description !== undefined && typeof raw.description !== "string") ||
-        (raw.tools !== undefined && !isValidToolConfig(raw.tools)) ||
-        (raw.groups !== undefined &&
-          !(Array.isArray(raw.groups) && raw.groups.length > 0 && raw.groups.every((g) => typeof g === "string" && g.length > 0)))
-      ) {
-        errors.push(`${source} subagent "${name}" is malformed; skipped`);
+      if (!Value.Check(SubagentConfigSchema, raw)) {
+        errors.push(`${source} subagent "${name}" skipped: ${firstError(name, raw)}`);
         continue;
       }
-      subagents.set(name, raw as unknown as SubagentConfig);
+      subagents.set(name, raw as SubagentConfig);
     }
   }
 
@@ -179,7 +152,7 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
   for (const [name, cfg] of subagents) {
     for (const group of cfg.groups ?? []) {
       if (!groups.has(group)) {
-        errors.push(`subagent "${name}" references unknown group "${group}" (not in any config's groups map)`);
+        errors.push(`subagent "${name}" references unknown group "${group}" (not in any config's groups map); spawning it will fail`);
       }
     }
   }

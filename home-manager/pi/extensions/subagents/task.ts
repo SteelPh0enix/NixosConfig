@@ -9,7 +9,7 @@ import type { SubagentConfig, ResolvedTools } from "./config.ts";
 import type { TaskRegistry, TaskRecord } from "./state.ts";
 import type { LeaseStore } from "./store.ts";
 
-type StatusCallback = (record: TaskRecord) => void;
+type TaskCallback = (record: TaskRecord) => void;
 
 export interface StartTaskOptions {
   record: TaskRecord;
@@ -26,13 +26,17 @@ export interface StartTaskOptions {
   store?: LeaseStore;
   /** Live main-transcript path, passed to the subagent for read-only reference. */
   mainSessionPath?: string;
-  onStatus: StatusCallback;
+  /** Progress callback, throttled by `onEvent`. */
+  onStatus: TaskCallback;
+  /** Terminal callback: called exactly once, after the outcome is recorded. */
+  onFinish: TaskCallback;
 }
 
 const RECENT_OUTPUT_LIMIT = 2000;
 const STATUS_THROTTLE_MS = 1000;
 
 export class SubagentTask {
+  private readonly options: StartTaskOptions;
   private session?: AgentSession;
   private unsubscribe?: () => void;
   private lastAssistant?: AgentMessage;
@@ -41,7 +45,8 @@ export class SubagentTask {
   private readonly donePromise: Promise<void>;
   private resolveDone!: () => void;
 
-  constructor(private readonly options: StartTaskOptions) {
+  constructor(options: StartTaskOptions) {
+    this.options = options;
     this.donePromise = new Promise<void>((resolve) => {
       this.resolveDone = resolve;
     });
@@ -55,11 +60,12 @@ export class SubagentTask {
   /** Abort the active prompt; the outcome is recorded once the prompt settles. */
   async abort(): Promise<void> {
     this.aborted = true;
+    // Aborts that land before `createAgentSession` resolves are picked up by `start()`.
     await this.session?.abort();
   }
 
   async start(): Promise<void> {
-    const { record, resolvedTools, cwd, agentDir, model, sessionManager, mainSessionPath, onStatus } = this.options;
+    const { record, resolvedTools, cwd, agentDir, model, sessionManager, mainSessionPath } = this.options;
     record.runner = this;
 
     try {
@@ -71,20 +77,36 @@ export class SubagentTask {
         tools: resolvedTools.tools,
         excludeTools: resolvedTools.excludeTools,
       })).session;
-      this.subscribe();
-      await this.session.prompt(this.buildPrompt());
+      if (!this.aborted) {
+        this.subscribe();
+        await this.session.prompt(this.buildPrompt());
+      }
     } catch (err) {
       record.state = "failed";
       record.error = err instanceof Error ? err.message : String(err);
-    } finally {
-      this.unsubscribe?.();
-      this.session?.dispose();
     }
 
-    this.applyOutcome();
+    // The tail always runs: a task that never reports would hang `subagent_wait`.
+    try {
+      this.applyOutcome();
+    } catch (err) {
+      record.state = "failed";
+      record.error ??= err instanceof Error ? err.message : String(err);
+      record.finishedAt ??= Date.now();
+    }
+    this.unsubscribe?.();
+    try {
+      this.session?.dispose();
+    } catch {
+      // A failed cleanup still has to resolve done().
+    }
     this.releaseLeases();
     this.options.registry.markFinished(record.id);
-    onStatus(record);
+    try {
+      this.options.onFinish(record);
+    } catch {
+      // A broken notification must not swallow the outcome.
+    }
     this.resolveDone();
   }
 
@@ -108,7 +130,7 @@ export class SubagentTask {
       const usage = event.message.usage;
       if (usage) {
         record.usage.tokens += usage.totalTokens;
-        record.usage.cost += usage.cost.total;
+        record.usage.cost += usage.cost?.total ?? 0;
       }
       record.lastActivity = "writing…";
       record.lastActivityAt = Date.now();
@@ -146,8 +168,7 @@ export class SubagentTask {
 
   private applyOutcome(): void {
     const { record } = this.options;
-    const last = this.lastAssistant;
-    const assistant = last && last.role === "assistant" ? last : undefined;
+    const assistant = this.lastAssistant?.role === "assistant" ? this.lastAssistant : undefined;
     if (this.aborted || assistant?.stopReason === "aborted") {
       record.state = "killed";
     } else if (assistant?.stopReason === "error") {
@@ -156,6 +177,7 @@ export class SubagentTask {
     } else if (record.state !== "failed") {
       // Do not overwrite a failure the prompt() catch already recorded.
       record.state = "done";
+      if (assistant?.stopReason === "length") record.error = "report hit the model's output limit";
     }
     record.finishedAt = Date.now();
     record.output = assistant ? extractText(assistant) : (this.session?.getLastAssistantText() ?? "");
@@ -165,12 +187,11 @@ export class SubagentTask {
 
 export function extractText(message: AgentMessage): string {
   if (message.role !== "assistant") return "";
-  const parts: string[] = [];
-  for (const c of message.content) {
-    if (c.type === "text") parts.push(c.text);
-    else if (c.type === "thinking") parts.push("[thinking]");
-  }
-  return parts.join("\n").trim();
+  return message.content
+    .filter((c) => c.type === "text")
+    .map((c) => c.text)
+    .join("\n")
+    .trim();
 }
 
 function summarizeArgs(toolName: string, args: unknown): string {
@@ -178,7 +199,8 @@ function summarizeArgs(toolName: string, args: unknown): string {
   const a = args as Record<string, unknown>;
   const pick = (...keys: string[]): string => {
     for (const k of keys) {
-      if (typeof a[k] === "string" && a[k].trim()) return a[k]!.trim().replace(/\s+/g, " ").slice(0, 60);
+      const v = a[k];
+      if (typeof v === "string" && v.trim()) return v.trim().replace(/\s+/g, " ").slice(0, 60);
     }
     return "";
   };
