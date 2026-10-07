@@ -7,14 +7,12 @@ import { Text } from "@earendil-works/pi-tui";
 import type {
   AgentToolResult,
   ExtensionAPI,
-  ExtensionContext,
   ExtensionToolContext,
   ToolRenderResultOptions,
   Theme,
   ThemeColor,
 } from "@earendil-works/pi-coding-agent";
-import type { TaskRegistry, TaskRecord, StatusTask } from "./state.ts";
-import { toStatus } from "./state.ts";
+import { toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
 
 // ---- details shapes (matched by renderResult) -----------------------------
 
@@ -29,14 +27,14 @@ export interface SpawnDetails {
 export interface StatusDetails {
   id?: string;
   count: number;
-  /** Full task records, for the expanded detail view. */
-  tasks: TaskRecord[];
+  /** Summaries of the reported tasks, for the expanded detail view. */
+  tasks: TaskSummary[];
 }
 
 export interface WaitDetails {
   count: number;
-  /** Finished task records, for the result view. */
-  tasks: TaskRecord[];
+  /** Summaries of the finished tasks, for the result view. */
+  tasks: TaskSummary[];
 }
 
 export interface ResultDetails {
@@ -47,7 +45,7 @@ export interface ResultDetails {
 
 export interface KillDetails {
   id: string;
-  state: TaskRecord["state"];
+  state: TaskState;
 }
 
 // ---- shared formatting ----------------------------------------------------
@@ -62,7 +60,7 @@ export function formatElapsed(ms: number): string {
   return `${s}s`;
 }
 
-function stateColor(state: TaskRecord["state"]): ThemeColor {
+function stateColor(state: TaskState): ThemeColor {
   switch (state) {
     case "running":
       return "accent";
@@ -77,8 +75,8 @@ function stateColor(state: TaskRecord["state"]): ThemeColor {
   }
 }
 
-function stateLabel(state: TaskRecord["state"], theme: Theme): Text {
-  return new Text(theme.fg(stateColor(state), state.toUpperCase()), 0, 0);
+function stateLabel(state: TaskState, theme: Theme): string {
+  return theme.fg(stateColor(state), state.toUpperCase());
 }
 
 function text(content: string): Text {
@@ -87,26 +85,13 @@ function text(content: string): Text {
 
 // ---- live status (pi.events + setStatus fallback) -------------------------
 
-/** Push the set of running tasks so llama-dx renders the bar segment. */
+/** Snapshot of the running tasks on `pi.events` (channel: `subagents:status`). */
 export function emitStatus(pi: ExtensionAPI, registry: TaskRegistry): void {
   const tasks = registry
     .all()
     .filter((r) => r.state === "running")
-    .map(toStatus);
+    .map((r) => toSummary(r));
   pi.events.emit("subagents:status", { tasks });
-}
-
-/** Compact string for the status-bar fallback when llama-dx is not present. */
-export function formatStatusText(registry: TaskRegistry): string {
-  const running = registry
-    .all()
-    .filter((r) => r.state === "running")
-    .sort((a, b) => a.startedAt - b.startedAt)
-    .slice(0, 2);
-  if (running.length === 0) return "";
-  const body = running.map((r) => `${r.name} ${formatElapsed(Date.now() - r.startedAt)}`).join(" · ");
-  const extra = registry.all().filter((r) => r.state === "running").length - running.length;
-  return `⚙ ${body}${extra > 0 ? ` · +${extra}` : ""}`;
 }
 
 // ---- rendering: calls ------------------------------------------------------
@@ -135,15 +120,13 @@ export function renderKillCall(args: { id: string }, theme: Theme): Text {
 
 // ---- rendering: results ----------------------------------------------------
 
-function taskBlock(record: TaskRecord, theme: Theme, options: { expanded?: boolean } = {}): Text {
-  const header = `${record.id} ${theme.fg("dim", "· ")}${theme.fg("accent", record.name)} ${theme.fg("dim", "· ")}${theme.fg("muted", record.model)}`;
-  const state = stateLabel(record.state, theme);
-  const elapsed = theme.fg("dim", ` ${formatElapsed(Date.now() - record.startedAt)}`);
-  const lines = [`${header} ${state}${elapsed}`];
-  if (record.error) lines.push(theme.fg("error", `  ${record.error}`));
-  if (record.lastActivity) lines.push(theme.fg("muted", `  ▸ ${record.lastActivity}`));
+function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolean } = {}): Text {
+  const header = `${task.id} ${theme.fg("dim", "· ")}${theme.fg("accent", task.name)} ${theme.fg("dim", "· ")}${theme.fg("muted", task.model)}`;
+  const lines = [`${header} ${stateLabel(task.state, theme)} ${theme.fg("dim", formatElapsed(task.elapsed))}`];
+  if (task.error) lines.push(theme.fg("error", `  ${task.error}`));
+  if (task.lastActivity) lines.push(theme.fg("muted", `  ▸ ${task.lastActivity}`));
   if (options.expanded) {
-    const output = (record.recentOutput || record.output).trim();
+    const output = task.recentOutput.trim();
     if (output) lines.push("", theme.fg("dim", truncate(output, 800)));
   }
   return text(lines.join("\n"));

@@ -16,12 +16,11 @@ import {
   type AgentToolResult,
   type ExtensionAPI,
   type ExtensionToolContext,
-  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { Usage } from "@earendil-works/pi-ai";
-import { loadSubagentConfigs, resolveTools, nameSchema, type SubagentConfig, type ResolvedTools } from "./config.ts";
-import { TaskRegistry, toStatus, type TaskRecord } from "./state.ts";
+import { loadSubagentConfigs, resolveTools, nameSchema, type ResolvedTools } from "./config.ts";
+import { TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
 import { SubagentTask } from "./task.ts";
 import { LeaseStore, type LeaseRequest } from "./store.ts";
 import {
@@ -48,6 +47,7 @@ import {
 /** Directory (under the main working directory) for saved subagent sessions. */
 const SUBAGENT_SESSION_DIR = join(".pi", "subagents", "sessions");
 const OUTPUT_LIMIT = 20000;
+const DEFAULT_WAIT_TIMEOUT_S = 300;
 
 /** Minimal view of the command context the lease helpers need. */
 type CommandCtx = { ui: { notify: (message: string, type?: "info" | "warning" | "error") => void } };
@@ -72,6 +72,7 @@ interface SpawnParams {
 }
 
 export default function subagents(pi: ExtensionAPI): void {
+  // The project config is read from the process working directory at startup.
   const { subagents: configs, groups, errors } = loadSubagentConfigs(process.cwd(), getAgentDir());
   for (const error of errors) console.warn(`[subagents] ${error}`);
   const names = [...configs.keys()];
@@ -89,16 +90,15 @@ export default function subagents(pi: ExtensionAPI): void {
 
   // ---- helpers -------------------------------------------------------------
 
-  function makeSessionDir(session: string): string {
-    const stamp = new Date().toISOString().replace(/[:T].*/, "").replace(/\..+/, "");
-    const base = join(process.cwd(), SUBAGENT_SESSION_DIR, `${session}-${stamp}`);
-    if (existsSync(base)) {
-      let i = 2;
-      while (existsSync(`${base}-${i}`)) i += 1;
-      return `${base}-${i}`;
-    }
-    mkdirSync(base, { recursive: true });
-    return base;
+  /** Create `.pi/subagents/sessions/<session>-<YYYY-MM-DD>-<HHMMSS>/` and return it. */
+  function makeSessionDir(cwd: string, session: string): string {
+    const now = new Date().toISOString();
+    const stamp = `${now.slice(0, 10)}-${now.slice(11, 17).replace(/:/g, "")}`;
+    const base = join(cwd, SUBAGENT_SESSION_DIR, `${session}-${stamp}`);
+    let path = base;
+    for (let i = 2; existsSync(path); i += 1) path = `${base}-${i}`;
+    mkdirSync(path, { recursive: true });
+    return path;
   }
 
   function usageFrom(tokens: number, cost: number): Usage {
@@ -121,10 +121,10 @@ export default function subagents(pi: ExtensionAPI): void {
   }
 
   function formatStatusLine(record: TaskRecord): string {
-    const elapsed = formatElapsed(record.finishedAt ? record.finishedAt - record.startedAt : Date.now() - record.startedAt);
-    const activity = record.lastActivity ? ` — ${record.lastActivity}` : "";
-    const err = record.error ? ` — ${record.error}` : "";
-    return `${record.id} · ${record.name} (${record.model}) · ${record.state} · ${elapsed}${activity}${err}`;
+    const summary = toSummary(record);
+    const activity = summary.lastActivity ? ` — ${summary.lastActivity}` : "";
+    const err = summary.error ? ` — ${summary.error}` : "";
+    return `${record.id} · ${record.name} (${record.model}) · ${summary.state} · ${formatElapsed(summary.elapsed)}${activity}${err}`;
   }
 
   // `/subagents <id>`: the status line plus the task's recent assistant output.
@@ -139,6 +139,7 @@ export default function subagents(pi: ExtensionAPI): void {
     if (record.state !== "running" || !record.runner) return;
     const runner = record.runner as SubagentTask;
     await runner.abort();
+    // `abort()` also covers a task whose session is still being created.
     await runner.done();
     if (record.state === "running") {
       record.state = "killed";
@@ -190,15 +191,16 @@ export default function subagents(pi: ExtensionAPI): void {
 
     if (sub.startsWith("drop ")) {
       const group = sub.slice("drop ".length).trim();
+      if (!group) {
+        ctx.ui.notify("subagents: usage: /subagents leases drop <group>", "error");
+        return;
+      }
       const removed = leaseStore.dropGroup(group);
       ctx.ui.notify(`subagents: dropped ${removed} lease(s) for group "${group}"`);
       return;
     }
 
-    ctx.ui.notify(
-      "subagents leases: list | purge | drop <group> | drop-all",
-      "warning",
-    );
+    ctx.ui.notify("subagents leases: list | purge | drop <group> | drop-all", "warning");
   }
 
   // ---- tool schemas --------------------------------------------------------
@@ -220,7 +222,7 @@ export default function subagents(pi: ExtensionAPI): void {
     ),
     workdir: Type.Optional(
       Type.Boolean({
-        description: "Run the subagent with its session directory as the working directory (implies save_session).",
+        description: "Run the subagent with its session directory as the working directory (isolated scratchpad).",
       }),
     ),
   });
@@ -234,40 +236,41 @@ export default function subagents(pi: ExtensionAPI): void {
     label: "Spawn a background subagent",
     description: "Delegate a task to a configured subagent, which runs in the background.",
     parameters: spawnParameters,
-    execute: async (_id, params: SpawnParams, _signal, _onUpdate, ctx): Promise<AgentToolResult<SpawnDetails>> => {
+    execute: async (
+      _id,
+      params: SpawnParams,
+      _signal,
+      _onUpdate,
+      ctx: ExtensionToolContext,
+    ): Promise<AgentToolResult<SpawnDetails>> => {
       const config = configs.get(params.name);
       if (!config) {
         throw new Error(`unknown subagent "${params.name}". Configured: ${names.join(", ") || "(none)"}`);
       }
-      if (params.session) {
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.session)) {
-          throw new Error(`invalid session name "${params.session}" (use kebab-case, e.g. repo-scan)`);
-        }
-        if (!params.save_session && !params.workdir) {
-          throw new Error(`session "${params.session}" requires save_session or workdir`);
-        }
+      if (params.session && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.session)) {
+        throw new Error(`invalid session name "${params.session}" (use kebab-case, e.g. repo-scan)`);
       }
+      if ((params.save_session || params.workdir) && !params.session) {
+        throw new Error("save_session and workdir need a session name to put their directory under");
+      }
+
       const model = ctx.modelRegistry.find(config.provider, config.model);
       if (!model) {
         throw new Error(`unknown model "${config.provider}/${config.model}"`);
       }
-      const resolvedTools: ResolvedTools = resolveTools(config);
-      const mainCwd = ctx.cwd;
-      const sessionDir = params.session ? makeSessionDir(params.session) : undefined;
-      const effectiveCwd = params.workdir && sessionDir ? sessionDir : mainCwd;
-      const sessionManager =
-        params.save_session && sessionDir
-          ? SessionManager.create(effectiveCwd, sessionDir)
-          : SessionManager.inMemory(effectiveCwd);
 
       // Hold a slot in each of this subagent's groups; reject the spawn if any is full.
-      const leaseStore = getStore();
       const requests: LeaseRequest[] = [];
       for (const group of config.groups ?? []) {
         const limit = groups.get(group);
-        if (limit !== undefined) requests.push({ group, limit });
+        if (limit === undefined) {
+          throw new Error(`subagent "${params.name}" names group "${group}", which no config gives a limit`);
+        }
+        requests.push({ group, limit });
       }
-      const leaseIds = requests.length ? leaseStore.acquire(params.name, requests) : [];
+      // An untracked subagent never opens the store.
+      const leaseStore = requests.length ? getStore() : undefined;
+      const leaseIds = leaseStore ? leaseStore.acquire(params.name, requests) : [];
       if (leaseIds === null) {
         const atCapacity = requests.map((r) => `${r.group} (limit ${r.limit})`).join(", ");
         return {
@@ -276,6 +279,15 @@ export default function subagents(pi: ExtensionAPI): void {
           isError: true,
         };
       }
+
+      // Only now is it safe to lay down a session directory: a blocked spawn creates nothing.
+      const sessionDir = params.session ? makeSessionDir(ctx.cwd, params.session) : undefined;
+      const effectiveCwd = params.workdir && sessionDir ? sessionDir : ctx.cwd;
+      const sessionManager =
+        sessionDir && params.save_session
+          ? SessionManager.create(effectiveCwd, sessionDir)
+          : SessionManager.inMemory(effectiveCwd);
+      const resolvedTools: ResolvedTools = resolveTools(config);
 
       const id = registry.nextId();
       const record: TaskRecord = {
@@ -311,6 +323,10 @@ export default function subagents(pi: ExtensionAPI): void {
         store: leaseStore,
         mainSessionPath: ctx.sessionManager.getSessionFile(),
         onStatus: () => emitStatus(pi, registry),
+        onFinish: (finished) => {
+          notifyCompletion(ctx, finished);
+          emitStatus(pi, registry);
+        },
       });
       void runner.start();
       emitStatus(pi, registry);
@@ -335,8 +351,9 @@ export default function subagents(pi: ExtensionAPI): void {
     parameters: statusParameters,
     execute: async (_id, params: { id?: string }, _signal, _onUpdate, _ctx): Promise<AgentToolResult<StatusDetails>> => {
       const target = params.id ? registry.get(params.id) : undefined;
+      if (params.id && !target) throw new Error(`no such subagent task "${params.id}"`);
       const tasks = target ? [target] : registry.all();
-      const details: StatusDetails = { id: params.id, count: tasks.length, tasks };
+      const details: StatusDetails = { id: params.id, count: tasks.length, tasks: tasks.map((t) => toSummary(t)) };
       const content = tasks.length === 0 ? "no subagent tasks" : tasks.map(formatStatusLine).join("\n");
       return { content: [{ type: "text", text: content }], details };
     },
@@ -350,70 +367,67 @@ export default function subagents(pi: ExtensionAPI): void {
     description: "Block until one or more subagent tasks finish, then report their outcomes.",
     parameters: Type.Object({
       ids: Type.Optional(Type.Array(Type.String({ description: "Only wait for these task ids." }))),
-      timeout_s: Type.Optional(Type.Number({ description: "Seconds to wait before returning partial status. Default 300." })),
+      timeout_s: Type.Optional(
+        Type.Number({ description: `Seconds to wait before returning partial status. Default ${DEFAULT_WAIT_TIMEOUT_S}.` }),
+      ),
     }),
     execute: async (
       _id,
       params: { ids?: string[]; timeout_s?: number },
-      _signal,
+      signal: AbortSignal | undefined,
       onUpdate,
       _ctx,
     ): Promise<AgentToolResult<WaitDetails>> => {
-      const deadline = Date.now() + (params.timeout_s ?? 300) * 1000;
-      let finished: TaskRecord[] = registry.claimFinished().filter((r) => !params.ids || params.ids.includes(r.id));
+      const ids = params.ids?.length ? params.ids : undefined;
+      const matches = (record: TaskRecord) => !ids || ids.includes(record.id);
+      const running = () => registry.all().filter((r) => matches(r) && r.state === "running");
+      const deadline = Date.now() + (params.timeout_s ?? DEFAULT_WAIT_TIMEOUT_S) * 1000;
+      let finished = registry.claimFinished(ids);
 
       const interval = setInterval(() => {
-        const running = registry
-          .all()
-          .filter((r) => (!params.ids || params.ids.includes(r.id)) && r.state === "running");
-        if (running.length) {
-          onUpdate?.({
-            content: [
-              {
-                type: "text",
-                text: running
-                  .map((r) => `${r.id}: ${r.lastActivity} (${formatElapsed(Date.now() - r.startedAt)})`)
-                  .join("\n"),
-              },
-            ],
-            details: { count: running.length, tasks: running },
-          });
-        }
+        const pending = running();
+        if (!pending.length) return;
+        onUpdate?.({
+          content: [
+            {
+              type: "text",
+              text: pending
+                .map((r) => `${r.id}: ${r.lastActivity} (${formatElapsed(Date.now() - r.startedAt)})`)
+                .join("\n"),
+            },
+          ],
+          details: { count: pending.length, tasks: pending.map((r) => toSummary(r)) },
+        });
       }, 1000);
       try {
-        while (finished.length === 0) {
+        while (finished.length === 0 && !signal?.aborted) {
           const remaining = Math.max(0, deadline - Date.now());
           if (remaining <= 0) break;
-          const available = await registry.waitForCompletion(remaining);
-          if (!available) break;
-          finished.push(...registry.claimFinished().filter((r) => !params.ids || params.ids.includes(r.id)));
+          if (!(await registry.waitForCompletion(remaining, ids, signal))) break;
+          finished.push(...registry.claimFinished(ids));
         }
       } finally {
         clearInterval(interval);
       }
 
       if (finished.length === 0) {
-        const running = registry
-          .all()
-          .filter((r) => (!params.ids || params.ids.includes(r.id)) && r.state === "running");
-        const text =
-          running.length === 0
-            ? params.ids
+        const pending = running();
+        const stillRunning = pending.map((r) => `${r.id} (${r.name})`).join(", ");
+        const text = signal?.aborted
+          ? `subagent_wait: interrupted${pending.length ? ` — still running: ${stillRunning}` : ""}`
+          : pending.length === 0
+            ? ids
               ? "subagent_wait: no such subagent tasks"
               : "subagent_wait: no tasks to wait for"
-            : `subagent_wait: timed out — still running: ${running.map((r) => `${r.id} (${r.name})`).join(", ")}`;
-        return {
-          content: [{ type: "text", text }],
-          details: { count: 0, tasks: running },
-        };
+            : `subagent_wait: timed out — still running: ${stillRunning}`;
+        return { content: [{ type: "text", text }], details: { count: 0, tasks: pending.map((r) => toSummary(r)) } };
       }
 
       const totalTokens = finished.reduce((sum, r) => sum + r.usage.tokens, 0);
       const totalCost = finished.reduce((sum, r) => sum + r.usage.cost, 0);
-      const details: WaitDetails = { count: finished.length, tasks: finished };
       return {
-        content: [{ type: "text", text: finished.map((r) => r.id + " " + formatStatusLine(r)).join("\n") }],
-        details,
+        content: [{ type: "text", text: finished.map(formatStatusLine).join("\n") }],
+        details: { count: finished.length, tasks: finished.map((r) => toSummary(r)) },
         usage: usageFrom(totalTokens, totalCost),
       };
     },
@@ -474,10 +488,18 @@ export default function subagents(pi: ExtensionAPI): void {
   pi.registerCommand("subagents", {
     description:
       "subagents: lists tasks; <id> shows one; kill <id> aborts one; leases lists/purges/drops group concurrency leases",
-    getArgumentCompletions: (prefix) =>
-      ["kill", "leases"]
+    getArgumentCompletions: (prefix) => {
+      if (prefix.startsWith("kill ")) {
+        const rest = prefix.slice("kill ".length);
+        return registry
+          .all()
+          .filter((r) => r.state === "running" && r.id.startsWith(rest))
+          .map((r) => ({ value: `kill ${r.id}`, label: `${r.id} (${r.name})` }));
+      }
+      return ["kill", "leases"]
         .filter((a) => a.startsWith(prefix))
-        .map((value) => ({ value, label: value === "kill" ? "kill <id>" : "leases" })),
+        .map((value) => ({ value, label: value === "kill" ? "kill <id>" : value }));
+    },
     handler: async (args, ctx) => {
       const parts = args.trim().split(/\s+/).filter(Boolean);
       if (parts[0] === "leases") {
@@ -523,9 +545,9 @@ export default function subagents(pi: ExtensionAPI): void {
 
   pi.on("session_shutdown", () => {
     for (const record of registry.all()) {
-      if (record.state === "running") {
-        (record.runner as SubagentTask | undefined)?.abort();
-      }
+      if (record.state === "running") (record.runner as SubagentTask | undefined)?.abort();
     }
+    // This instance's slots are freed right away instead of expiring after the TTL.
+    store?.close();
   });
 }
