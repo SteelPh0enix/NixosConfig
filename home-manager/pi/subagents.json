@@ -1,0 +1,34 @@
+{
+  "subagents": {
+    "assistant": {
+      "provider": "llama-pc",
+      "model": "cyber-tiel-coder",
+      "description": "Generic helper: anything delegated that needs both hands - inspect, change, run, check. Use when no narrower subagent fits. Gets the main agent's tools.",
+      "groups": ["pc"]
+    },
+    "coder": {
+      "provider": "llama-pc",
+      "model": "cyber-tiel-coder",
+      "description": "Implement or fix code in the working tree: reads, edits, runs commands and tests. Best of the two PC models at code, and the faster one to decode.",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["pc"]
+    },
+    "reviewer": {
+      "provider": "llama-pc",
+      "model": "qwen-27B",
+      "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available.",
+      "tools": ["read", "bash", "codemode"],
+      "groups": ["pc"]
+    },
+    "researcher": {
+      "provider": "llama-pc",
+      "model": "qwen-27B",
+      "description": "Investigate a question against the web, upstream docs or the local nixpkgs checkout, and report what was found with sources. Writes nothing.",
+      "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
+      "groups": ["pc"]
+    }
+  },
+  "groups": {
+    "pc": 1
+  }
+}

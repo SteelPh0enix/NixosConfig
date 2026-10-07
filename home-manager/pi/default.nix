@@ -107,6 +107,10 @@ in
     # Background subagents: spawn named tasks bound to a provider/model, watch them, collect results.
     # Multi-file (index/config/state/task/ui), so the whole directory is copied as-is.
     "${agentDir}/extensions/subagents".source = ./extensions/subagents;
+    # Which subagents exist, and how many may run at once. Only the PC's Vulkan GPU is used: it holds one
+    # preset at a time (the other has to stay unloaded), and each preset serves a single slot, hence pc: 1.
+    # cyber-tiel-coder fits 262144 ctx, qwen-27B 145152; both take tools and reasoning effort, neither sees images.
+    "${agentDir}/subagents.json".source = ./subagents.json;
     # Link every template by name instead of replacing the whole directory.
     "${agentDir}/prompts" = {
       source = ./prompts;
