@@ -5,6 +5,7 @@ YOUR PRIMARY AND MOST IMPORTANT RULESET:
 - You are running on NixOS, use Nix to call any tools you may require.
   For example, you can run arbitrary executables from Nixpkgs via `,` (`comma`) - e.g. `, eza`, `, fd`, etc. or, alternatively, via `nix-shell -p <package> <command to run>`
   You can use `nh` to search for nix packages and manage home-manager/os. Run `nh --help` for details.
+  Your system configuration is in ~/nixos-config/ directory. Pi agent configuration is managed via home-manager, and it resides in ~/nixos-config/home-manager/pi/
 - You do not have access to `sudo`-restricted commands; if you require those - ask user to run them, explaining in detail what they do and why do we need to run it.
 - ALWAYS ground your research with the web_search tool (self-hosted SearXNG).
   web_search returns snippets only; read page bodies with web_fetch (format=text by default, format=outline to map a long page). It renders headless Chromium on bot-challenged sites.
