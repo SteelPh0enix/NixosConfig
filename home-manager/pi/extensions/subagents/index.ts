@@ -1,0 +1,531 @@
+// subagents extension entry point.
+//
+// Loads the subagent configuration once at startup, then registers five tools
+// (spawn / status / wait / result / kill) and a `/subagents` command. Each
+// spawned task runs in its own in-memory SDK session that inherits the main
+// agent's tool set (minus the subagent tools) and a read-only view of the
+// main transcript.
+
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomBytes, randomUUID } from "node:crypto";
+import {
+  SessionManager,
+  getAgentDir,
+  type AgentToolResult,
+  type ExtensionAPI,
+  type ExtensionToolContext,
+  type ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
+import type { Usage } from "@earendil-works/pi-ai";
+import { loadSubagentConfigs, resolveTools, nameSchema, type SubagentConfig, type ResolvedTools } from "./config.ts";
+import { TaskRegistry, toStatus, type TaskRecord } from "./state.ts";
+import { SubagentTask } from "./task.ts";
+import { LeaseStore, type LeaseRequest } from "./store.ts";
+import {
+  emitStatus,
+  formatElapsed,
+  notifyCompletion,
+  renderSpawnCall,
+  renderSpawnResult,
+  renderStatusCall,
+  renderStatusResult,
+  renderWaitCall,
+  renderWaitResult,
+  renderResultCall,
+  renderResultResult,
+  renderKillCall,
+  renderKillResult,
+  type SpawnDetails,
+  type StatusDetails,
+  type WaitDetails,
+  type ResultDetails,
+  type KillDetails,
+} from "./ui.ts";
+
+/** Directory (under the main working directory) for saved subagent sessions. */
+const SUBAGENT_SESSION_DIR = join(".pi", "subagents", "sessions");
+const OUTPUT_LIMIT = 20000;
+
+/** Minimal view of the command context the lease helpers need. */
+type CommandCtx = { ui: { notify: (message: string, type?: "info" | "warning" | "error") => void } };
+
+/** True if a process with this pid currently exists (signal 0 probe). */
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // ESRCH: no such process. Anything else (e.g. EPERM) means it is alive.
+    return (err as NodeJS.ErrnoException).code === "ESRCH" ? false : true;
+  }
+}
+
+interface SpawnParams {
+  name: string;
+  task: string;
+  session?: string;
+  save_session?: boolean;
+  workdir?: boolean;
+}
+
+export default function subagents(pi: ExtensionAPI): void {
+  const { subagents: configs, groups, errors } = loadSubagentConfigs(process.cwd(), getAgentDir());
+  for (const error of errors) console.warn(`[subagents] ${error}`);
+  const names = [...configs.keys()];
+  const registry = new TaskRegistry();
+
+  // Shared group-concurrency store, one per process; opened lazily on first spawn.
+  let store: LeaseStore | undefined;
+  function getStore(): LeaseStore {
+    if (!store) {
+      store = new LeaseStore(join(getAgentDir(), "subagents", "leases.db"), `${randomUUID()}-${process.pid}`);
+      store.start();
+    }
+    return store;
+  }
+
+  // ---- helpers -------------------------------------------------------------
+
+  function makeSessionDir(session: string): string {
+    const stamp = new Date().toISOString().replace(/[:T].*/, "").replace(/\..+/, "");
+    const base = join(process.cwd(), SUBAGENT_SESSION_DIR, `${session}-${stamp}`);
+    if (existsSync(base)) {
+      let i = 2;
+      while (existsSync(`${base}-${i}`)) i += 1;
+      return `${base}-${i}`;
+    }
+    mkdirSync(base, { recursive: true });
+    return base;
+  }
+
+  function usageFrom(tokens: number, cost: number): Usage {
+    return {
+      input: tokens,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: tokens,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: cost },
+    };
+  }
+
+  function writeTempFile(name: string, content: string): string {
+    const dir = join(tmpdir(), "pi-subagents");
+    mkdirSync(dir, { recursive: true });
+    const path = join(dir, `${name.replace(/[^a-z0-9-]/gi, "-")}-${randomBytes(4).toString("hex")}.txt`);
+    writeFileSync(path, content);
+    return path;
+  }
+
+  function formatStatusLine(record: TaskRecord): string {
+    const elapsed = formatElapsed(record.finishedAt ? record.finishedAt - record.startedAt : Date.now() - record.startedAt);
+    const activity = record.lastActivity ? ` — ${record.lastActivity}` : "";
+    const err = record.error ? ` — ${record.error}` : "";
+    return `${record.id} · ${record.name} (${record.model}) · ${record.state} · ${elapsed}${activity}${err}`;
+  }
+
+  // `/subagents <id>`: the status line plus the task's recent assistant output.
+  function formatDetail(record: TaskRecord): string {
+    const line = formatStatusLine(record);
+    const text = (record.lastText || record.output || "").trim();
+    const preview = text.length > 500 ? `${text.slice(0, 499).trimEnd()}…` : text;
+    return preview ? `${line}\n\n${preview}` : line;
+  }
+
+  async function killTask(record: TaskRecord): Promise<void> {
+    if (record.state !== "running" || !record.runner) return;
+    const runner = record.runner as SubagentTask;
+    await runner.abort();
+    await runner.done();
+    if (record.state === "running") {
+      record.state = "killed";
+      record.finishedAt = record.finishedAt ?? Date.now();
+    }
+  }
+
+  // `/subagents leases ...` — inspect and clean up group concurrency leases.
+  async function handleLeases(args: string[], ctx: CommandCtx): Promise<void> {
+    const leaseStore = getStore();
+    const sub = args[0];
+
+    if (!sub || sub === "list") {
+      const leases = leaseStore.list();
+      if (leases.length === 0) {
+        ctx.ui.notify("subagents: no active leases");
+        return;
+      }
+      const now = Date.now();
+      const lines = leases.map((l) => {
+        const when = new Date(l.expiresAt).toISOString();
+        const secsLeft = Math.max(0, Math.round((l.expiresAt - now) / 1000));
+        return `${l.grp} · ${l.subagent} · pid ${l.pid} · expires ${when} (+${secsLeft}s)`;
+      });
+      ctx.ui.notify(`subagents: ${leases.length} active lease(s):\n${lines.join("\n")}`);
+      return;
+    }
+
+    if (sub === "purge") {
+      const expired = leaseStore.reap();
+      const now = Date.now();
+      let dead = 0;
+      for (const l of leaseStore.list()) {
+        if (l.expiresAt > now && !isPidAlive(l.pid)) {
+          leaseStore.release(l.id);
+          dead += 1;
+        }
+      }
+      ctx.ui.notify(`subagents: purged ${expired} expired + ${dead} dead-instance lease(s)`);
+      return;
+    }
+
+    if (sub === "drop-all") {
+      const count = leaseStore.list().length;
+      leaseStore.releaseAll();
+      ctx.ui.notify(`subagents: dropped ${count} lease(s)`);
+      return;
+    }
+
+    if (sub.startsWith("drop ")) {
+      const group = sub.slice("drop ".length).trim();
+      const removed = leaseStore.dropGroup(group);
+      ctx.ui.notify(`subagents: dropped ${removed} lease(s) for group "${group}"`);
+      return;
+    }
+
+    ctx.ui.notify(
+      "subagents leases: list | purge | drop <group> | drop-all",
+      "warning",
+    );
+  }
+
+  // ---- tool schemas --------------------------------------------------------
+
+  const spawnParameters = Type.Object({
+    name: nameSchema(names),
+    task: Type.String({
+      description: "The task to delegate. Be specific about the goal, constraints, and expected output.",
+    }),
+    session: Type.Optional(
+      Type.String({
+        description: "Assign a persistent session (kebab-case id, e.g. 'repo-scan'). Use with save_session or workdir to keep the transcript and files under .pi/subagents/sessions/.",
+      }),
+    ),
+    save_session: Type.Optional(
+      Type.Boolean({
+        description: "Save the subagent session transcript under .pi/subagents/sessions/ so it can be inspected later.",
+      }),
+    ),
+    workdir: Type.Optional(
+      Type.Boolean({
+        description: "Run the subagent with its session directory as the working directory (implies save_session).",
+      }),
+    ),
+  });
+
+  const idParam = Type.String({ description: "The subagent task id (e.g. 'task-1')." });
+
+  // ---- register tools ------------------------------------------------------
+
+  pi.registerTool({
+    name: "subagent_spawn",
+    label: "Spawn a background subagent",
+    description: "Delegate a task to a configured subagent, which runs in the background.",
+    parameters: spawnParameters,
+    execute: async (_id, params: SpawnParams, _signal, _onUpdate, ctx): Promise<AgentToolResult<SpawnDetails>> => {
+      const config = configs.get(params.name);
+      if (!config) {
+        throw new Error(`unknown subagent "${params.name}". Configured: ${names.join(", ") || "(none)"}`);
+      }
+      if (params.session) {
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.session)) {
+          throw new Error(`invalid session name "${params.session}" (use kebab-case, e.g. repo-scan)`);
+        }
+        if (!params.save_session && !params.workdir) {
+          throw new Error(`session "${params.session}" requires save_session or workdir`);
+        }
+      }
+      const model = ctx.modelRegistry.find(config.provider, config.model);
+      if (!model) {
+        throw new Error(`unknown model "${config.provider}/${config.model}"`);
+      }
+      const resolvedTools: ResolvedTools = resolveTools(config);
+      const mainCwd = ctx.cwd;
+      const sessionDir = params.session ? makeSessionDir(params.session) : undefined;
+      const effectiveCwd = params.workdir && sessionDir ? sessionDir : mainCwd;
+      const sessionManager =
+        params.save_session && sessionDir
+          ? SessionManager.create(effectiveCwd, sessionDir)
+          : SessionManager.inMemory(effectiveCwd);
+
+      // Hold a slot in each of this subagent's groups; reject the spawn if any is full.
+      const leaseStore = getStore();
+      const requests: LeaseRequest[] = [];
+      for (const group of config.groups ?? []) {
+        const limit = groups.get(group);
+        if (limit !== undefined) requests.push({ group, limit });
+      }
+      const leaseIds = requests.length ? leaseStore.acquire(params.name, requests) : [];
+      if (leaseIds === null) {
+        const atCapacity = requests.map((r) => `${r.group} (limit ${r.limit})`).join(", ");
+        return {
+          content: [{ type: "text", text: `spawn blocked: ${atCapacity} at capacity` }],
+          details: { id: null, name: params.name, model: config.model, blocked: true },
+          isError: true,
+        };
+      }
+
+      const id = registry.nextId();
+      const record: TaskRecord = {
+        id,
+        name: params.name,
+        provider: config.provider,
+        model: config.model,
+        description: config.description,
+        taskText: params.task,
+        state: "running",
+        startedAt: Date.now(),
+        lastActivity: "starting…",
+        lastActivityAt: Date.now(),
+        lastText: "",
+        output: "",
+        recentOutput: "",
+        usage: { tokens: 0, cost: 0 },
+        groups: config.groups ?? [],
+        claimed: false,
+      };
+      registry.add(record);
+
+      const runner = new SubagentTask({
+        record,
+        config,
+        resolvedTools,
+        cwd: effectiveCwd,
+        agentDir: getAgentDir(),
+        model,
+        sessionManager,
+        registry,
+        leases: leaseIds,
+        store: leaseStore,
+        mainSessionPath: ctx.sessionManager.getSessionFile(),
+        onStatus: () => emitStatus(pi, registry),
+      });
+      void runner.start();
+      emitStatus(pi, registry);
+
+      return {
+        content: [{ type: "text", text: `spawned ${record.name} as ${id}` }],
+        details: { id, name: params.name, model: config.model },
+      };
+    },
+    renderCall: (args, theme) => renderSpawnCall(args, theme),
+    renderResult: (result, opts, theme) => renderSpawnResult(result, opts, theme),
+  });
+
+  const statusParameters = Type.Object({
+    id: Type.Optional(Type.String({ description: "Only report this task id. Omit to report all tasks." })),
+  });
+
+  pi.registerTool({
+    name: "subagent_status",
+    label: "Show subagent task status",
+    description: "Report the status of subagent tasks, or one specific task.",
+    parameters: statusParameters,
+    execute: async (_id, params: { id?: string }, _signal, _onUpdate, _ctx): Promise<AgentToolResult<StatusDetails>> => {
+      const target = params.id ? registry.get(params.id) : undefined;
+      const tasks = target ? [target] : registry.all();
+      const details: StatusDetails = { id: params.id, count: tasks.length, tasks };
+      const content = tasks.length === 0 ? "no subagent tasks" : tasks.map(formatStatusLine).join("\n");
+      return { content: [{ type: "text", text: content }], details };
+    },
+    renderCall: (args, theme) => renderStatusCall(args, theme),
+    renderResult: (result, opts, theme) => renderStatusResult(result, opts, theme),
+  });
+
+  pi.registerTool({
+    name: "subagent_wait",
+    label: "Wait for subagent tasks to finish",
+    description: "Block until one or more subagent tasks finish, then report their outcomes.",
+    parameters: Type.Object({
+      ids: Type.Optional(Type.Array(Type.String({ description: "Only wait for these task ids." }))),
+      timeout_s: Type.Optional(Type.Number({ description: "Seconds to wait before returning partial status. Default 300." })),
+    }),
+    execute: async (
+      _id,
+      params: { ids?: string[]; timeout_s?: number },
+      _signal,
+      onUpdate,
+      _ctx,
+    ): Promise<AgentToolResult<WaitDetails>> => {
+      const deadline = Date.now() + (params.timeout_s ?? 300) * 1000;
+      let finished: TaskRecord[] = registry.claimFinished().filter((r) => !params.ids || params.ids.includes(r.id));
+
+      const interval = setInterval(() => {
+        const running = registry
+          .all()
+          .filter((r) => (!params.ids || params.ids.includes(r.id)) && r.state === "running");
+        if (running.length) {
+          onUpdate?.({
+            content: [
+              {
+                type: "text",
+                text: running
+                  .map((r) => `${r.id}: ${r.lastActivity} (${formatElapsed(Date.now() - r.startedAt)})`)
+                  .join("\n"),
+              },
+            ],
+            details: { count: running.length, tasks: running },
+          });
+        }
+      }, 1000);
+      try {
+        while (finished.length === 0) {
+          const remaining = Math.max(0, deadline - Date.now());
+          if (remaining <= 0) break;
+          const available = await registry.waitForCompletion(remaining);
+          if (!available) break;
+          finished.push(...registry.claimFinished().filter((r) => !params.ids || params.ids.includes(r.id)));
+        }
+      } finally {
+        clearInterval(interval);
+      }
+
+      if (finished.length === 0) {
+        const running = registry
+          .all()
+          .filter((r) => (!params.ids || params.ids.includes(r.id)) && r.state === "running");
+        const text =
+          running.length === 0
+            ? params.ids
+              ? "subagent_wait: no such subagent tasks"
+              : "subagent_wait: no tasks to wait for"
+            : `subagent_wait: timed out — still running: ${running.map((r) => `${r.id} (${r.name})`).join(", ")}`;
+        return {
+          content: [{ type: "text", text }],
+          details: { count: 0, tasks: running },
+        };
+      }
+
+      const totalTokens = finished.reduce((sum, r) => sum + r.usage.tokens, 0);
+      const totalCost = finished.reduce((sum, r) => sum + r.usage.cost, 0);
+      const details: WaitDetails = { count: finished.length, tasks: finished };
+      return {
+        content: [{ type: "text", text: finished.map((r) => r.id + " " + formatStatusLine(r)).join("\n") }],
+        details,
+        usage: usageFrom(totalTokens, totalCost),
+      };
+    },
+    renderCall: (args, theme) => renderWaitCall(args, theme),
+    renderResult: (result, opts, theme) => renderWaitResult(result, opts, theme),
+  });
+
+  pi.registerTool({
+    name: "subagent_result",
+    label: "Get a subagent task's report",
+    description: "Return the full report of a finished subagent task.",
+    parameters: Type.Object({ id: idParam }),
+    execute: async (_id, params: { id: string }, _signal, _onUpdate, ctx): Promise<AgentToolResult<ResultDetails>> => {
+      const record = registry.get(params.id);
+      if (!record) throw new Error(`no such subagent task "${params.id}"`);
+      if (record.state === "running") throw new Error(`task ${record.id} is still running`);
+
+      notifyCompletion(ctx, record);
+      const output = record.output;
+      const truncated = output.length > OUTPUT_LIMIT;
+      const content = truncated
+        ? `${output.slice(0, OUTPUT_LIMIT)}\n\n… (truncated — full copy saved to temp file)`
+        : output;
+      let fullPath: string | undefined;
+      if (truncated) fullPath = writeTempFile(`${record.id}.txt`, output);
+
+      return {
+        content: [{ type: "text", text: content }],
+        details: { id: record.id, truncated, fullPath },
+        usage: usageFrom(record.usage.tokens, record.usage.cost),
+      };
+    },
+    renderCall: (args, theme) => renderResultCall(args, theme),
+    renderResult: (result, opts, theme, context) => renderResultResult(result, opts, theme, context),
+  });
+
+  pi.registerTool({
+    name: "subagent_kill",
+    label: "Abort a subagent task",
+    description: "Abort a running subagent task and record the outcome as killed.",
+    parameters: Type.Object({ id: idParam }),
+    execute: async (_id, params: { id: string }, _signal, _onUpdate, _ctx): Promise<AgentToolResult<KillDetails>> => {
+      const record = registry.get(params.id);
+      if (!record) throw new Error(`no such subagent task "${params.id}"`);
+      await killTask(record);
+      emitStatus(pi, registry);
+      return {
+        content: [{ type: "text", text: `subagent task ${record.id} (${record.name}) → ${record.state}` }],
+        details: { id: record.id, state: record.state },
+      };
+    },
+    renderCall: (args, theme) => renderKillCall(args, theme),
+    renderResult: (result, opts, theme) => renderKillResult(result, opts, theme),
+  });
+
+  // ---- slash command -------------------------------------------------------
+
+  pi.registerCommand("subagents", {
+    description:
+      "subagents: lists tasks; <id> shows one; kill <id> aborts one; leases lists/purges/drops group concurrency leases",
+    getArgumentCompletions: (prefix) =>
+      ["kill", "leases"]
+        .filter((a) => a.startsWith(prefix))
+        .map((value) => ({ value, label: value === "kill" ? "kill <id>" : "leases" })),
+    handler: async (args, ctx) => {
+      const parts = args.trim().split(/\s+/).filter(Boolean);
+      if (parts[0] === "leases") {
+        await handleLeases(parts.slice(1), ctx);
+        return;
+      }
+      if (parts[0] === "kill") {
+        const id = parts[1];
+        if (!id) {
+          ctx.ui.notify("subagents: usage: /subagents kill <id>", "error");
+          return;
+        }
+        const record = registry.get(id);
+        if (!record) {
+          ctx.ui.notify(`subagents: no such task "${id}"`, "error");
+          return;
+        }
+        await killTask(record);
+        ctx.ui.notify(
+          `subagents: ${record.id} (${record.name}) → ${record.state}`,
+          record.state === "killed" ? "warning" : "info",
+        );
+      } else if (parts[0]) {
+        const record = registry.get(parts[0]);
+        if (!record) {
+          ctx.ui.notify(`subagents: no such task "${parts[0]}"`, "error");
+          return;
+        }
+        ctx.ui.notify(formatDetail(record));
+      } else {
+        const lines = registry.all().map(formatStatusLine);
+        ctx.ui.notify(lines.length === 0 ? "subagents: no tasks" : lines.join("\n"));
+      }
+      emitStatus(pi, registry);
+    },
+  });
+
+  // ---- lifecycle -----------------------------------------------------------
+
+  pi.on("session_start", () => {
+    emitStatus(pi, registry);
+  });
+
+  pi.on("session_shutdown", () => {
+    for (const record of registry.all()) {
+      if (record.state === "running") {
+        (record.runner as SubagentTask | undefined)?.abort();
+      }
+    }
+  });
+}
