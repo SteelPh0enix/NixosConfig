@@ -4,16 +4,19 @@ let
   # ships plain `ar`, which cannot (link then fails with undefined references).
   ltoAr = "${prev.stdenv.cc.cc}/bin/gcc-ar";
   ltoRanlib = "${prev.stdenv.cc.cc}/bin/gcc-ranlib";
-in
-{
-  # Built from the local checkout (flake input `llama-cpp`), see the `llama-cpp-update`
-  # script. ROCm stays off here; the ROCm stack runs from its own container
+
+  # Built from the local checkout (flake input `llama-cpp`), see the `llama-cpp-update` script.
+  # Vulkan is what this GPU speaks; ROCm stays off, that stack runs from its own container
   # (nixos/services/llm-router-rocm).
-  llama-cpp =
-    (prev.llamaPackages.llama-cpp.override {
-      useVulkan = true;
-      useRocm = false;
-    }).overrideAttrs
+  llama-cpp-with =
+    {
+      useCuda ? false,
+      useMetalKit ? false,
+      useRocm ? false,
+      useVulkan ? true,
+    }:
+    (prev.llamaPackages.llama-cpp.override { inherit useCuda useMetalKit useRocm useVulkan; })
+    .overrideAttrs
       (
         _finalAttrs: prevAttrs: {
           # Add 'cacert' to the build inputs so SSL certificates are available
@@ -41,4 +44,30 @@ in
           ];
         }
       );
+in
+{
+  llama-cpp = llama-cpp-with { };
+
+  # ffmpeg-full (so mpv too) builds whisper.cpp against the system llama-cpp, and overrides it
+  # with nixpkgs' names - cudaSupport, rocmSupport, vulkanSupport - which upstream's
+  # package.nix, calling them useCuda/useRocm/useVulkan, rejects. Mapping the two sets keeps
+  # whisper on our Vulkan-enabled llama.cpp.
+  whisper-cpp = prev.whisper-cpp.override {
+    vulkanSupport = true;
+    llama-cpp = prev.lib.makeOverridable (
+      {
+        cudaSupport ? false,
+        rocmSupport ? false,
+        vulkanSupport ? true,
+        metalSupport ? false,
+        ...
+      }:
+      llama-cpp-with {
+        useCuda = cudaSupport;
+        useRocm = rocmSupport;
+        useVulkan = vulkanSupport;
+        useMetalKit = metalSupport;
+      }
+    ) { };
+  };
 }
