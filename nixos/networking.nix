@@ -16,10 +16,8 @@
       6971 # Docs viewer (nginx, /srv/docs)
       22137 # Forgejo (SSH)
 
-      51536 # LLM Router (Vulkan)
-      51537 # LLM Router (ROCm)
-      51580 # LLM Router (Vulkan) log web interface
-      51581 # LLM Router (ROCm) log web interface
+      settings.llamaRouterPort # llama.cpp router (Vulkan)
+      settings.llamaLogsPort # its log web interface
 
       # Few generic ports for one-shot/test stuff
       11111

@@ -17,13 +17,16 @@ let
     "--slots"
     "--props"
     "--metrics"
-    # 20 GB VRAM: one model resident, and llama.cpp's autoload (on by default) loads a preset when
-    # a request names it - not at boot. Switching it off would make the router answer 400 "model is
-    # not loaded" until something POSTs /load.
+    # Unified memory: several models resident at once, and llama.cpp's autoload (on by default)
+    # loads a preset when a request names it - not at boot. Switching it off would make the router
+    # answer 400 "model is not loaded" until something POSTs /load.
     "--models-max"
-    "1"
+    "4"
     "--models-preset"
     settings.llamaPresetsPath
+    # The browser chat and the t/s + pp/tg breakdown the log viewer follows.
+    "--webui"
+    "--perf"
   ];
 in
 {
@@ -33,18 +36,31 @@ in
     isSystemUser = true;
   };
 
-  systemd.services.llama-server = {
-    description = "llama.cpp router server (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
+  systemd.services.llama-server-vulkan = {
+    description = "llama.cpp router server, Vulkan (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
     wantedBy = [ "multi-user.target" ];
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
+    # dns-ready: the bind address is a LAN name, so resolution has to work before ExecStart.
+    after = [
+      "network-online.target"
+      "dns-ready.target"
+    ];
+    wants = [
+      "network-online.target"
+      "dns-ready.target"
+    ];
+
+    # Pin the real GPU: llvmpipe is enumerated as a second Vulkan device.
+    environment = {
+      GGML_VK_ALLOW_GRAPHICS_QUEUE = "1";
+      GGML_VK_VISIBLE_DEVICES = "0";
+    };
 
     serviceConfig = {
       ExecStart = "${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args}";
       User = "llama";
       Group = "llama";
-      # Vulkan wants renderD128, ROCm compute wants kfd.
+      # Vulkan wants renderD128, the DRM card node sits in video.
       SupplementaryGroups = [
         "video"
         "render"
@@ -57,13 +73,17 @@ in
       RestartSec = 5;
       TimeoutStopSec = 30;
 
-      # The weights are world-readable and live outside $HOME, so nothing here needs a user's files.
+      # Weights and preset both live under /home, so home is exposed read-only rather than masked;
+      # everything else the service could touch is world-readable and outside any user's files.
       ProtectSystem = "strict";
-      ProtectHome = true;
-      ReadOnlyPaths = [ settings.llamaModelsPath ];
-      # PrivateDevices stays off: it would need the GPU nodes whitelisted one by one, and they are
-      # group-writable anyway.
+      ProtectHome = "read-only";
+      ReadOnlyPaths = [
+        settings.llamaModelsPath
+        settings.llamaPresetsPath
+      ];
+      # PrivateDevices stays off: it would hide /dev/dri, and the GPU nodes are group-writable anyway.
       PrivateTmp = true;
+      PrivateIPC = true;
       NoNewPrivileges = true;
       CapabilityBoundingSet = "";
       AmbientCapabilities = "";
@@ -78,6 +98,11 @@ in
       RestrictSUIDSGID = true;
       RestrictRealtime = true;
       LockPersonality = true;
+      ProtectKernelModules = true;
+      ProtectKernelTunables = true;
+      ProtectControlGroups = true;
+      # The server only ever reads its own /proc entries.
+      ProtectProc = "invisible";
       SystemCallArchitectures = "native";
       MemoryDenyWriteExecute = false; # the Vulkan driver JITs
       UMask = "0077";

@@ -237,36 +237,5 @@ in
             --outfile "$1" --outtype auto "$2"
         '';
       })
-
-      # Rebuilds the local `llama-rocm` image (llama.cpp master, ROCm, gfx1151) from
-      # kyuz0/amd-strix-halo-toolboxes. The build goes through `sudo docker`, i.e. the SYSTEM
-      # daemon - the same one llm-router-rocm runs on; the rootless daemon is invisible to it.
-      (pkgs.writeShellApplication {
-        name = "update-llama-cpp-rocm";
-        runtimeInputs = [
-          pkgs.git
-          pkgs.docker
-        ];
-        meta.description = "Rebuild the local llama.cpp ROCm image from amd-strix-halo-toolboxes";
-        text = ''
-          repo_dir=/home/LLMs/amd-strix-halo-toolboxes
-          image=llama-rocm
-
-          if [ ! -d "$repo_dir/.git" ]; then
-            printf '\033[1;34mCloning amd-strix-halo-toolboxes into %s...\033[0m\n' "$repo_dir"
-            git clone https://github.com/kyuz0/amd-strix-halo-toolboxes.git "$repo_dir"
-          fi
-
-          ${info "Pulling latest amd-strix-halo-toolboxes..."}
-          git -C "$repo_dir" pull --ff-only
-
-          # --no-cache is mandatory: the `git clone llama.cpp master` step has no changing
-          # inputs, so a cached build would keep the old llama.cpp forever.
-          printf '\033[1;34mBuilding %s:latest (llama.cpp master, ROCm, gfx1151)...\033[0m\n' "$image"
-          sudo docker build --no-cache -t "$image:latest" \
-              -f "$repo_dir/toolboxes/Dockerfile.rocm-10.0" \
-              "$repo_dir/toolboxes"
-        '';
-      })
     ];
 }

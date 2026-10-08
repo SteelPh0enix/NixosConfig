@@ -1,13 +1,12 @@
-# One service per file; a service that needs extra files (docker-compose.yml, the llama-server
-# preset, the log viewer) gets its own directory.
+# One service per file; a service that needs extra files (the llama-server preset, the log
+# viewer) gets its own directory.
 {
   imports = [
     ./coverage.nix
     ./docs.nix
-    ./llm-logs-web.nix
     ./minecraft.nix
-    ./llm-router/llm-router.nix
-    ./llm-router-rocm/llm-router-rocm.nix
+    ./llama-server-vulkan/llama-server-vulkan.nix
+    ./llama-vulkan-logs/llama-vulkan-logs.nix
     ./adguardhome.nix
     ./searxng.nix
     ./samba.nix

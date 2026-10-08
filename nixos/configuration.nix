@@ -11,7 +11,6 @@
     ./fonts.nix
     ./hardware-configuration.nix
     ./hardware.nix
-    ./llama-server.nix
     ./locale.nix
     ./mounts.nix
     ./networking.nix

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Simple HTTP server with SSE endpoint for streaming journalctl logs.
-Run as: python3 nixos/services/llm-logs-server/server.py [--service <unit>] [--port <port>]
-Then visit: http://localhost:51580 (Vulkan) / http://localhost:51581 (ROCm)
+Run as: python3 nixos/services/llama-vulkan-logs/server.py [--service <unit>] [--port <port>]
+Then visit: http://localhost:51580
 """
 
 import os
@@ -18,8 +18,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(SCRIPT_DIR, "index.html")
 
 LOG_QUEUE: queue.Queue[str] = queue.Queue()
-SERVICE_NAME = "llm-router"
-PORT = 51581
+SERVICE_NAME = "llama-server-vulkan"
+PORT = 51580
 
 
 def stream_logs() -> None:
@@ -62,9 +62,8 @@ class LogHandler(BaseHTTPRequestHandler):
             self.send_error(500, "HTML template not found")
             return
 
-        # Substitute the service label into the shared template so the page
-        # says which llama-server variant it's showing logs for.
-        label = SERVICE_NAME.replace("-service", "").replace("_", " ").upper()
+        # Substitute the service label into the template so the page names the unit it follows.
+        label = SERVICE_NAME.replace("_", " ").replace("-", " ").upper()
         html = html.replace("__SERVICE_LABEL__", label)
 
         self.send_response(200)
@@ -132,19 +131,18 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Stream systemd journal logs for an llm-router service over SSE."
+        description="Stream systemd journal logs for llama-server-vulkan over SSE."
     )
     parser.add_argument(
         "--service",
-        default="llm-router",
-        help="systemd unit name to follow (default: llm-router). For the ROCm "
-        "variant pass 'llm-router-rocm'.",
+        default="llama-server-vulkan",
+        help="systemd unit name to follow (default: llama-server-vulkan).",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=51581,
-        help="HTTP port to listen on (default: 51581).",
+        default=51580,
+        help="HTTP port to listen on (default: 51580).",
     )
     parser.add_argument(
         "--host",
