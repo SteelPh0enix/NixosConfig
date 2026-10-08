@@ -39,3 +39,4 @@ THEY ARE FREE THOUGH! Everything we run here is locally hosted via llama-server,
 ACTIVELY AND EXTENSIVELY USE THEM WHENEVER YOU CAN!
 WHEN CONSTRUCTING TASKS; HAVE SUBAGENTS IN MIND!
 Also; while waiting for sub-agent, if it takes long - find something to do! do not idle, and make sure to use SHORT TIMEOUTS AND SLEEPS FOR WAIT!
+Do not just repeatedly wait for the subagent to finish it's job, unless you have absolutely and completely nothing to do in the foreground and whatever needs to be done next MUST wait for the agent's result.
