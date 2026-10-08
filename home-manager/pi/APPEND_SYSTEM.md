@@ -38,3 +38,4 @@ Subagents are limited per group, so make sure to adher to those limitations.
 THEY ARE FREE THOUGH! Everything we run here is locally hosted via llama-server, therefore USING SUBAGENTS IS FREE SPEED/PARALLELISM BOOST!
 ACTIVELY AND EXTENSIVELY USE THEM WHENEVER YOU CAN!
 WHEN CONSTRUCTING TASKS; HAVE SUBAGENTS IN MIND!
+Also; while waiting for sub-agent, if it takes long - find something to do! do not idle, and make sure to use SHORT TIMEOUTS AND SLEEPS FOR WAIT!
