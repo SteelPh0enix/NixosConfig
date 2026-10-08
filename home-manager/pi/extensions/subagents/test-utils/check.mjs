@@ -31,7 +31,7 @@ const record = (id, over = {}) => ({
 
 // ---- the completion queue (state.ts) ----
 
-const { TaskRegistry, toSummary } = await importFrom(SRC, "state.ts");
+const { TaskRegistry, toSummary, killRecord, withTimeout } = await importFrom(SRC, "state.ts");
 
 console.log("\nregistry");
 const reg = new TaskRegistry();
@@ -57,6 +57,53 @@ waitReg.markFinished("task-b");
 await sleep(5);
 ok("waiting resolves as soon as its own task finishes", woke === true);
 await waiting;
+
+// The bug this guards: a finish nobody asked for dropped the waiter, so the task it *was* waiting for never woke it
+// and the wait sat out its whole timeout.
+const lateReg = new TaskRegistry();
+lateReg.add(record("task-c"));
+lateReg.add(record("task-d"));
+const lateWait = lateReg.waitForCompletion(2000, ["task-d"]);
+await sleep(10);
+lateReg.markFinished("task-c");
+await sleep(10);
+lateReg.markFinished("task-d");
+const lateAt = Date.now();
+ok("a wait survives a finish it did not ask for", (await lateWait) === true && Date.now() - lateAt < 500);
+
+// What a kill promises: never block the caller longer than it said it would.
+const hungRecord = record("task-hang", { runner: { abort: async () => {}, done: () => new Promise(() => {}), releaseLeases() { this.freed = true; } } });
+const killedAt = Date.now();
+const settled = await killRecord(hungRecord, 40);
+ok("a kill of a task that never settles returns anyway", settled === false && hungRecord.state === "killed" && Date.now() - killedAt < 1000);
+ok("and hands its group slots back", hungRecord.runner.freed === true);
+const cleanRecord = record("task-clean", { output: "", lastText: "what it said before stopping", runner: { abort: async () => {}, done: async () => {}, releaseLeases() {} } });
+ok("a kill of a task that stops cleanly says so", (await killRecord(cleanRecord, 1000)) === true && cleanRecord.state === "killed");
+ok("a killed task that had said something keeps it as its report", cleanRecord.output === "what it said before stopping");
+ok("killing a finished task is not a second kill", (await killRecord(record("task-done", { state: "done" }), 10)) === true);
+ok("withTimeout reports a slow promise as timed out", (await withTimeout(new Promise(() => {}), 5)) === false);
+ok("withTimeout reports a rejected promise as settled", (await withTimeout(Promise.reject(new Error("boom")), 1000)) === true);
+
+// Reading a report with `subagent_result` is a delivery too, or the task shows up again on the next wait.
+const readReg = new TaskRegistry();
+readReg.add(record("task-q"));
+readReg.markFinished("task-q");
+readReg.delivered("task-q");
+ok("a task whose report was read is not handed out again by a later wait", readReg.claimFinished().length === 0);
+
+// A kill that ran out of time marks the task killed while its runner is still going; the runner must not resurrect it.
+const resurrectReg = new TaskRegistry();
+const forceKilled = record("task-r", { state: "killed", finishedAt: Date.now() });
+resurrectReg.add(forceKilled);
+resurrectReg.markFinished("task-r");
+ok("a task killed before its runner settled stays killed", forceKilled.state === "killed");
+
+const counting = toSummary(record("task-tok", { usage: { tokens: 5000, cost: 0, generated: 1200, streaming: 80 } }));
+const finishedTokens = toSummary(record("task-tok2", { state: "done", finishedAt: Date.now(), usage: { tokens: 5000, cost: 0, generated: 1200, streaming: 80 } }));
+ok("a running task counts what it is still writing", counting.generated === 1280 && counting.generatedLive === true);
+ok("a finished task reports the model's own figure", finishedTokens.generated === 1200 && finishedTokens.generatedLive === false);
+const withContext = toSummary(record("task-ctx", { context: { tokens: 41200, contextWindow: 262144, percent: 15.7 } }));
+ok("the summary carries its context window", withContext.contextTokens === 41200 && withContext.contextWindow === 262144 && withContext.contextPercent === 15.7);
 
 const timeoutReg = new TaskRegistry();
 timeoutReg.add(record("task-x"));
@@ -95,6 +142,16 @@ ok("a full group rejects", store.acquire("gpu-batch", [{ group: "gpu", limit: 1 
 const rows = store.list();
 ok("list() names its columns the way the code reads them", rows.length === 1 && typeof rows[0].expiresAt === "number" && typeof rows[0].instanceId === "string" && rows[0].expiresAt > Date.now());
 ok("a multi-group spawn that cannot fill every group fills none", store.acquire("x", [{ group: "gpu", limit: 1 }, { group: "mem", limit: 3 }]) === null && !store.list().some((l) => l.grp === "mem"));
+// An expired lease is a slot somebody else may already be standing in; listing it reads as a full group.
+const { DatabaseSync } = await import("node:sqlite");
+const expDir = mkdtempSync(join(tmpdir(), "subagents-exp-"));
+const expiring = new LeaseStore(join(expDir, "leases.db"), "inst-E");
+expiring.acquire("late", [{ group: "gpu", limit: 1 }]);
+new DatabaseSync(join(expDir, "leases.db")).exec("UPDATE leases SET expires_at = 1");
+ok("list() hides a lease whose slot has already expired", expiring.list().length === 0);
+ok("an expired lease is still reaped", expiring.reap() === 1);
+expiring.close();
+
 store.release(held[0]);
 ok("release frees the slot", store.acquire("gpu-batch", [{ group: "gpu", limit: 1 }]) !== null);
 store.close();
@@ -122,7 +179,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, formatElapsed, emitStatus, tailLines } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, formatElapsed, formatTokenStats, emitStatus, notifyCompletion, tailLines } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -174,6 +231,24 @@ if (!nodeModules) {
   ok("a project config adds to the user one", merged.subagents.size === 3);
   ok("on a name clash the project wins", merged.subagents.get("good").provider === "project");
 
+  // A config that cannot be read is not an empty config; loading on would hide it completely.
+  const unreadable = mkdtempSync(join(tmpdir(), "subagents-unreadable-"));
+  writeFileSync(join(unreadable, "subagents.json"), "{ this is not json");
+  let threwLoudly = false;
+  try {
+    loadSubagentConfigs(mkdtempSync(join(tmpdir(), "subagents-noproj-")), unreadable);
+  } catch (err) {
+    threwLoudly = String(err.message).includes("could not read");
+  }
+  ok("a config that cannot be parsed throws instead of loading as nothing", threwLoudly);
+
+  // Listing one group twice asks for two slots in it, which that group's own limit then refuses forever.
+  const dupDir = mkdtempSync(join(tmpdir(), "subagents-dup-"));
+  write(dupDir, "subagents.json", { subagents: { dupg: { provider: "p", model: "m", groups: ["gpu", "gpu", "fast"] } }, groups: { gpu: 1, fast: 2 } });
+  const dupRead = loadSubagentConfigs(mkdtempSync(join(tmpdir(), "subagents-dupproj-")), dupDir);
+  ok("a duplicated group is collapsed to one slot", dupRead.subagents.get("dupg").groups.join() === "gpu,fast");
+  ok("and reported as a mistake in the config", dupRead.errors.some((e) => e.includes("dupg") && e.includes("more than once")));
+
   const json = (v) => JSON.stringify(v);
   const SUBAGENT_TOOLS = ["subagent_spawn", "subagent_status", "subagent_wait", "subagent_result", "subagent_kill"];
   ok("omitted tools exclude only the subagent tools", json(resolveTools({ provider: "p", model: "m" })) === json({ excludeTools: SUBAGENT_TOOLS }));
@@ -190,6 +265,35 @@ if (!nodeModules) {
   console.log("\nrenderers");
   const theme = { fg: (_token, s) => s, bold: (s) => s };
   const opts = { expanded: true, isPartial: false };
+  // details are persisted, so a renderer has to survive a result that carries none
+  for (const [name, render] of [["status", renderStatusResult], ["wait", renderWaitResult], ["kill", renderKillResult]]) {
+    let survived = true;
+    try {
+      render({ content: [{ type: "text", text: "x" }], details: undefined }, opts, theme);
+    } catch {
+      survived = false;
+    }
+    ok(`${name} survives a result with no details`, survived);
+  }
+  let resultSurvived = true;
+  try {
+    renderResultResult({ content: [{ type: "text", text: "x" }], details: undefined }, opts, theme, { isError: false });
+  } catch {
+    resultSurvived = false;
+  }
+  ok("result survives a result with no details", resultSurvived);
+
+  const toasts = [];
+  const toastRecord = record("task-n", { state: "done", finishedAt: Date.now() });
+  notifyCompletion({ ui: { notify: (m) => toasts.push(m) } }, toastRecord);
+  notifyCompletion({ ui: { notify: (m) => toasts.push(m) } }, toastRecord);
+  ok("a finishing task toasts once, not again when its report is read", toasts.length === 1);
+
+  const full = { ...toSummary(record("task-stats", { usage: { tokens: 1234, cost: 0, generated: 1234 }, context: { tokens: 41200, contextWindow: 262144, percent: 15.7 } })), generatedLive: false };
+  ok("tokens read as out and context fill", formatTokenStats(full) === "out 1.2k · ctx 41.2k/262k (16%)");
+  ok("a count still being streamed says so", formatTokenStats({ ...full, generatedLive: true }).startsWith("out ~1.2k"));
+  ok("an unknown context says what it lacks", formatTokenStats({ ...full, contextTokens: null, contextPercent: null }) === "out 1.2k · ctx ?/262k");
+
   const summary = toSummary(record("task-1", { state: "done", finishedAt: Date.now(), error: "boom", lastActivity: "read src/x.ts" }));
   const status = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [summary] } }, opts, theme).render(120).join("\n");
   ok("the state renders as text, not [object Object]", !status.includes("[object Object]") && status.includes("DONE"));
@@ -234,6 +338,7 @@ if (!nodeModules) {
   streamer.onEvent({ type: "tool_execution_start", toolName: "bash", args: { command: "sleep 60" } });
   streamer.applyOutcome();
   ok("a finished task stops claiming an activity", streaming.state === "done" && streaming.lastActivity === "");
+  ok("a task whose last message carried no text still reports what it said", streaming.output === "half a report");
 
   const aborted = record("task-k2", { lastActivity: "bash: sleep 60" });
   const aborter = new SubagentTask({ record: aborted, onStatus: () => {} });
@@ -241,6 +346,9 @@ if (!nodeModules) {
   // an abort arrives as an assistant error message, and must not overwrite the line the task stopped on
   aborter.onEvent({ type: "message_end", message: { role: "assistant", content: [], stopReason: "error", errorMessage: "This operation was aborted" } });
   ok("an abort never reads as a model error", aborted.lastActivity === "bash: sleep 60");
+  // pi opens the next turn even when the prompt was aborted; that must not overwrite the line it stopped on
+  aborter.onEvent({ type: "turn_start" });
+  ok("a turn opened by the abort does not rename what it stopped on", aborted.lastActivity === "bash: sleep 60");
   aborter.applyOutcome();
   ok("an aborted task keeps the line it stopped on", aborted.state === "killed" && aborted.lastActivity === "bash: sleep 60");
 
@@ -329,6 +437,11 @@ if (!nodeModules) {
 
   ok("wait with nothing to wait for is not an error", (await call("subagent_wait", { timeout_s: 0 })).content[0].text.includes("no tasks to wait for"));
   ok("wait names ids it does not know", (await call("subagent_wait", { ids: ["task-9"], timeout_s: 0 })).content[0].text.includes("no such subagent tasks"));
+  // Nothing running and nothing queued is not something a wait can fix by standing still.
+  const idleAt = Date.now();
+  const idleWait = await call("subagent_wait", { timeout_s: 30 });
+  ok("waiting with nothing to wait for answers at once", idleWait.content[0].text.includes("no tasks to wait for") && Date.now() - idleAt < 1000);
+
   const cancelled = new AbortController();
   cancelled.abort();
   ok("an aborted wait says interrupted", (await call("subagent_wait", { timeout_s: 0 }, cancelled.signal)).content[0].text.includes("interrupted"));

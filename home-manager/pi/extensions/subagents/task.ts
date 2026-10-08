@@ -130,8 +130,8 @@ export class SubagentTask {
     this.resolveDone();
   }
 
-  /** Free this task's group leases (called on every terminal path). */
-  private releaseLeases(): void {
+  /** Free this task's group leases (called on every terminal path, and by a kill that will not be waited for). */
+  releaseLeases(): void {
     const { store, leases } = this.options;
     if (!store || !leases) return;
     for (const id of leases) store.release(id);
@@ -152,19 +152,27 @@ export class SubagentTask {
   private onEvent(event: AgentSessionEvent): void {
     const { record } = this.options;
     if (event.type === "turn_start") {
-      this.note("thinking…");
+      // An abort also opens the next turn; that one must not overwrite the line the task stopped on.
+      if (!this.aborted) this.note("thinking…");
     } else if (event.type === "message_update") {
       const delta = event.assistantMessageEvent?.type;
-      if (delta === "text_delta" || delta === "reasoning_delta") this.note("writing…");
+      if (delta === "text_delta" || delta === "reasoning_delta") {
+        this.note("writing…");
+        // What the model has produced so far, counted off the partial message: an estimate, corrected exactly when
+        // the turn ends and the provider reports its own figure.
+        record.usage.streaming = Math.round(generatedChars(event.message) / 4);
+      }
       // `event.message` is the partial message, so the report reaches the record while it is still being written.
       if (delta === "text_delta") record.lastText = extractText(event.message);
     } else if (event.type === "message_end" && event.message.role === "assistant") {
       this.lastAssistant = event.message;
       record.turns += 1;
       record.lastText = extractText(event.message);
+      record.usage.streaming = 0;
       const usage = event.message.usage;
       if (usage) {
         record.usage.tokens += usage.totalTokens;
+        record.usage.generated += usage.output ?? 0;
         record.usage.cost += usage.cost?.total ?? 0;
       }
       // An abort lands here as an assistant error message. Painting "model error: ... aborted" over the tool the
@@ -195,7 +203,19 @@ export class SubagentTask {
     const now = Date.now();
     if (now - this.lastStatusEmit >= STATUS_THROTTLE_MS) {
       this.lastStatusEmit = now;
+      this.readContextUsage();
       this.options.onStatus(this.options.record);
+    }
+  }
+
+  /** What its model holds right now, for the `ctx used/window (%)` the status and the wait widget report. */
+  private readContextUsage(): void {
+    const { record } = this.options;
+    try {
+      const usage = this.session?.getContextUsage();
+      if (usage) record.context = { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent };
+    } catch {
+      // A session on its way out has no context to report; the last figure stays.
     }
   }
 
@@ -233,8 +253,16 @@ export class SubagentTask {
       if (assistant?.stopReason === "length") record.error = "report hit the model's output limit";
     }
     record.finishedAt = Date.now();
+    record.usage.streaming = 0;
     record.output = assistant ? extractText(assistant) : (this.session?.getLastAssistantText() ?? "");
     record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
+    // The last figure the task's model reported is the one worth showing next to its totals.
+    this.readContextUsage();
+    if (!record.output && record.lastText.trim()) {
+      // A task killed between turns still said something; better than handing back nothing.
+      record.output = record.lastText.trim();
+      record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
+    }
     // A settled task has no "right now", and the last thing it did reads as if it were still going. Where it stopped
     // is worth keeping when it was aborted.
     if (record.state !== "killed") record.lastActivity = "";
@@ -248,6 +276,17 @@ export function extractText(message: AgentMessage): string {
     .map((c) => c.text)
     .join("\n")
     .trim();
+}
+
+/** Everything the model has produced for this message, thinking included, for the token estimate while it writes. */
+function generatedChars(message: AgentMessage): number {
+  if (message.role !== "assistant") return 0;
+  let chars = 0;
+  for (const block of message.content) {
+    if (block.type === "text") chars += block.text.length;
+    else if (block.type === "thinking") chars += block.thinking.length;
+  }
+  return chars;
 }
 
 function oneLine(value: string, limit: number): string {

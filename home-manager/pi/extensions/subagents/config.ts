@@ -121,18 +121,19 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
   const subagents = new Map<string, SubagentConfig>();
   const groups = new Map<string, number>();
 
-  const sources: Array<{ data: unknown; error?: string; source: string }> = [];
+  // A config that cannot be read or parsed is not the same as no config: loading on would leave the main agent with
+  // no subagents and no clue why, so it throws and pi reports this extension as failed to load.
   const user = readJson(join(agentDir, "subagents.json"));
-  if (user.data !== undefined) sources.push({ data: user.data, error: user.error, source: "user" });
+  if (user.error) throw new Error(user.error);
   const project = readJson(join(cwd, ".pi", "subagents.json"));
-  if (project.data !== undefined) sources.push({ data: project.data, error: project.error, source: "project" });
+  if (project.error) throw new Error(project.error);
+
+  const sources: Array<{ data: unknown; source: string }> = [];
+  if (user.data !== undefined) sources.push({ data: user.data, source: "user" });
+  if (project.data !== undefined) sources.push({ data: project.data, source: "project" });
 
   // User first, then project, so a project entry overrides a user entry of the same name.
-  for (const { data, error, source } of sources) {
-    if (error) {
-      errors.push(error);
-      continue;
-    }
+  for (const { data, source } of sources) {
     if (!isObject(data) || !isObject(data.subagents)) {
       errors.push(`${source} config is malformed (expected { "subagents": { "<name>": { "provider", "model" } } } ); skipped`);
       continue;
@@ -153,8 +154,18 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
     }
   }
 
-  // A subagent may only name a group that some config declares with a limit.
+  // A subagent may only name a group that some config declares with a limit, and it may name each of them once:
+  // naming one twice asks for two of its slots, which that group's own limit then refuses forever.
   for (const [name, cfg] of subagents) {
+    if (cfg.groups) {
+      const unique = [...new Set(cfg.groups)];
+      if (unique.length !== cfg.groups.length) {
+        errors.push(
+          `subagent "${name}" lists groups [${cfg.groups.join(", ")}] more than once; collapsed to [${unique.join(", ")}] so it holds one slot per group`,
+        );
+      }
+      cfg.groups = unique;
+    }
     for (const group of cfg.groups ?? []) {
       if (!groups.has(group)) {
         errors.push(`subagent "${name}" references unknown group "${group}" (not in any config's groups map); spawning it will fail`);

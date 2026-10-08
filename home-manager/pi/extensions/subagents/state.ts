@@ -25,8 +25,17 @@ export interface TaskRecord {
   lastText: string;
   /** Final assistant text (the report). Only ever handed out by `subagent_result`. */
   output: string;
-  /** Accumulated model usage so the main session's token totals stay accurate. */
-  usage: { tokens: number; cost: number };
+  /**
+   * Accumulated model usage so the main session's token totals stay accurate. `generated` is what its own model
+   * wrote; `streaming` is the running estimate for the turn being decoded right now, corrected at `message_end`.
+   */
+  usage: { tokens: number; cost: number; generated: number; streaming?: number };
+  /**
+   * What the subagent's model is holding right now, straight from pi: `tokens` out of `contextWindow`, and the
+   * percentage. `tokens` is null when pi cannot estimate it yet (a task that has not been answered, or one that has
+   * just compacted). Refreshed with every status emit, so a blocked wait shows it moving.
+   */
+  context?: { tokens: number | null; contextWindow: number; percent: number | null };
   error?: string;
   /** Tail of the output, for the `/subagents <id>` detail view and result blocks. */
   recentOutput: string;
@@ -34,8 +43,19 @@ export interface TaskRecord {
   groups: string[];
   /** Whether `subagent_wait` has already delivered this task to the main agent. */
   claimed: boolean;
-  /** Live only: the runner driving this task. */
-  runner?: unknown;
+  /** Whether this task's tokens and cost have already been reported to the main session (they must be once). */
+  usageReported?: boolean;
+  /** Whether the completion toast has already fired. */
+  notified?: boolean;
+  /** Live only: the runner driving this task (its SubagentTask). */
+  runner?: TaskRunner;
+}
+
+/** What a task's runner offers to whoever wants it stopped. */
+export interface TaskRunner {
+  abort(): Promise<void>;
+  done(): Promise<void>;
+  releaseLeases(): void;
 }
 
 /**
@@ -53,6 +73,14 @@ export interface TaskSummary {
   idle?: number;
   turns: number;
   tokens: number;
+  /** Tokens the subagent's own model produced, as opposed to everything it read. */
+  generated: number;
+  /** True while `generated` still counts the in-flight estimate rather than the model's own figure. */
+  generatedLive?: boolean;
+  /** What its model holds right now: pi's context estimate, its window, and the percentage. */
+  contextTokens?: number | null;
+  contextWindow?: number;
+  contextPercent?: number | null;
   lastActivity: string;
   retry?: string;
   error?: string;
@@ -69,6 +97,49 @@ const SUMMARY_OUTPUT_LIMIT = 1000;
 /** Idle a running task may sit silent for before the status line says so. */
 export const IDLE_AFTER_MS = 15_000;
 
+/** Tokens of the turn being decoded right now, counted off the stream; 0 once the turn has ended. */
+function liveGenerated(record: TaskRecord): number {
+  return record.state === "running" ? (record.usage.streaming ?? 0) : 0;
+}
+
+/** Resolve true once `pending` settles, false after `ms`. Never rejects, and never takes longer than `ms`. */
+export function withTimeout(pending: Promise<unknown>, ms: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => resolve(false), Math.max(0, ms));
+    const settle = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    pending.then(settle, settle);
+  });
+}
+
+/**
+ * Abort a task and report whether it wound down inside `timeoutMs`. Nothing here may block the caller for longer than
+ * it was told to: a task whose session is still being created has nothing to abort and no deadline of its own, and
+ * the main agent must not end up waiting for it. A task that does not settle is marked killed anyway and hands its
+ * group slots back, so the abandoned runner cannot hold a group while it finishes on its own.
+ */
+export async function killRecord(record: TaskRecord, timeoutMs: number): Promise<boolean> {
+  if (record.state !== "running") return true;
+  const runner = record.runner;
+  if (!runner) return true;
+  // A failed abort is not worth an error of its own: the timeout still ends the kill and the lease TTL frees the group.
+  void runner.abort().catch(() => {});
+  const settled = await withTimeout(runner.done(), timeoutMs);
+  if (record.state === "running") {
+    record.state = "killed";
+    record.finishedAt = record.finishedAt ?? Date.now();
+    // A task stopped between turns still said something; better than reporting nothing.
+    if (!record.output && record.lastText.trim()) {
+      record.output = record.lastText.trim();
+      record.recentOutput = record.output;
+    }
+  }
+  if (!settled) runner.releaseLeases();
+  return settled;
+}
+
 export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
   return {
     id: record.id,
@@ -79,6 +150,11 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
     idle: record.state === "running" ? Math.max(0, now - record.lastActivityAt) : undefined,
     turns: record.turns,
     tokens: record.usage.tokens,
+    generated: (record.usage.generated ?? 0) + liveGenerated(record),
+    generatedLive: liveGenerated(record) > 0,
+    contextTokens: record.context?.tokens,
+    contextWindow: record.context?.contextWindow,
+    contextPercent: record.context?.percent,
     lastActivity: record.lastActivity,
     retry: record.retry,
     error: record.error,
@@ -130,6 +206,14 @@ export class TaskRegistry {
     this.notify();
   }
 
+  /**
+   * Note that a task has been reported by some route other than the queue (its report was read directly), so a later
+   * `subagent_wait` does not hand the same finished task out a second time.
+   */
+  delivered(id: string): void {
+    this.finished = this.finished.filter((queued) => queued !== id);
+  }
+
   claimFinished(ids?: string[]): TaskRecord[] {
     const claimed: TaskRecord[] = [];
     const queued: string[] = [];
@@ -141,6 +225,8 @@ export class TaskRegistry {
         continue;
       }
       record.claimed = true;
+      // The wait is where the main agent normally collects a task, so that is where its cost gets counted.
+      record.usageReported = true;
       claimed.push(record);
     }
     this.finished = queued;
@@ -177,8 +263,8 @@ export class TaskRegistry {
   }
 
   private notify(): void {
-    const waiters = this.waiters;
-    this.waiters = [];
-    for (const waiter of waiters) waiter();
+    // Each waiter takes itself off the list once it settles. One that stayed waiting (its ids did not match this
+    // finish) has to survive, or the task it does wait for can never wake it and the wait sits out its timeout.
+    for (const waiter of [...this.waiters]) waiter();
   }
 }

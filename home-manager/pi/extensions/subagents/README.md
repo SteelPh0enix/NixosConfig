@@ -42,19 +42,24 @@ project entry wins.
   (`pi.getActiveTools()`); the five `subagent_*` tools are **always** excluded. Three shapes:
   - **omitted** — the main agent's tools as it stands, so `--tools`, the `defaultTools` setting and tools registered by
     extensions all carry over.
-  - **a list** — exactly that allowlist and nothing else. pi treats an explicit allowlist strictly: MCP tools only
-    survive if an entry starts with `mcp__`.
+  - **a list** — exactly that allowlist and nothing else, and it is absolute rather than a narrowing of what the main
+    agent has: pi registers only the listed built-ins in the subagent's session, so it can hand out a tool the main
+    agent is sitting without. MCP tools only survive if an entry starts with `mcp__`, and a name pi does not know is
+    dropped silently — a typo just leaves the subagent short of tools.
   - **`{ "enable": [...] }`** — the same as a list. **`{ "disable": [...] }`** — the main agent's tools minus those.
     The two keys are mutually exclusive.
 - A named tool has to exist in the subagent's session or pi drops it without a word. That session is an SDK session and
   loads none of the CLI's built-in extensions, so the task supplies `codemode` itself; `tool_search` and MCP tools are
   not loaded, and naming them does nothing.
-- `groups` — names of the concurrency groups below; the top-level `groups` map holds their limits.
-
-The file is validated against a TypeBox schema at load. A bad entry is dropped with a message naming it
+- `groups` — names of the concurrency groups below; the top-level `groups` map holds their limits. Naming one twice is
+  a mistake (it would ask for two of that group's slots), so it is reported and collapsed to one.
+The entries are validated against a TypeBox schema at load. A bad entry is dropped with a message naming it
 (`[subagents] user subagent "x" skipped: /tools must be a non-empty list, or { enable } / { disable }`) and the rest
 of the config stays usable. One bad limit skips the whole `groups` map. A subagent that names a group nobody gave a
-limit to is reported at load *and* refused at spawn — a concurrency limit is never silently not enforced.
+limit to is reported at load *and* refused at spawn — a concurrency limit is never silently not enforced. Those
+messages go to stderr at startup and are repeated as a warning toast when the session opens, so they are not lost in
+the noise of a start. A file that cannot be read or parsed is not a configuration worth loading: the extension throws
+and pi reports it as a failed extension, rather than starting with no subagents and no explanation.
 
 ## Group concurrency
 
@@ -65,8 +70,12 @@ instances and all working directories** through the shared SQLite store at `~/.p
   full group(s). Nothing is created: no task record, no session, no session directory.
 - **Atomic across groups** — several groups are taken together or not at all.
 - **Crash-safe** — a lease is a claim, not a counter: it expires 90 s after the last heartbeat (renewed every 20 s) and
-  any instance may reap it, so a dead process cannot deadlock a group. `/subagents leases purge` recovers at once.
-- **Clean exit** — `session_shutdown` aborts running tasks and releases this instance's leases.
+  any instance may reap it, so a dead process cannot deadlock a group. `/subagents leases purge` recovers at once, and
+  `/subagents leases` lists only leases that still count — an expired one is a slot somebody may already be standing in.
+- **Timers stay quiet** — the reap and heartbeat ticks swallow database errors and wait for the next tick. pi turns an
+  uncaught exception in a callback into a crash record and `exit(1)`, so a locked database is never allowed to be fatal.
+- **Clean exit** — `session_shutdown` aborts running tasks and releases this instance's leases. pi fires it on quit and
+  on `/new`, `/fork`, `/resume`, `/import` and `/reload`, so any of those stops the tasks this instance started.
 - The store opens lazily on the first grouped spawn, so an untracked subagent (no `groups`) costs nothing. A lease that
   cannot be written throws with the database's own message, rather than looking like a full group.
 
@@ -75,10 +84,10 @@ instances and all working directories** through the shared SQLite store at `~/.p
 | Tool | Args | Behavior |
 |---|---|---|
 | `subagent_spawn` | `name`, `task`, `session?`, `save_session?`, `workdir?` | Starts the task in the background and returns its `id` at once. |
-| `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, last activity, retry, error. Errors on an unknown id. |
-| `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Returns finished-but-undelivered tasks immediately, otherwise blocks until one arrives. Delivers each task once; with `ids`, tasks it was not asked for stay queued for the next call. Reports progress through `onUpdate` while blocked, and **ends when the request is aborted** rather than sitting out the timeout; a timed-out wait keeps naming what still runs. A timeout is a normal result, not an error. |
-| `subagent_result` | `id` | The full report (over 20 000 chars is truncated, with the whole thing written to a temp file). |
-| `subagent_kill` | `id` | Aborts a running task; it ends `killed` holding whatever output it has. |
+| `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, what its model produced and how full its context is, last activity, retry, error. Errors on an unknown id. |
+| `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Returns finished-but-undelivered tasks immediately, otherwise blocks until one arrives. Delivers each task once — reading a report with `subagent_result` counts as that delivery; with `ids`, tasks it was not asked for stay queued for the next call, and ids whose task already reported are named as *nothing new* rather than as missing. Reports progress through `onUpdate` while blocked, and **ends when the request is aborted** rather than sitting out the timeout; a timed-out wait keeps naming what still runs, and a wait with nothing running and nothing queued answers at once rather than standing still for `timeout_s`. A timeout is a normal result, not an error. |
+| `subagent_result` | `id` | The full report (over 20 000 chars is truncated, with the whole thing written to a temp file), followed by what the task cost. A task that ended with nothing to show says so, with its error where it has one. |
+| `subagent_kill` | `id`, `timeout_s?` (default 10) | Aborts a running task; it ends `killed` holding whatever output it has. Nothing here waits longer than `timeout_s`: a task still stuck inside a session that is being created is marked killed anyway and its group slots are freed, and the abandoned runner finishes by itself. |
 
 Workflow: spawn several in one turn → keep working → `subagent_wait` (loop; each finished subagent is delivered by
 exactly one call) → `subagent_status` for the laggards, `subagent_kill` for a stuck one, `subagent_result` to re-read a
@@ -129,15 +138,21 @@ artifact worth having after the task ends.
   finished task's report.
 - A settled task reports no last activity — `DONE 12s — writing…` would read as still going. An aborted one keeps the
   line it stopped on, which is the case where it says something.
+- Every report line ends with what the task's model is doing with its context: `… · out 1.2k · ctx 41.2k/262k (16%)`.
+  `out` is the tokens its own model produced; while a turn is still decoding it is counted off the stream and shown as
+  `out ~1.2k`, replaced by the model's figure the moment the turn ends. `ctx` is pi's context estimate for the
+  subagent's session against its window, refreshed with every status emit, so the blocked `subagent_wait` widget shows
+  it climbing while the task works.
+- A task's tokens and cost reach the main session's totals **once**, from whichever tool collects it first — `pi`
+  adds up the `usage` of every tool result it is handed, so reporting twice would count the same calls twice.
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
-  is waiting on it.
+  is waiting on it, and only once, not again when the report is read.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`, `{ tasks: [{ id, name, model, state, elapsed,
   idle, turns, tokens, lastActivity, retry, error, recentOutput }] }`, whenever their state changes. Nothing in this
   setup subscribes to it yet; it is the seam a footer segment would attach to. Emitting into a session pi has replaced
   throws, so the snapshot swallows that rather than outliving its session.
 
-Token and cost totals of the subagent models are folded into the `usage` of `subagent_wait` and `subagent_result`. That
-`Usage` is synthetic — total tokens and total cost, no input/output/cache split.
+The `Usage` those two tools report is synthetic — total tokens and total cost, no input/output/cache split.
 
 ## Implementation layout
 
@@ -145,7 +160,7 @@ Token and cost totals of the subagent models are folded into the `usage` of `sub
 subagents/
   index.ts            # config load, five tools, /subagents, lifecycle
   task.ts             # SubagentTask: createAgentSession, progress events, outcome, lease release
-  state.ts            # task registry + completion queue, TaskSummary for details and events
+  state.ts            # task registry + completion queue, TaskSummary for details and events, kill with a deadline
   store.ts            # LeaseStore: cross-instance per-group concurrency over a shared SQLite file
   ui.ts               # event emission, renderCall/renderResult, completion toast
   test-utils/check.mjs
@@ -154,7 +169,7 @@ subagents/
 ## Testing
 
 ```
-node test-utils/check.mjs        # ~2 s, no pi running, no model called; exits non-zero on failure
+node test-utils/check.mjs        # ~1 s, no pi running, no model called; exits non-zero on failure
 ```
 
 `state.ts` and `store.ts` import nothing outside node, so their assertions run directly. `config.ts` (`typebox`) and
@@ -165,17 +180,26 @@ the run still fails, so a missing dependency is never mistaken for a passing sui
 What it pins down, mostly with the bugs it was written against:
 
 - **registry** — a claim filtered by `ids` leaves the other finished tasks claimable instead of throwing them away;
-  every task is delivered exactly once; a wait for `task-b` is not woken by `task-a`; abort ends the wait; `elapsed`
+  every task is delivered exactly once; a wait for `task-b` survives `task-a` finishing and is still woken when `task-b`
+  does (a waiter dropped by an unasked-for finish used to sit out the whole timeout); abort ends the wait; `elapsed`
   measures startedAt to finishedAt and stops there; `details` carry a bounded output.
+- **kill** — a task that never settles is killed anyway, inside the deadline, with its group slots handed back; one
+  that stops cleanly says so; killing a finished task is not a second kill; a task stopped between turns keeps what it
+  had already said as its report.
+- **tokens** — a running task counts what it is still writing and marks it live, a finished one reports the model's own
+  figure, and `out …/ctx …/%` formats as `out 1.2k · ctx 41.2k/262k (16%)`, or `ctx ?/262k` when pi cannot estimate.
 - **leases** — the limit rejects, a multi-group claim fills all groups or none, `list()` returns the column names the
-  code reads (`expiresAt`, not `expires_at`), `close()` empties the instance's leases and refuses further claims.
+  code reads (`expiresAt`, not `expires_at`) and hides a lease whose slot already expired, `close()` empties the
+  instance's leases and refuses further claims.
 - **config** — `enable` with `disable`, a non-list `enable`, a misspelled tool key and a missing provider/model are all
-  refused with a message naming the entry; project overrides user; one bad group limit skips the map; no list inherits
-  the main agent's tools, `disable` subtracts from them, and a tool the main agent lacks never leaks in.
-- **renderers** — the state paints as text (once it was `[object Object]`), an abort never overwrites the activity line
-  with a model error, a blocked spawn says which group, elapsed
-  formats as `41s` / `3m12s` / `1h05m`, a live wait shows the subagent's last lines and says it is still running, and a
-  timed-out wait says so.
+  refused with a message naming the entry; a file that cannot be parsed throws; a group named twice is collapsed and
+  reported; project overrides user; one bad group limit skips the map; no list inherits the main agent's tools,
+  `disable` subtracts from them, and a tool the main agent lacks never leaks in.
+- **renderers** — the state paints as text (once it was `[object Object]`), all five survive a result whose `details`
+  are missing (pi then shows a plain-text fallback and logs nothing, so this is easy to lose), a completion toasts once
+  rather than again when the report is read, an abort never overwrites the activity line with a model error — not even
+  the turn pi opens while aborting — a blocked spawn says which group, elapsed formats as `41s` / `3m12s` / `1h05m`, a
+  live wait shows the subagent's last lines and says it is still running, and a timed-out wait says so.
 - **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, and every way into a
   spawn fails with a message before a session could be created (unconfigured name, unknown model, `save_session`/
   `workdir` without a `session`, a name that is not kebab-case, a group with no limit — and no lease taken for that
@@ -184,4 +208,6 @@ What it pins down, mostly with the bugs it was written against:
 
 Not covered: `task.ts` and `index.ts` end to end, which need a live model — do that in a real pi session with a
 `subagents.json` naming a small local model, and follow the rule in `../llama-dx/TESTING.md`: a test that reaches a
-server never takes one from pi's default model.
+server never takes one from pi's default model. The fake-pi fixture deliberately gives no subagent a resolvable model,
+so it cannot create a task record; the wording of `subagent_wait` for ids already delivered, and of a `subagent_kill`
+that ran out of time, is therefore checked only at the `killRecord` level.
