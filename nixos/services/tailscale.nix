@@ -10,11 +10,35 @@
 #   2. umask 077; printf '%s' 'tskey-auth-...' > ~/nixos-config/secrets/tailscale-authkey
 #   3. Admin console -> Machines -> rx-78-fpc: turn on the advertised 192.168.0.0/24 route and the
 #      exit node. Advertising is only half of it - until they are switched on, nothing flows.
-{ config, settings, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  settings,
+  ...
+}:
 let
   # Offered to the rest of the tailnet. Tailscale SNATs forwarded packets by default
   # (--snat-subnet-routes), so the LAN router needs no return route for tailnet clients.
   lanSubnet = "192.168.0.0/24";
+
+  # UDP throughput fix for a node that forwards for the tailnet, per tailscale's own
+  # tailscale.com/s/ethtool-config-udp-gro: the NIC must not coalesce the datagrams it is about to
+  # hand to tailscaled for re-forwarding. Tailscale warns about it on every `up`. The script takes
+  # no arguments, so it fits both as a NetworkManager hook and as a unit's ExecStart.
+  udpGroFix = pkgs.writeShellScript "tailscale-udp-gro" ''
+    PATH=${
+      lib.makeBinPath [
+        pkgs.gnused
+        pkgs.iproute2
+      ]
+    }
+    uplink=$(ip -o route get 8.8.8.8 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p')
+    if [ -n "$uplink" ]; then
+      ${lib.getExe pkgs.ethtool} -K "$uplink" rx-udp-gro-forwarding on rx-gro-list off \
+        || echo "could not set UDP GRO forwarding on $uplink"
+    fi
+  '';
 in
 {
   services.tailscale = {
@@ -68,4 +92,24 @@ in
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
   };
+
+  # ethtool features outlive neither a reboot nor a driver reset, so the script comes from two
+  # sides: a unit at boot/activation, and a hook per NetworkManager activation of the interface
+  # (cable replug, resume). The hook alone would miss `nh os switch`, which is no interface event.
+  systemd.services.tailscale-udp-gro = {
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = udpGroFix;
+    };
+  };
+
+  networking.networkmanager.dispatcherScripts = [
+    {
+      type = "basic";
+      source = udpGroFix;
+    }
+  ];
 }
