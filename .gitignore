@@ -1,2 +1,11 @@
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Local secrets (referenced from nixos config, never commit these)
+secrets/
 smb-secrets
+
+# pi agent
 home-manager/pi/.pi

@@ -13,12 +13,15 @@ rec {
   # because flake input URLs have to be literals.
   llamaCppPath = "/home/steelph0enix/llama.cpp";
 
-  # GGUF weights and the router's preset file (see nixos/llama-server.nix). Per-host: point them
-  # wherever the weights live on that machine.
+  # GGUF weights and the router's preset file (see nixos/services/llama-server-vulkan): point them
+  # wherever the weights live on that machine; the preset is edited in place and the unit restarted.
   llamaModelsPath = "/mnt/NVMe/LLMs";
   llamaPresetsPath = "${llamaModelsPath}/llama-server.ini";
-  # The router binds this name and the other box connects to it; kept next to `llamaPresetsPath`
-  # so the firewall rule and the service cannot drift apart.
-  llamaRouterHost = "steelph0enix.pc";
+  # Models kept resident at once (20 GB of VRAM here).
+  llamaModelsMax = 1;
+  # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
+  # used to reach the machine. The ports live here so the firewall rules cannot drift apart.
+  llamaRouterHost = "0.0.0.0";
   llamaRouterPort = 51536;
+  llamaLogsPort = 51580;
 }

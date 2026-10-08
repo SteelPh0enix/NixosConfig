@@ -11,12 +11,13 @@
     ./hardware-configuration.nix
     ./hardware.nix
     ./hyprland.nix
-    ./llama-server.nix
     ./locale.nix
     ./nix.nix
     ./nixpkgs.nix
     ./packages
     ./services.nix
+    # `./services` would resolve to ./services.nix, so name the directory entry explicitly.
+    ./services/default.nix
     ./shell.nix
     ./users.nix
     ./virtualisation.nix

@@ -6,8 +6,7 @@ let
   ltoRanlib = "${prev.stdenv.cc.cc}/bin/gcc-ranlib";
 
   # Built from the local checkout (flake input `llama-cpp`), see the `llama-cpp-update` script.
-  # Vulkan is what this GPU speaks; ROCm stays off, that stack runs from its own container
-  # (nixos/services/llm-router-rocm).
+  # Vulkan is what this GPU speaks, so it is the only backend we build (nixos/services/llama-server-vulkan).
   llama-cpp-with =
     {
       useCuda ? false,
@@ -48,26 +47,19 @@ in
 {
   llama-cpp = llama-cpp-with { };
 
-  # ffmpeg-full (so mpv too) builds whisper.cpp against the system llama-cpp, and overrides it
-  # with nixpkgs' names - cudaSupport, rocmSupport, vulkanSupport - which upstream's
-  # package.nix, calling them useCuda/useRocm/useVulkan, rejects. Mapping the two sets keeps
-  # whisper on our Vulkan-enabled llama.cpp.
+  # ffmpeg-full (so mpv too) builds whisper.cpp, which forwards cudaSupport/rocmSupport/vulkanSupport
+  # to llama-cpp. Those default to the nixpkgs config, and `rocmSupport = true` here (for other
+  # packages), so whisper was pulling a hipcc GGML_HIP llama.cpp with every ROCm GPU target on top
+  # of Vulkan. llama.cpp is reached under upstream's names - useCuda/useRocm/useVulkan - which is
+  # what this mapping is for; the flags are pinned so whisper always gets exactly `llama-cpp`
+  # above, and ROCm stays available to the rest of the package set.
   whisper-cpp = prev.whisper-cpp.override {
+    cudaSupport = false;
+    rocmSupport = false;
     vulkanSupport = true;
     llama-cpp = prev.lib.makeOverridable (
-      {
-        cudaSupport ? false,
-        rocmSupport ? false,
-        vulkanSupport ? true,
-        metalSupport ? false,
-        ...
-      }:
-      llama-cpp-with {
-        useCuda = cudaSupport;
-        useRocm = rocmSupport;
-        useVulkan = vulkanSupport;
-        useMetalKit = metalSupport;
-      }
+      { metalSupport ? false, ... }:
+      llama-cpp-with { useMetalKit = metalSupport; }
     ) { };
   };
 }
