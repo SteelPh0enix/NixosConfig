@@ -83,6 +83,20 @@ function text(content: string): Text {
   return new Text(content, 0, 0);
 }
 
+/** How many lines of a running subagent's own text the wait widget shows. */
+export const LIVE_TAIL_LINES = 3;
+
+/** Last `count` lines of `value`, each flattened to one line and cut to `width`. */
+export function tailLines(value: string, count = LIVE_TAIL_LINES, width = 90): string {
+  return value
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(-count)
+    .map((line) => (line.length > width ? `${line.slice(0, width - 1).trimEnd()}…` : line))
+    .join("\n");
+}
+
 // ---- live status (pi.events + setStatus fallback) -------------------------
 
 /**
@@ -134,8 +148,10 @@ function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolea
   const lines = [`${header} ${stateLabel(task.state, theme)} ${theme.fg("dim", formatElapsed(task.elapsed))}${idle}`];
   if (task.error) lines.push(theme.fg("error", `  ${task.error}`));
   if (task.retry) lines.push(theme.fg("warning", `  retrying ${task.retry}`));
-  const progress = ` · ${task.turns} turn(s), ${task.tokens} tokens`;
-  if (task.lastActivity) lines.push(theme.fg("muted", `  ▸ ${task.lastActivity}${progress}`));
+  // What it is doing goes on its own line; a settled task only shows its stats when the view is expanded.
+  const activity = [task.lastActivity && `▸ ${task.lastActivity}`, `${task.turns} turn(s), ${task.tokens} tokens`].filter(Boolean).join(" · ");
+  if (task.lastActivity || options.expanded) lines.push(theme.fg("muted", `  ${activity}`));
+  if (task.preview) lines.push(...task.preview.split("\n").map((line) => theme.fg("dim", `  │ ${line}`)));
   if (options.expanded) {
     const output = task.recentOutput.trim();
     if (output) lines.push("", theme.fg("dim", truncate(output, 800)));
@@ -188,11 +204,13 @@ export function renderWaitResult(
   theme: Theme,
 ): Text {
   const d = result.details;
-  if (d.count === 0) {
-    return text(opts.isPartial ? theme.fg("muted", "subagent_wait: timed out, nothing finished") : theme.fg("muted", "subagent_wait: no tasks finished"));
-  }
   const blocks = d.tasks.map((r) => taskBlock(r, theme, { expanded: opts.expanded }));
-  const header = theme.fg("toolTitle", theme.bold(`subagent_wait · ${d.count} finished`));
+  if (d.count === 0) {
+    // The tool says which case this is (interrupted, nothing to wait for, timed out); show it with whatever is left.
+    const message = theme.fg("muted", truncate(result.content.find((c) => c.type === "text")?.text ?? "subagent_wait: nothing finished", 200));
+    return text(blocks.length ? `${message}\n${blocks.map((b) => b.render(120).join("\n")).join("\n\n")}` : message);
+  }
+  const header = theme.fg("toolTitle", theme.bold(`subagent_wait · ${d.count} ${opts.isPartial ? "still running" : "finished"}`));
   return text(`${header}\n${blocks.map((b) => b.render(120).join("\n")).join("\n\n")}`);
 }
 

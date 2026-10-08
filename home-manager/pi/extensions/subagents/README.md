@@ -76,7 +76,7 @@ instances and all working directories** through the shared SQLite store at `~/.p
 |---|---|---|
 | `subagent_spawn` | `name`, `task`, `session?`, `save_session?`, `workdir?` | Starts the task in the background and returns its `id` at once. |
 | `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, last activity, retry, error. Errors on an unknown id. |
-| `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Returns finished-but-undelivered tasks immediately, otherwise blocks until one arrives. Delivers each task once; with `ids`, tasks it was not asked for stay queued for the next call. Reports progress through `onUpdate` while blocked, and **ends when the request is aborted** rather than sitting out the timeout. A timeout is a normal result, not an error. |
+| `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Returns finished-but-undelivered tasks immediately, otherwise blocks until one arrives. Delivers each task once; with `ids`, tasks it was not asked for stay queued for the next call. Reports progress through `onUpdate` while blocked, and **ends when the request is aborted** rather than sitting out the timeout; a timed-out wait keeps naming what still runs. A timeout is a normal result, not an error. |
 | `subagent_result` | `id` | The full report (over 20 000 chars is truncated, with the whole thing written to a temp file). |
 | `subagent_kill` | `id` | Aborts a running task; it ends `killed` holding whatever output it has. |
 
@@ -123,6 +123,11 @@ artifact worth having after the task ends.
 - `renderCall`/`renderResult` on all five tools. Expanded views show state, elapsed, error, last activity and the tail
   of the output; `details` carry a bounded summary rather than the whole report, because they are persisted into the
   session file.
+- While `subagent_wait` blocks, its widget shows per running task what it is doing and the last three lines of its own
+  text. That tail is handed to the renderer by the wait's progress updates only, so it never reaches `details` or a
+  finished task's report.
+- A settled task reports no last activity — `DONE 12s — writing…` would read as still going. An aborted one keeps the
+  line it stopped on, which is the case where it says something.
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
   is waiting on it.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`, `{ tasks: [{ id, name, model, state, elapsed,
@@ -167,7 +172,8 @@ What it pins down, mostly with the bugs it was written against:
   refused with a message naming the entry; project overrides user; one bad group limit skips the map; no list inherits
   the main agent's tools, `disable` subtracts from them, and a tool the main agent lacks never leaks in.
 - **renderers** — the state paints as text (once it was `[object Object]`), a blocked spawn says which group, elapsed
-  formats as `41s` / `3m12s` / `1h05m`.
+  formats as `41s` / `3m12s` / `1h05m`, a live wait shows the subagent's last lines and says it is still running, and a
+  timed-out wait says so.
 - **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, and every way into a
   spawn fails with a message before a session could be created (unconfigured name, unknown model, `save_session`/
   `workdir` without a `session`, a name that is not kebab-case, a group with no limit — and no lease taken for that

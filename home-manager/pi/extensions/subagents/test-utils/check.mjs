@@ -122,7 +122,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, formatElapsed, emitStatus } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, formatElapsed, emitStatus, tailLines } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -200,6 +200,21 @@ if (!nodeModules) {
   const stuckView = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [stuck] } }, opts, theme).render(120).join("\n");
   ok("the status view names the silence and the retry", stuckView.includes("idle 1m30s") && stuckView.includes("retrying 2/5 after 40s"));
 
+  // the live wait widget: the running subagent's own last lines, next to what it is doing
+  ok("tailLines keeps the last three lines only", tailLines("a\nb\nc\nd") === "b\nc\nd" && tailLines("") === "");
+  const chatter = "first thought\nsecond thought\nthird thought\nfourth thought";
+  const liveTask = { ...toSummary(record("task-2", { lastText: chatter, lastActivity: "bash: nix flake check" })), preview: tailLines(chatter) };
+  const liveWait = renderWaitResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [liveTask] } }, { expanded: false, isPartial: true }, theme).render(120).join("\n");
+  ok("a live wait shows the tail of what the subagent writes", liveWait.includes("second thought") && liveWait.includes("fourth thought") && !liveWait.includes("first thought"));
+  ok("a live wait says the tasks run, not that they finished", liveWait.includes("still running") && !liveWait.includes("finished"));
+  ok("a finished wait carries no preview of the report", !wait.includes("│"));
+  const settledSummary = toSummary(record("task-3", { state: "done", finishedAt: Date.now() }));
+  const settledCollapsed = renderWaitResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [settledSummary] } }, { expanded: false, isPartial: false }, theme).render(120).join("\n");
+  ok("a finished task claims no activity", !settledCollapsed.includes("▸") && settledCollapsed.includes("task-3"));
+  ok("expanded, it still shows what it cost", renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [settledSummary] } }, opts, theme).render(120).join("\n").includes("0 turn(s)"));
+  const timedOut = renderWaitResult({ content: [{ type: "text", text: "subagent_wait: timed out — still running: task-9 (coder)" }], details: { count: 0, tasks: [toSummary(record("task-9"))] } }, opts, theme).render(120).join("\n");
+  ok("a timed-out wait says so and keeps the pending task", timedOut.includes("timed out") && timedOut.includes("task-9"));
+
   const { SubagentTask } = await importFrom(ws, "task.ts");
   const live = record("task-l");
   const task = new SubagentTask({ record: live, onStatus: () => {} });
@@ -211,6 +226,20 @@ if (!nodeModules) {
   ok("a failed model call reads as one", live.lastActivity === "model error: Connection error." && live.turns === 1);
   task.onEvent({ type: "auto_retry_end", success: true, attempt: 3 });
   ok("a recovered retry clears the flag", live.retry === undefined && live.lastActivity === "answered after 3 attempt(s)");
+
+  const streaming = record("task-s2");
+  const streamer = new SubagentTask({ record: streaming, onStatus: () => {} });
+  streamer.onEvent({ type: "message_update", assistantMessageEvent: { type: "text_delta" }, message: { role: "assistant", content: [{ type: "text", text: "half a report" }] } });
+  ok("the report lands in the record while it streams", streaming.lastText === "half a report");
+  streamer.onEvent({ type: "tool_execution_start", toolName: "bash", args: { command: "sleep 60" } });
+  streamer.applyOutcome();
+  ok("a finished task stops claiming an activity", streaming.state === "done" && streaming.lastActivity === "");
+
+  const aborted = record("task-k2", { lastActivity: "bash: sleep 60" });
+  const aborter = new SubagentTask({ record: aborted, onStatus: () => {} });
+  await aborter.abort();
+  aborter.applyOutcome();
+  ok("an aborted task keeps the line it stopped on", aborted.state === "killed" && aborted.lastActivity === "bash: sleep 60");
 
   const reporting = new TaskRegistry();
   reporting.add(record("task-e"));
