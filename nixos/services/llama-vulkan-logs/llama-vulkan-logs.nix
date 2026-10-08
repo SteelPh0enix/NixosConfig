@@ -1,13 +1,19 @@
-# Journal tail of llama-server-vulkan over HTTP (server.py + index.html next to this file).
-# Served straight from the working checkout, not a store path: edit the viewer and restart the
-# unit, no rebuild.
+# Journal tail of llama-server-vulkan over HTTP. server.py + index.html live next to this file
+# and are packaged into the Nix store so the unprivileged llama-logs user can reach them
+# (the working checkout is mode 0700 and not world-traversable).
 {
   pkgs,
   settings,
   ...
 }:
 let
-  logsServer = "${settings.repoPath}/nixos/services/llama-vulkan-logs/server.py";
+  # Flake path literals reach the store under hashed names (`…-server.py`), so the copies have to
+  # name the targets: server.py reads index.html from its own directory.
+  viewer = pkgs.runCommand "llama-vulkan-logs-viewer" { } ''
+    mkdir -p $out
+    cp ${./server.py} $out/server.py
+    cp ${./index.html} $out/index.html
+  '';
 in
 {
   users.groups.llama-logs = { };
@@ -31,7 +37,7 @@ in
     ];
 
     serviceConfig = {
-      ExecStart = "${pkgs.python3}/bin/python3 ${logsServer} --service llama-server-vulkan --port ${toString settings.llamaLogsPort}";
+      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service llama-server-vulkan --port ${toString settings.llamaLogsPort}";
       User = "llama-logs";
       Group = "llama-logs";
       Restart = "on-failure";
