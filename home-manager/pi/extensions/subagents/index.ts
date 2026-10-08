@@ -37,6 +37,7 @@ import {
   renderResultResult,
   renderKillCall,
   renderKillResult,
+  tailLines,
   type SpawnDetails,
   type StatusDetails,
   type WaitDetails,
@@ -402,7 +403,7 @@ export default function subagents(pi: ExtensionAPI): void {
                 .join("\n"),
             },
           ],
-          details: { count: pending.length, tasks: pending.map((r) => toSummary(r)) },
+          details: { count: pending.length, tasks: pending.map((r) => ({ ...toSummary(r), preview: tailLines(r.lastText) })) },
         });
       }, 1000);
       try {

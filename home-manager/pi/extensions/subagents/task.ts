@@ -156,6 +156,8 @@ export class SubagentTask {
     } else if (event.type === "message_update") {
       const delta = event.assistantMessageEvent?.type;
       if (delta === "text_delta" || delta === "reasoning_delta") this.note("writing…");
+      // `event.message` is the partial message, so the report reaches the record while it is still being written.
+      if (delta === "text_delta") record.lastText = extractText(event.message);
     } else if (event.type === "message_end" && event.message.role === "assistant") {
       this.lastAssistant = event.message;
       record.turns += 1;
@@ -229,6 +231,9 @@ export class SubagentTask {
     record.finishedAt = Date.now();
     record.output = assistant ? extractText(assistant) : (this.session?.getLastAssistantText() ?? "");
     record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
+    // A settled task has no "right now", and the last thing it did reads as if it were still going. Where it stopped
+    // is worth keeping when it was aborted.
+    if (record.state !== "killed") record.lastActivity = "";
   }
 }
 

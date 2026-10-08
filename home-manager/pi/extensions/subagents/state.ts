@@ -57,6 +57,11 @@ export interface TaskSummary {
   retry?: string;
   error?: string;
   recentOutput: string;
+  /**
+   * Last lines of the task's own text, for the live `subagent_wait` widget. Only set by that widget's progress
+   * updates, so it never reaches the session file and never carries a finished task's report.
+   */
+  preview?: string;
 }
 
 const SUMMARY_OUTPUT_LIMIT = 1000;
