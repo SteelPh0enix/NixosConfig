@@ -2,7 +2,15 @@
 // progress back to the registry. The subagent gets the main agent's tool set
 // (minus the subagent tools) and a read-only view of the main transcript.
 
-import { createAgentSession, SessionManager, type AgentSession, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import {
+  createAgentSession,
+  createCodemodeExtension,
+  DefaultResourceLoader,
+  SessionManager,
+  SettingsManager,
+  type AgentSession,
+  type AgentSessionEvent,
+} from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
@@ -69,11 +77,23 @@ export class SubagentTask {
     record.runner = this;
 
     try {
+      // pi only loads codemode, tool_search and MCP in the CLI; an SDK session gets none of them
+      // unless the resource loader supplies the extension, and then a tool name in `tools` activates it.
+      const settingsManager = SettingsManager.create(cwd, agentDir);
+      const resourceLoader = new DefaultResourceLoader({
+        cwd,
+        agentDir,
+        settingsManager,
+        extensionFactories: [createCodemodeExtension()],
+      });
+      await resourceLoader.reload();
       this.session = (await createAgentSession({
         cwd,
         agentDir,
         model,
         sessionManager,
+        settingsManager,
+        resourceLoader,
         tools: resolvedTools.tools,
         excludeTools: resolvedTools.excludeTools,
       })).session;

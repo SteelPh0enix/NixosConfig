@@ -38,13 +38,17 @@ project entry wins.
 - `provider`, `model` — **required**. The subagent is hard-bound to that model of that provider. The pair is resolved
   when the task spawns, so a wrong one is a spawn error naming it.
 - `description` — optional, shown in the spawn tool so the main agent knows what each subagent is for.
-- `tools` — optional. Which of the main agent's tools the subagent gets; the five `subagent_*` tools are **always**
-  excluded. Three shapes:
-  - **omitted** — whatever the resolved `defaultTools` setting gives (so `+codemode` is inherited), minus the `subagent_*` tools.
+- `tools` — optional. Which tools the subagent gets, chosen from the main agent's active set read at spawn
+  (`pi.getActiveTools()`); the five `subagent_*` tools are **always** excluded. Three shapes:
+  - **omitted** — the main agent's tools as it stands, so `--tools`, the `defaultTools` setting and tools registered by
+    extensions all carry over.
   - **a list** — exactly that allowlist and nothing else. pi treats an explicit allowlist strictly: MCP tools only
     survive if an entry starts with `mcp__`.
-  - **`{ "enable": [...] }`** — the same as a list. **`{ "disable": [...] }`** — the default set minus those tools.
+  - **`{ "enable": [...] }`** — the same as a list. **`{ "disable": [...] }`** — the main agent's tools minus those.
     The two keys are mutually exclusive.
+- A named tool has to exist in the subagent's session or pi drops it without a word. That session is an SDK session and
+  loads none of the CLI's built-in extensions, so the task supplies `codemode` itself; `tool_search` and MCP tools are
+  not loaded, and naming them does nothing.
 - `groups` — names of the concurrency groups below; the top-level `groups` map holds their limits.
 
 The file is validated against a TypeBox schema at load. A bad entry is dropped with a message naming it
@@ -156,11 +160,12 @@ What it pins down, mostly with the bugs it was written against:
 
 - **registry** — a claim filtered by `ids` leaves the other finished tasks claimable instead of throwing them away;
   every task is delivered exactly once; a wait for `task-b` is not woken by `task-a`; abort ends the wait; `elapsed`
-  stops at the finish; `details` carry a bounded output.
+  measures startedAt to finishedAt and stops there; `details` carry a bounded output.
 - **leases** — the limit rejects, a multi-group claim fills all groups or none, `list()` returns the column names the
   code reads (`expiresAt`, not `expires_at`), `close()` empties the instance's leases and refuses further claims.
 - **config** — `enable` with `disable`, a non-list `enable`, a misspelled tool key and a missing provider/model are all
-  refused with a message naming the entry; project overrides user; one bad group limit skips the map.
+  refused with a message naming the entry; project overrides user; one bad group limit skips the map; no list inherits
+  the main agent's tools, `disable` subtracts from them, and a tool the main agent lacks never leaks in.
 - **renderers** — the state paints as text (once it was `[object Object]`), a blocked spawn says which group, elapsed
   formats as `41s` / `3m12s` / `1h05m`.
 - **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, and every way into a
