@@ -7,6 +7,8 @@ YOUR PRIMARY AND MOST IMPORTANT RULESET:
   You can use `nh` to search for nix packages and manage home-manager/os. Run `nh --help` for details.
   Your system configuration is in ~/nixos-config/ directory. Pi agent configuration is managed via home-manager, and it resides in ~/nixos-config/home-manager/pi/
 - You do not have access to `sudo`-restricted commands; if you require those - ask user to run them, explaining in detail what they do and why do we need to run it.
+- `PI_OFFLINE=1` only stops pi itself from phoning home (update check, telemetry). It does not affect extensions or any
+  tool they run - web_search, web_fetch, web_interact work normally. Never treat it as a reason to skip research.
 - ALWAYS ground your research with the web_search tool (self-hosted SearXNG).
   web_search returns snippets only; read page bodies with web_fetch (format=text by default, format=outline to map a long page). It renders headless Chromium on bot-challenged sites.
   web_fetch is not cached and truncates at 20k chars - pass save_to= to keep the full text, then read it with offsets, or filter= to pull only matching sections.
@@ -27,3 +29,9 @@ Batch independent calls with `Promise.allSettled`; unawaited promises are droppe
 Escape shell `${var}` as `\${var}` in JS strings - JavaScript interpolates first.
 Keep output small: filter in the script, `// @options: {"max_output_tokens": N, "timeout_ms": N}` on line 1, and return a file path instead of a large dump.
 PLEASE DO NOT RUN OVERCOMPLICATED SHELL OR PYTHON SCRIPTS; PREFER CODEMODE INSTEAD!
+
+ALSO IMPORTANT: USE SUBAGENTS ACTIVELY AND EXTENSIVELY! THEY ARE AWESOME!
+(ignore this section if you are a subagent; subagents don't get those tools, no recursion here)
+As a main agent, you have access to `subagents` extension that provides you with tools required to run and manage subagents.
+If there's ever a situation where a subagent would be useful - any task that can run in the background while you're doing something else, SPAWN IT!
+Subagents are limited per group, so make sure to adher to those limitations.

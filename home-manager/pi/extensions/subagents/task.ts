@@ -167,11 +167,15 @@ export class SubagentTask {
         record.usage.tokens += usage.totalTokens;
         record.usage.cost += usage.cost?.total ?? 0;
       }
-      this.note(
-        event.message.stopReason === "error"
-          ? `model error: ${oneLine(event.message.errorMessage ?? "unknown error", 120)}`
-          : "writing…",
-      );
+      // An abort lands here as an assistant error message. Painting "model error: ... aborted" over the tool the
+      // subagent was running would make a task we stopped ourselves look like one that crashed.
+      if (!this.aborted && event.message.stopReason !== "aborted") {
+        this.note(
+          event.message.stopReason === "error"
+            ? `model error: ${oneLine(event.message.errorMessage ?? "unknown error", 120)}`
+            : "writing…",
+        );
+      }
     } else if (event.type === "tool_execution_start") {
       const summary = summarizeArgs(event.toolName, event.args);
       this.note(summary ? `${event.toolName}: ${summary}` : event.toolName);

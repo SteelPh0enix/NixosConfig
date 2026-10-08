@@ -238,6 +238,9 @@ if (!nodeModules) {
   const aborted = record("task-k2", { lastActivity: "bash: sleep 60" });
   const aborter = new SubagentTask({ record: aborted, onStatus: () => {} });
   await aborter.abort();
+  // an abort arrives as an assistant error message, and must not overwrite the line the task stopped on
+  aborter.onEvent({ type: "message_end", message: { role: "assistant", content: [], stopReason: "error", errorMessage: "This operation was aborted" } });
+  ok("an abort never reads as a model error", aborted.lastActivity === "bash: sleep 60");
   aborter.applyOutcome();
   ok("an aborted task keeps the line it stopped on", aborted.state === "killed" && aborted.lastActivity === "bash: sleep 60");
 

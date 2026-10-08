@@ -94,7 +94,7 @@ export default function subagents(pi: ExtensionAPI): void {
   /** Create `.pi/subagents/sessions/<session>-<YYYY-MM-DD>-<HHMMSS>/` and return it. */
   function makeSessionDir(cwd: string, session: string): string {
     const now = new Date().toISOString();
-    const stamp = `${now.slice(0, 10)}-${now.slice(11, 17).replace(/:/g, "")}`;
+    const stamp = `${now.slice(0, 10)}-${now.slice(11, 19).replace(/:/g, "")}`;
     const base = join(cwd, SUBAGENT_SESSION_DIR, `${session}-${stamp}`);
     let path = base;
     for (let i = 2; existsSync(path); i += 1) path = `${base}-${i}`;
@@ -285,11 +285,13 @@ export default function subagents(pi: ExtensionAPI): void {
         };
       }
 
-      // Only now is it safe to lay down a session directory: a blocked spawn creates nothing.
-      const sessionDir = params.session ? makeSessionDir(ctx.cwd, params.session) : undefined;
+      // Only now is it safe to lay down a session directory: a blocked spawn creates nothing, and neither does a
+      // bare session name, which asks for no transcript and no scratchpad.
+      const sessionDir =
+        params.session && (params.save_session || params.workdir) ? makeSessionDir(ctx.cwd, params.session) : undefined;
       const effectiveCwd = params.workdir && sessionDir ? sessionDir : ctx.cwd;
       const sessionManager =
-        sessionDir && params.save_session
+        params.save_session && sessionDir
           ? SessionManager.create(effectiveCwd, sessionDir)
           : SessionManager.inMemory(effectiveCwd);
       // A subagent without an exact allowlist inherits what the main agent has right now.
