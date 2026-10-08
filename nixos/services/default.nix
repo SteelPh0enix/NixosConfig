@@ -10,5 +10,6 @@
     ./adguardhome.nix
     ./searxng.nix
     ./samba.nix
+    ./tailscale.nix
   ];
 }

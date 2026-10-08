@@ -27,7 +27,6 @@ let
     "search.framework" = lanIp;
     "steelph0enix.1337.cx" = lanIp;
     "steelph0enix.framework" = lanIp;
-    "steelph0enix.framework-vpn" = "10.69.69.69";
     "steelph0enix.pc" = "192.168.0.150";
     "steelph0enix.worklaptop" = "192.168.0.156";
   };
