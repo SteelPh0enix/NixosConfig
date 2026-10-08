@@ -18,9 +18,11 @@ rec {
   # editing it and restarting the unit needs no rebuild.
   llamaModelsPath = "/home/LLMs";
   llamaPresetsPath = "${repoPath}/nixos/services/llama-server-vulkan/llama-server.ini";
-  # The router binds this name and the other box connects to it; kept next to the ports so the
-  # firewall rule and the service cannot drift apart.
-  llamaRouterHost = "steelph0enix.framework";
+  # Models kept resident at once (see nixos/services/llama-server-vulkan).
+  llamaModelsMax = 4;
+  # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
+  # used to reach the machine. The ports live here so the firewall rules cannot drift apart.
+  llamaRouterHost = "0.0.0.0";
   llamaRouterPort = 51536;
   llamaLogsPort = 51580;
 }

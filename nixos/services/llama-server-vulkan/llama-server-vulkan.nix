@@ -17,11 +17,11 @@ let
     "--slots"
     "--props"
     "--metrics"
-    # Unified memory: several models resident at once, and llama.cpp's autoload (on by default)
-    # loads a preset when a request names it - not at boot. Switching it off would make the router
+    # How many models stay resident is per host; llama.cpp's autoload (on by default) then loads a
+    # preset when a request names it - not at boot. Switching autoload off would make the router
     # answer 400 "model is not loaded" until something POSTs /load.
     "--models-max"
-    "4"
+    (toString settings.llamaModelsMax)
     "--models-preset"
     settings.llamaPresetsPath
     # The browser chat and the t/s + pp/tg breakdown the log viewer follows.
@@ -40,15 +40,8 @@ in
     description = "llama.cpp router server, Vulkan (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
     wantedBy = [ "multi-user.target" ];
-    # dns-ready: the bind address is a LAN name, so resolution has to work before ExecStart.
-    after = [
-      "network-online.target"
-      "dns-ready.target"
-    ];
-    wants = [
-      "network-online.target"
-      "dns-ready.target"
-    ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
 
     # Pin the real GPU: llvmpipe is enumerated as a second Vulkan device.
     environment = {
@@ -87,7 +80,7 @@ in
       NoNewPrivileges = true;
       CapabilityBoundingSet = "";
       AmbientCapabilities = "";
-      # AF_NETLINK stays: getaddrinfo(AI_ADDRCONFIG) needs it to resolve the bind address.
+      # AF_NETLINK stays: libc getifaddrs() uses it while setting up the listening socket.
       RestrictAddressFamilies = [
         "AF_INET"
         "AF_INET6"
