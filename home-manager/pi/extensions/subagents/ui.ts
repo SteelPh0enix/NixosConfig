@@ -60,6 +60,32 @@ export function formatElapsed(ms: number): string {
   return `${s}s`;
 }
 
+/** Token counts read as `12.3k` above a thousand, plain below it. */
+export function formatTokens(value: number): string {
+  if (value < 1000) return `${value}`;
+  const k = value / 1000;
+  return `${k < 100 ? k.toFixed(1).replace(/\.0$/, "") : Math.round(k)}k`;
+}
+
+/**
+ * `out ~1.2k · ctx 41.2k/262k (16%)` — what the subagent's model produced, and how much of its window it is holding.
+ * The generated figure carries `~` while its turn is still decoding, since that number is counted off the stream and
+ * the model replaces it with its own when the turn ends. Empty when neither is known yet.
+ */
+export function formatTokenStats(task: TaskSummary): string {
+  const parts: string[] = [];
+  if (task.generated > 0) parts.push(`out ${task.generatedLive ? "~" : ""}${formatTokens(task.generated)}`);
+  if (task.contextWindow) {
+    const used = task.contextTokens;
+    parts.push(
+      used === null || used === undefined
+        ? `ctx ?/${formatTokens(task.contextWindow)}`
+        : `ctx ${formatTokens(used)}/${formatTokens(task.contextWindow)} (${Math.round(task.contextPercent ?? (used / task.contextWindow) * 100)}%)`,
+    );
+  }
+  return parts.join(" · ");
+}
+
 function stateColor(state: TaskState): ThemeColor {
   switch (state) {
     case "running":
@@ -149,7 +175,8 @@ function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolea
   if (task.error) lines.push(theme.fg("error", `  ${task.error}`));
   if (task.retry) lines.push(theme.fg("warning", `  retrying ${task.retry}`));
   // What it is doing goes on its own line; a settled task only shows its stats when the view is expanded.
-  const activity = [task.lastActivity && `▸ ${task.lastActivity}`, `${task.turns} turn(s), ${task.tokens} tokens`].filter(Boolean).join(" · ");
+  const stats = [`${task.turns} turn(s)`, formatTokenStats(task)].filter(Boolean).join(" · ");
+  const activity = [task.lastActivity && `▸ ${task.lastActivity}`, stats].filter(Boolean).join(" · ");
   if (task.lastActivity || options.expanded) lines.push(theme.fg("muted", `  ${activity}`));
   if (task.preview) lines.push(...task.preview.split("\n").map((line) => theme.fg("dim", `  │ ${line}`)));
   if (options.expanded) {
@@ -189,6 +216,7 @@ export function renderStatusResult(
   theme: Theme,
 ): Text {
   const d = result.details;
+  if (!d) return text(theme.fg("muted", "subagent_status"));
   const title = d.id ? theme.fg("toolTitle", theme.bold("subagent_status")) : theme.fg("toolTitle", theme.bold("subagent_status (all)"));
   if (!opts.expanded) {
     const running = d.tasks.filter((t) => t.state === "running").length;
@@ -204,6 +232,7 @@ export function renderWaitResult(
   theme: Theme,
 ): Text {
   const d = result.details;
+  if (!d) return text(theme.fg("muted", "subagent_wait"));
   const blocks = d.tasks.map((r) => taskBlock(r, theme, { expanded: opts.expanded }));
   if (d.count === 0) {
     // The tool says which case this is (interrupted, nothing to wait for, timed out); show it with whatever is left.
@@ -221,6 +250,10 @@ export function renderResultResult(
   ctx: { isError: boolean },
 ): Text {
   const d = result.details;
+  if (!d) {
+    const message = result.content.find((c) => c.type === "text")?.text ?? "subagent_result";
+    return text(theme.fg(ctx.isError ? "error" : "muted", truncate(message, 600)));
+  }
   const header = theme.fg("toolTitle", theme.bold("subagent_result ")) + theme.fg("accent", d.id);
   if (ctx.isError) {
     const message = result.content.find((c) => c.type === "text")?.text ?? "unknown error";
@@ -240,14 +273,16 @@ export function renderKillResult(
   theme: Theme,
 ): Text {
   const d = result.details;
+  if (!d) return text(theme.fg("muted", "subagent_kill"));
   return text(theme.fg("toolTitle", theme.bold("subagent_kill ")) + theme.fg("accent", d.id) + theme.fg("muted", ` · ${d.state}`));
 }
 
 // ---- notifications ---------------------------------------------------------
 
-/** Toast the user when a subagent finishes (called when results are collected). */
+/** Toast the user once when a subagent finishes; reading its report again must not toast a second time. */
 export function notifyCompletion(ctx: ExtensionToolContext, record: TaskRecord): void {
-  if (record.state === "running") return;
+  if (record.state === "running" || record.notified) return;
+  record.notified = true;
   ctx.ui.notify(
     `subagent ${record.name} (${record.id}) finished: ${record.state}` + (record.error ? ` — ${record.error}` : ""),
     record.state === "failed" ? "error" : record.state === "killed" ? "warning" : "info",

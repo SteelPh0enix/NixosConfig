@@ -49,8 +49,10 @@ export class LeaseStore {
     this.instanceId = instanceId;
     mkdirSync(join(dbPath, ".."), { recursive: true });
     this.db = new DatabaseSync(dbPath);
-    this.db.exec("PRAGMA journal_mode=WAL");
+    // busy_timeout first: converting a fresh database to WAL wants an exclusive lock, and two pi instances opening
+    // the shared store in the same moment can lose it ("database is locked") with nothing to wait on.
     this.db.exec("PRAGMA busy_timeout=2000");
+    this.db.exec("PRAGMA journal_mode=WAL");
     this.db.exec(`CREATE TABLE IF NOT EXISTS leases (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       grp TEXT NOT NULL,
@@ -134,16 +136,16 @@ export class LeaseStore {
     return Number(this.db.prepare("DELETE FROM leases WHERE grp = ?").run(group).changes);
   }
 
-  /** All active leases, for the `/subagents leases` command. */
+  /** The leases that still count. An expired one is a slot somebody may already be taking, so it is not listed. */
   list(): Lease[] {
     if (this.closed) return [];
     return this.db
       .prepare(
         `SELECT id, grp, subagent, instance_id AS instanceId, pid,
                 acquired_at AS acquiredAt, expires_at AS expiresAt
-         FROM leases ORDER BY grp, subagent`,
+         FROM leases WHERE expires_at > ? ORDER BY grp, subagent`,
       )
-      .all() as unknown as Lease[];
+      .all(Date.now()) as unknown as Lease[];
   }
 
   /** Start the reap + heartbeat timers (idempotent). Call once per process. */
@@ -152,8 +154,21 @@ export class LeaseStore {
     this.started = true;
     this.reap();
     this.heartbeat();
-    this.reapTimer = setInterval(() => this.reap(), REAP_INTERVAL_MS);
-    this.heartbeatTimer = setInterval(() => this.heartbeat(), HEARTBEAT_INTERVAL_MS);
+    // A locked database in a timer would take pi down with it; the next tick tries again, and acquire() reaps anyway.
+    this.reapTimer = setInterval(() => {
+      try {
+        this.reap();
+      } catch {
+        // busy or closed
+      }
+    }, REAP_INTERVAL_MS);
+    this.heartbeatTimer = setInterval(() => {
+      try {
+        this.heartbeat();
+      } catch {
+        // busy or closed
+      }
+    }, HEARTBEAT_INTERVAL_MS);
     this.reapTimer.unref?.();
     this.heartbeatTimer.unref?.();
   }

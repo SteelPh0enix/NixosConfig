@@ -20,12 +20,13 @@ import {
 import { Type } from "typebox";
 import type { Usage } from "@earendil-works/pi-ai";
 import { loadSubagentConfigs, resolveTools, nameSchema, type ResolvedTools } from "./config.ts";
-import { IDLE_AFTER_MS, TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
+import { IDLE_AFTER_MS, killRecord, TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
 import { SubagentTask } from "./task.ts";
 import { LeaseStore, type LeaseRequest } from "./store.ts";
 import {
   emitStatus,
   formatElapsed,
+  formatTokenStats,
   notifyCompletion,
   renderSpawnCall,
   renderSpawnResult,
@@ -49,6 +50,11 @@ import {
 const SUBAGENT_SESSION_DIR = join(".pi", "subagents", "sessions");
 const OUTPUT_LIMIT = 20000;
 const DEFAULT_WAIT_TIMEOUT_S = 300;
+/**
+ * How long a kill waits for the task to actually wind down. Nothing in this extension may block the main agent for
+ * longer than it says it will, and a task stuck inside a session that is still starting up never settles on its own.
+ */
+const DEFAULT_KILL_TIMEOUT_S = 10;
 
 /** Minimal view of the command context the lease helpers need. */
 type CommandCtx = { ui: { notify: (message: string, type?: "info" | "warning" | "error") => void } };
@@ -132,7 +138,9 @@ export default function subagents(pi: ExtensionAPI): void {
   // `/subagents <id>`: the status line, what the task has cost so far, and its recent assistant output.
   function formatDetail(record: TaskRecord): string {
     const summary = toSummary(record);
-    const stats = `${summary.turns} turn(s) · ${summary.tokens} tokens${summary.retry ? ` · retry ${summary.retry}` : ""}`;
+    const stats = [`${summary.turns} turn(s)`, `${summary.tokens} tokens`, formatTokenStats(summary), summary.retry ? `retry ${summary.retry}` : ""]
+      .filter(Boolean)
+      .join(" · ");
     const text = (record.lastText || record.output || "").trim();
     const preview = text.length > 500 ? `${text.slice(0, 499).trimEnd()}…` : text;
     return preview
@@ -140,16 +148,16 @@ export default function subagents(pi: ExtensionAPI): void {
       : `${formatStatusLine(record)}\n${stats}`;
   }
 
-  async function killTask(record: TaskRecord): Promise<void> {
-    if (record.state !== "running" || !record.runner) return;
-    const runner = record.runner as SubagentTask;
-    await runner.abort();
-    // `abort()` also covers a task whose session is still being created.
-    await runner.done();
-    if (record.state === "running") {
-      record.state = "killed";
-      record.finishedAt = record.finishedAt ?? Date.now();
-    }
+  /** The status line plus what the task's model cost and how full its context window is. */
+  function formatReportLine(record: TaskRecord): string {
+    const stats = formatTokenStats(toSummary(record));
+    const line = formatStatusLine(record);
+    return stats ? `${line} · ${stats}` : line;
+  }
+
+  /** Abort a task without ever waiting on it longer than `timeoutS` (see `killRecord`). */
+  function killTask(record: TaskRecord, timeoutS = DEFAULT_KILL_TIMEOUT_S): Promise<boolean> {
+    return killRecord(record, timeoutS * 1000);
   }
 
   // `/subagents leases ...` — inspect and clean up group concurrency leases.
@@ -313,7 +321,7 @@ export default function subagents(pi: ExtensionAPI): void {
         lastText: "",
         output: "",
         recentOutput: "",
-        usage: { tokens: 0, cost: 0 },
+        usage: { tokens: 0, cost: 0, generated: 0 },
         groups: config.groups ?? [],
         claimed: false,
       };
@@ -363,7 +371,7 @@ export default function subagents(pi: ExtensionAPI): void {
       if (params.id && !target) throw new Error(`no such subagent task "${params.id}"`);
       const tasks = target ? [target] : registry.all();
       const details: StatusDetails = { id: params.id, count: tasks.length, tasks: tasks.map((t) => toSummary(t)) };
-      const content = tasks.length === 0 ? "no subagent tasks" : tasks.map(formatStatusLine).join("\n");
+      const content = tasks.length === 0 ? "no subagent tasks" : tasks.map(formatReportLine).join("\n");
       return { content: [{ type: "text", text: content }], details };
     },
     renderCall: (args, theme) => renderStatusCall(args, theme),
@@ -390,23 +398,39 @@ export default function subagents(pi: ExtensionAPI): void {
       const ids = params.ids?.length ? params.ids : undefined;
       const matches = (record: TaskRecord) => !ids || ids.includes(record.id);
       const running = () => registry.all().filter((r) => matches(r) && r.state === "running");
-      const deadline = Date.now() + (params.timeout_s ?? DEFAULT_WAIT_TIMEOUT_S) * 1000;
+      const timeoutS = params.timeout_s ?? DEFAULT_WAIT_TIMEOUT_S;
       let finished = registry.claimFinished(ids);
+      // Nothing running and nothing queued means there is nothing this wait could ever deliver, so waiting for
+      // `timeout_s` of it would just be standing still: say so at once. An already-aborted request says that instead.
+      if (!signal?.aborted && finished.length === 0 && running().length === 0) {
+        const unknown = ids ? ids.filter((id) => !registry.get(id)) : [];
+        const known = ids ? ids.map((id) => registry.get(id)).filter((r): r is TaskRecord => r !== undefined) : [];
+        const text = !ids
+          ? "subagent_wait: no tasks to wait for"
+          : unknown.length === ids.length
+            ? `subagent_wait: no such subagent tasks: ${unknown.join(", ")}`
+            : `subagent_wait: nothing new${unknown.length ? ` — no such subagent tasks: ${unknown.join(", ")}` : ` — ${known.map((r) => `${r.id} (${r.state})`).join(", ")}`}`;
+        return { content: [{ type: "text", text }], details: { count: 0, tasks: [] } };
+      }
+      const deadline = Date.now() + timeoutS * 1000;
 
       const interval = setInterval(() => {
         const pending = running();
         if (!pending.length) return;
-        onUpdate?.({
-          content: [
-            {
-              type: "text",
-              text: pending
-                .map((r) => `${r.id}: ${r.lastActivity} (${formatElapsed(Date.now() - r.startedAt)})`)
-                .join("\n"),
-            },
-          ],
-          details: { count: pending.length, tasks: pending.map((r) => ({ ...toSummary(r), preview: tailLines(r.lastText) })) },
-        });
+        // The session can be replaced while this blocks, and a dead renderer must not end the wait or take pi down.
+        try {
+          const summaries = pending.map((r) => toSummary(r));
+          const lines = pending.map((r, i) => {
+            const stats = formatTokenStats(summaries[i]);
+            return `${r.id}: ${r.lastActivity} (${formatElapsed(Date.now() - r.startedAt)})${stats ? ` ${stats}` : ""}`;
+          });
+          onUpdate?.({
+            content: [{ type: "text", text: lines.join("\n") }],
+            details: { count: pending.length, tasks: summaries.map((s, i) => ({ ...s, preview: tailLines(pending[i].lastText) })) },
+          });
+        } catch {
+          // The next tick reports again.
+        }
       }, 1000);
       try {
         while (finished.length === 0 && !signal?.aborted) {
@@ -422,20 +446,25 @@ export default function subagents(pi: ExtensionAPI): void {
       if (finished.length === 0) {
         const pending = running();
         const stillRunning = pending.map((r) => `${r.id} (${r.name})`).join(", ");
+        // Tasks that were already delivered stay in the registry, so "no such task" would be a lie: say what happened.
+        const unknown = ids ? ids.filter((id) => !registry.get(id)) : [];
+        const known = ids ? ids.map((id) => registry.get(id)).filter((r): r is TaskRecord => r !== undefined) : [];
         const text = signal?.aborted
           ? `subagent_wait: interrupted${pending.length ? ` — still running: ${stillRunning}` : ""}`
-          : pending.length === 0
-            ? ids
-              ? "subagent_wait: no such subagent tasks"
-              : "subagent_wait: no tasks to wait for"
-            : `subagent_wait: timed out — still running: ${stillRunning}`;
+          : pending.length !== 0
+            ? `subagent_wait: timed out — still running: ${stillRunning}`
+            : !ids
+              ? "subagent_wait: no tasks to wait for"
+              : unknown.length === ids.length
+                ? `subagent_wait: no such subagent tasks: ${unknown.join(", ")}`
+                : `subagent_wait: nothing new${unknown.length ? ` — no such subagent tasks: ${unknown.join(", ")}` : ` — already delivered: ${known.map((r) => `${r.id} (${r.state})`).join(", ")}`}`;
         return { content: [{ type: "text", text }], details: { count: 0, tasks: pending.map((r) => toSummary(r)) } };
       }
 
       const totalTokens = finished.reduce((sum, r) => sum + r.usage.tokens, 0);
       const totalCost = finished.reduce((sum, r) => sum + r.usage.cost, 0);
       return {
-        content: [{ type: "text", text: finished.map(formatStatusLine).join("\n") }],
+        content: [{ type: "text", text: finished.map(formatReportLine).join("\n") }],
         details: { count: finished.length, tasks: finished.map((r) => toSummary(r)) },
         usage: usageFrom(totalTokens, totalCost),
       };
@@ -455,18 +484,29 @@ export default function subagents(pi: ExtensionAPI): void {
       if (record.state === "running") throw new Error(`task ${record.id} is still running`);
 
       notifyCompletion(ctx, record);
+      // Reading the report counts as collecting the task, so a later `subagent_wait` does not deliver it a second time.
+      registry.delivered(record.id);
       const output = record.output;
       const truncated = output.length > OUTPUT_LIMIT;
-      const content = truncated
-        ? `${output.slice(0, OUTPUT_LIMIT)}\n\n… (truncated — full copy saved to temp file)`
-        : output;
+      // A task can settle with nothing to show (killed before it spoke, cut off mid tool call), and one that failed
+      // before the model answered has only its error. Say which, rather than hand back an empty block.
+      const content = !output
+        ? `task ${record.id} (${record.name}) ended as ${record.state} with no report text${record.error ? `: ${record.error}` : ""}`
+        : truncated
+          ? `${output.slice(0, OUTPUT_LIMIT)}\n\n… (truncated — full copy saved to temp file)`
+          : output;
       let fullPath: string | undefined;
       if (truncated) fullPath = writeTempFile(`${record.id}.txt`, output);
+      // Report what the subagent cost once, whoever collects it first: pi adds up every tool result's usage.
+      const reportUsage = !record.usageReported;
+      record.usageReported = true;
 
+      // What the task cost, said once next to its report rather than only in the tool metadata.
+      const stats = formatTokenStats(toSummary(record));
       return {
-        content: [{ type: "text", text: content }],
+        content: [{ type: "text", text: stats ? `${content}\n\n[${stats}]` : content }],
         details: { id: record.id, truncated, fullPath },
-        usage: usageFrom(record.usage.tokens, record.usage.cost),
+        ...(reportUsage ? { usage: usageFrom(record.usage.tokens, record.usage.cost) } : {}),
       };
     },
     renderCall: (args, theme) => renderResultCall(args, theme),
@@ -477,14 +517,29 @@ export default function subagents(pi: ExtensionAPI): void {
     name: "subagent_kill",
     label: "Abort a subagent task",
     description: "Abort a running subagent task and record the outcome as killed.",
-    parameters: Type.Object({ id: idParam }),
-    execute: async (_id, params: { id: string }, _signal, _onUpdate, _ctx): Promise<AgentToolResult<KillDetails>> => {
+    parameters: Type.Object({
+      id: idParam,
+      timeout_s: Type.Optional(
+        Type.Number({ description: `How long to wait for the task to wind down before marking it killed anyway. Default ${DEFAULT_KILL_TIMEOUT_S}.` }),
+      ),
+    }),
+    execute: async (_id, params: { id: string; timeout_s?: number }, _signal, _onUpdate, _ctx): Promise<AgentToolResult<KillDetails>> => {
       const record = registry.get(params.id);
       if (!record) throw new Error(`no such subagent task "${params.id}"`);
-      await killTask(record);
+      const timeoutS = params.timeout_s ?? DEFAULT_KILL_TIMEOUT_S;
+      const settled = await killTask(record, timeoutS);
       emitStatus(pi, registry);
       return {
-        content: [{ type: "text", text: `subagent task ${record.id} (${record.name}) → ${record.state}` }],
+        content: [
+          {
+            type: "text",
+            text: `subagent task ${record.id} (${record.name}) → ${record.state}${
+              settled
+                ? ""
+                : ` (its own cleanup was still running after ${timeoutS}s; it is marked killed and its group slots are free — the abandoned runner finishes on its own)`
+            }`,
+          },
+        ],
         details: { id: record.id, state: record.state },
       };
     },
@@ -526,9 +581,9 @@ export default function subagents(pi: ExtensionAPI): void {
           ctx.ui.notify(`subagents: no such task "${id}"`, "error");
           return;
         }
-        await killTask(record);
+        const settled = await killTask(record);
         ctx.ui.notify(
-          `subagents: ${record.id} (${record.name}) → ${record.state}`,
+          `subagents: ${record.id} (${record.name}) → ${record.state}${settled ? "" : " (its cleanup is still winding down; the group slots were freed)"}`,
           record.state === "killed" ? "warning" : "info",
         );
       } else if (parts[0]) {
@@ -548,13 +603,23 @@ export default function subagents(pi: ExtensionAPI): void {
 
   // ---- lifecycle -----------------------------------------------------------
 
-  pi.on("session_start", () => {
+  pi.on("session_start", (_event, ctx) => {
+    // Load-time complaints go to stderr with everything else at startup; repeating them here means the user actually
+    // sees them in the TUI, where a missing or half-broken subagent list otherwise just looks like an empty one.
+    if (errors.length > 0) {
+      ctx.ui.notify(
+        errors.length === 1 ? `subagents: ${errors[0]}` : `subagents: ${errors.length} problems in subagents.json — ${errors[0]}`,
+        "warning",
+      );
+    }
     emitStatus(pi, registry);
   });
 
   pi.on("session_shutdown", () => {
     for (const record of registry.all()) {
-      if (record.state === "running") (record.runner as SubagentTask | undefined)?.abort();
+      // Fire-and-forget by necessity (pi does not wait for us), and nothing may reject unhandled here. The kill is
+      // given no time at all: on the way out we free the record and let the shared lease TTL clear the group.
+      void killRecord(record, 0).catch(() => {});
     }
     // This instance's slots are freed right away instead of expiring after the TTL.
     store?.close();
