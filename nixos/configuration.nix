@@ -11,6 +11,7 @@
     ./hardware-configuration.nix
     ./hardware.nix
     ./hyprland.nix
+    ./llama-server.nix
     ./locale.nix
     ./nix.nix
     ./nixpkgs.nix

@@ -38,9 +38,21 @@
           }
         },
         {
+          "id": "occult-nail",
+          "reasoning": true,
+          "contextWindow": 262144,
+          "maxTokens": 32768,
+          "thinkingLevelMap": {
+            "minimal": null,
+            "high": null,
+            "max": null,
+            "xhigh": "xhigh"
+          }
+        },
+        {
           "id": "qwen-27B",
           "reasoning": true,
-          "contextWindow": 140000,
+          "contextWindow": 150000,
           "maxTokens": 32768,
           "thinkingLevelMap": {
             "minimal": null,

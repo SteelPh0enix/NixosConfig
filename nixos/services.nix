@@ -31,8 +31,8 @@ in
 
   networking.firewall = {
     enable = true;
-    # llama-server (docker) API
-    allowedTCPPorts = [ 51536 ];
+    # llama.cpp router (nixos/llama-server.nix), used by the other box
+    allowedTCPPorts = [ settings.llamaRouterPort ];
     # Strict reverse path filtering. Use "loose" if asymmetric routing ever shows up (tunnels).
     checkReversePath = "strict";
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
