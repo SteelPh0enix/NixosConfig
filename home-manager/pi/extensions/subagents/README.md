@@ -31,7 +31,8 @@ project entry wins.
       "groups": ["gpu"]
     }
   },
-  "groups": { "gpu": 1 }
+  "groups": { "gpu": 1 },
+  "slots": { "llama-pc/lfm": 4, "openrouter/anthropic/claude-sonnet-4.5": 4 }
 }
 ```
 
@@ -53,8 +54,11 @@ project entry wins.
 - A named tool has to exist in the subagent's session or pi drops it without a word. That session is an SDK session and
   loads none of the CLI's built-in extensions, so the task supplies `codemode` itself; `tool_search` and MCP tools are
   not loaded, and naming them does nothing.
-- `groups` — names of the concurrency groups below; the top-level `groups` map holds their limits. Naming one twice is
-  a mistake (it would ask for two of that group's slots), so it is reported and collapsed to one.
+- `groups` — names of the concurrency groups below. The top-level `groups` map holds their limits, and a limit counts
+  how many *distinct models* may hold the group at once (see "Group concurrency"). Naming one group twice is a mistake,
+  so it is reported and collapsed to one.
+- `slots` — optional `"provider/model": N`, stating a model's slot count where the server does not report one — a cloud
+  provider, or a server that is not answering. See "Group concurrency".
 The entries are validated against a TypeBox schema at load. A bad entry is dropped with a message naming it
 (`[subagents] user subagent "x" skipped: /tools must be a non-empty list, or { enable } / { disable }`) and the rest
 of the config stays usable. One bad limit skips the whole `groups` map. A subagent that names a group nobody gave a
@@ -65,19 +69,28 @@ and pi reports it as a failed extension, rather than starting with no subagents 
 
 ## Group concurrency
 
-A subagent holding a slot in every group it names; the limit is how many may run at once, enforced **across all pi
-instances and all working directories** through the shared SQLite store at `~/.pi/agent/subagents/leases.db`:
+A subagent holds a slot in every group it names, and a group's limit means **how many distinct models may hold it at
+once** — the router here keeps one preset resident (`--models-max 1`), so a second, *different* model only swaps the
+card. Within one model the capacity is its own **slot count**: `slots` if configured, else the preset's `--parallel`
+read from `/v1/models` at spawn (which never loads a model), else 1. Two `cyber-tiel-coder` tasks (2 slots) run
+together; a `qwen-27B` task beside them is refused as a residency clash. Capacity counts per model across every group,
+so a model reached through two groups still runs only its slots, and a task shows where it sits as `(slot 2/2)`.
+Enforced **across every pi instance and working directory** through `~/.pi/agent/subagents/leases.db`:
 
-- **Reject, don't queue** — a spawn into a full group returns an error result (`isError`, `details.blocked`) naming the
-  full group(s). Nothing is created: no task record, no session, no session directory.
+- **Reject, don't queue** — a spawn refused by residency (the card is on another model) or capacity (this model's slots
+  are gone) returns `isError` + `details.blocked` naming the model. Nothing is created: no task record, no session,
+  no session directory.
 - **Atomic across groups** — several groups are taken together or not at all.
 - **Crash-safe** — a lease is a claim, not a counter: it expires 90 s after the last heartbeat (renewed every 20 s) and
-  any instance may reap it, so a dead process cannot deadlock a group. `/subagents leases purge` recovers at once, and
-  `/subagents leases` lists only leases that still count — an expired one is a slot somebody may already be standing in.
+  any instance may reap it, so a dead process cannot deadlock a group, and `/subagents leases purge` recovers at once.
+  `/subagents leases` lists only leases that still count — an expired one is a slot somebody may already be standing
+  in — and names the model (`provider/model`) each is on.
 - **Timers stay quiet** — the reap and heartbeat ticks swallow database errors and wait for the next tick. pi turns an
   uncaught exception in a callback into a crash record and `exit(1)`, so a locked database is never allowed to be fatal.
 - **Clean exit** — `session_shutdown` aborts running tasks and releases this instance's leases. pi fires it on quit and
   on `/new`, `/fork`, `/resume`, `/import` and `/reload`, so any of those stops the tasks this instance started.
+- **The main session is not leased** — nothing here knows which model the main agent itself is using. If it shares this
+  card, its own requests can swap away the model a subagent holds; only subagents are accounted for.
 - The store opens lazily on the first grouped spawn, so an untracked subagent (no `groups`) costs nothing. A lease that
   cannot be written throws with the database's own message, rather than looking like a full group.
 
@@ -161,9 +174,11 @@ The `Usage` those two tools report is synthetic — total tokens and total cost,
 ```
 subagents/
   index.ts            # config load, five tools, /subagents, lifecycle
+  config.ts           # subagents.json schema, merging and tool resolution
+  slots.ts            # SlotResolver: a model's slot count — config, then the server's --parallel, then 1
   task.ts             # SubagentTask: createAgentSession, progress events, outcome, lease release
   state.ts            # task registry + completion queue, TaskSummary for details and events, kill with a deadline
-  store.ts            # LeaseStore: cross-instance per-group concurrency over a shared SQLite file
+  store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
   ui.ts               # event emission, renderCall/renderResult, completion toast
   test-utils/check.mjs
 ```
@@ -190,9 +205,13 @@ What it pins down, mostly with the bugs it was written against:
   had already said as its report.
 - **tokens** — a running task counts what it is still writing and marks it live, a finished one reports the model's own
   figure, and `out …/ctx …/%` formats as `out 1.2k · ctx 41.2k/262k (16%)`, or `ctx ?/262k` when pi cannot estimate.
-- **leases** — the limit rejects, a multi-group claim fills all groups or none, `list()` returns the column names the
-  code reads (`expiresAt`, not `expires_at`) and hides a lease whose slot already expired, `close()` empties the
-  instance's leases and refuses further claims.
+- **leases** — a limit rejects a *different* model and admits several of the same one up to its slots (2 and 4 are
+  exercised), a multi-group claim fills all groups or none and counts once toward capacity, the slot label counts
+  spawns rather than lease rows, `list()` returns the column names the code reads (`expiresAt`, not `expires_at`) and
+  the model each lease is on, and hides a lease whose slot already expired; `close()` empties the instance's leases and
+  refuses further claims.
+- **slots** — `--parallel` comes out of a preset's launch args (absent or malformed means 1), a configured override
+  wins, and a server that is not answering means one slot rather than a failed spawn.
 - **config** — `enable` with `disable`, a non-list `enable`, a misspelled tool key and a missing provider/model are all
   refused with a message naming the entry; a file that cannot be parsed throws; a group named twice is collapsed and
   reported; project overrides user; one bad group limit skips the map; no list inherits the main agent's tools,

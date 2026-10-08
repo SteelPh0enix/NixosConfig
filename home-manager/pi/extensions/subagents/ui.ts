@@ -20,8 +20,10 @@ export interface SpawnDetails {
   id: string | null;
   name: string;
   model: string;
-  /** True when the spawn was rejected because a group was at capacity. */
+  /** True when the spawn was refused: the card is on another model, or this model's slots are all taken. */
   blocked?: boolean;
+  /** The slot label handed to a spawned task, when its model has more than one slot. */
+  slot?: { index: number; total: number };
 }
 
 export interface StatusDetails {
@@ -171,7 +173,8 @@ export function renderKillCall(args: { id: string }, theme: Theme): Text {
 function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolean } = {}): Text {
   const header = `${task.id} ${theme.fg("dim", "· ")}${theme.fg("accent", task.name)} ${theme.fg("dim", "· ")}${theme.fg("muted", task.model)}`;
   const idle = task.idle !== undefined && task.idle >= IDLE_AFTER_MS ? theme.fg("warning", ` idle ${formatElapsed(task.idle)}`) : "";
-  const lines = [`${header} ${stateLabel(task.state, theme)} ${theme.fg("dim", formatElapsed(task.elapsed))}${idle}`];
+  const slot = task.slot && task.slot.total > 1 ? theme.fg("muted", ` slot ${task.slot.index}/${task.slot.total}`) : "";
+  const lines = [`${header} ${stateLabel(task.state, theme)} ${theme.fg("dim", formatElapsed(task.elapsed))}${slot}${idle}`];
   if (task.error) lines.push(theme.fg("error", `  ${task.error}`));
   if (task.retry) lines.push(theme.fg("warning", `  retrying ${task.retry}`));
   // What it is doing goes on its own line; a settled task only shows its stats when the view is expanded.
@@ -206,6 +209,7 @@ export function renderSpawnResult(
     theme.fg("toolTitle", theme.bold("subagent_spawn ")) +
       theme.fg("accent", `${d.id} ← ${d.name}`) +
       theme.fg("dim", ` (${d.model})`) +
+      (d.slot && d.slot.total > 1 ? theme.fg("muted", ` · slot ${d.slot.index}/${d.slot.total}`) : "") +
       theme.fg("muted", " · running"),
   );
 }

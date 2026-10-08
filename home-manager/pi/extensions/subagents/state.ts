@@ -41,6 +41,11 @@ export interface TaskRecord {
   recentOutput: string;
   /** Groups this task holds a lease in (empty when the subagent is untracked). */
   groups: string[];
+  /**
+   * The slot label this task was handed on its model: `index` among the model's live slots, `total` the model's slot
+   * count. A label, not a reservation — it shifts as other tasks on the same model finish.
+   */
+  slot?: { index: number; total: number };
   /** Whether `subagent_wait` has already delivered this task to the main agent. */
   claimed: boolean;
   /** Whether this task's tokens and cost have already been reported to the main session (they must be once). */
@@ -84,7 +89,10 @@ export interface TaskSummary {
   lastActivity: string;
   retry?: string;
   error?: string;
+  /** Tail of the output, for the `/subagents <id>` detail view and result blocks. */
   recentOutput: string;
+  /** The slot label this task is showing, when its model has more than one slot. */
+  slot?: { index: number; total: number };
   /**
    * Last lines of the task's own text, for the live `subagent_wait` widget. Only set by that widget's progress
    * updates, so it never reaches the session file and never carries a finished task's report.
@@ -159,6 +167,7 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
     retry: record.retry,
     error: record.error,
     recentOutput: record.recentOutput.slice(-SUMMARY_OUTPUT_LIMIT),
+    slot: record.slot,
   };
 }
 
