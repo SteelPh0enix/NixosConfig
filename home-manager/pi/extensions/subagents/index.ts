@@ -267,6 +267,10 @@ export default function subagents(pi: ExtensionAPI): void {
         throw new Error("save_session and workdir need a session name to put their directory under");
       }
 
+      // llama-compat fills a llama.cpp model's context size from the server, and --fit can answer differently from
+      // one load to the next, so ask the provider for its live figures before resolving. A server that is not
+      // answering is not the subagent's problem: pi keeps the catalog it already has and the spawn goes ahead.
+      await ctx.modelRegistry.refresh({ providers: [config.provider], force: true }).catch(() => {});
       const model = ctx.modelRegistry.find(config.provider, config.model);
       if (!model) {
         throw new Error(`unknown model "${config.provider}/${config.model}"`);

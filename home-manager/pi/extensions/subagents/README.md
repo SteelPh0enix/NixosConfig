@@ -35,8 +35,10 @@ project entry wins.
 }
 ```
 
-- `provider`, `model` — **required**. The subagent is hard-bound to that model of that provider. The pair is resolved
-  when the task spawns, so a wrong one is a spawn error naming it.
+- `provider`, `model` — **required**. The subagent is hard-bound to that model of that provider. The provider is
+  refreshed and the pair resolved when the task spawns, so a wrong one is a spawn error naming it and a llama.cpp
+  model whose context was re-fit since pi started is handed its live window; a server that is not answering just
+  leaves the catalog pi already has.
 - `description` — optional, shown in the spawn tool so the main agent knows what each subagent is for.
 - `tools` — optional. Which tools the subagent gets, chosen from the main agent's active set read at spawn
   (`pi.getActiveTools()`); the five `subagent_*` tools are **always** excluded. Three shapes:

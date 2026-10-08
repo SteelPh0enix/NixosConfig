@@ -407,9 +407,16 @@ if (!nodeModules) {
   ok("the five tools register", ["spawn", "status", "wait", "result", "kill"].every((n) => tools.has(`subagent_${n}`)));
   ok("the /subagents command registers", commands.has("subagents"));
 
+  const registryLog = [];
   const ctx = {
     cwd: entry,
-    modelRegistry: { find: (_p, model) => (model === "ok" ? {} : undefined) },
+    modelRegistry: {
+      refresh: (options) => (
+        registryLog.push(`refresh:${options.providers.join()}:${options.force ? "force" : "lazy"}`),
+        Promise.resolve({ aborted: false, errors: new Map() })
+      ),
+      find: (_p, model) => (registryLog.push(`find:${model}`), model === "ok" ? {} : undefined),
+    },
     sessionManager: { getSessionFile: () => undefined },
     ui: { notify: (message) => notices.push(message) },
   };
@@ -429,6 +436,7 @@ if (!nodeModules) {
   ok("kill refuses an unknown id", await rejects("subagent_kill", { id: "task-9" }, "no such subagent task"));
   ok("spawn refuses an unconfigured name", await rejects("subagent_spawn", { name: "ghost", task: "t" }, "unknown subagent"));
   ok("spawn refuses a model it cannot find", await rejects("subagent_spawn", { name: "worker", task: "t" }, 'unknown model "p/nope"'));
+  ok("spawn refreshed that provider first", registryLog.slice(0, 2).join("|") === "refresh:p:force|find:nope");
   ok("save_session needs a session name", await rejects("subagent_spawn", { name: "worker", task: "t", save_session: true }, "need a session name"));
   ok("workdir needs a session name", await rejects("subagent_spawn", { name: "worker", task: "t", workdir: true }, "need a session name"));
   ok("a session name must be kebab-case", await rejects("subagent_spawn", { name: "worker", task: "t", session: "Repo Scan" }, "invalid session name"));

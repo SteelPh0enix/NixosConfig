@@ -80,6 +80,8 @@ type TemplateThinking = {
   efforts: string[];
   /** Whether it keeps past thoughts in context when asked (Qwen3's preserve_thinking). */
   preserveThinking: boolean;
+  /** Whether it writes its own thinking tags - a reasoning model even with no switch and no effort. */
+  emitsThinking: boolean;
   /** chat_template_caps.supports_reasoning_effort. */
   effortCap?: boolean;
 };
@@ -94,6 +96,12 @@ const EFFORT_LITERAL = String.raw`['"]([a-z][a-z0-9_-]*)['"]`;
 const EFFORT_VARIABLE = /(?<![\w.])([a-z_]*reasoning_effort)(?![\w.])/g;
 const THINKING_VARIABLE = /(?<![\w.])([a-z0-9_]*thinking[a-z0-9_]*)(?![\w.])/g;
 const PRESERVE_THINKING = /(?<![\w.])preserve_thinking(?![\w.])/;
+
+/** The two spellings of an opening thinking tag llama.cpp splits on; assembled so this file stays literal-free. */
+const THINKING_TAGS = ["think", "im_start>thinking"].map((name) => `<${name}>`);
+
+/** A template that writes its own thinking tags is a reasoning model whatever variable it reads about it. */
+const emitsThinkingTags = (template: string) => THINKING_TAGS.some((tag) => template.includes(tag));
 const CONTROL_TAG = /^\{[%{]-?\s*(?:if|elif|set)\b/;
 
 /** preserve_thinking keeps past thoughts and thinking_budget sizes them; neither switches thinking on. */
@@ -164,6 +172,7 @@ function templateThinking(props: ServerProps): TemplateThinking | undefined {
     efforts: effort?.values ?? [],
     preserveThinking:
       props.chat_template_caps?.supports_preserve_reasoning ?? tags.some((tag) => PRESERVE_THINKING.test(tag)),
+    emitsThinking: emitsThinkingTags(props.chat_template),
     effortCap: props.chat_template_caps?.supports_reasoning_effort,
   };
 }
@@ -191,7 +200,10 @@ function thinkingPolicy(served: Served): ThinkingPolicy | undefined {
   const driven = template.switchName !== undefined || ownEffort;
   if (!driven) {
     if (template.effortCap !== true) {
-      if (template.effortCap === false && template.effortName === undefined) return { reasoning: false, label: "none" };
+      // Writing its own thinking tags makes it a reasoning model on its own say-so: nothing can be asked of it
+      // beyond off, which pi sends as reasoning_effort none, so the levels stay as models.json gave them.
+      if (template.effortCap === false && template.effortName === undefined)
+        return template.emitsThinking ? { reasoning: true, label: "thinking tags" } : { reasoning: false, label: "none" };
       return undefined;
     }
     if (!named) return { reasoning: true, supportsReasoningEffort: true, label: "reasoning_effort (unvalidated)" };
