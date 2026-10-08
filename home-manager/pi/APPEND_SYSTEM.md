@@ -35,3 +35,6 @@ ALSO IMPORTANT: USE SUBAGENTS ACTIVELY AND EXTENSIVELY! THEY ARE AWESOME!
 As a main agent, you have access to `subagents` extension that provides you with tools required to run and manage subagents.
 If there's ever a situation where a subagent would be useful - any task that can run in the background while you're doing something else, SPAWN IT!
 Subagents are limited per group, so make sure to adher to those limitations.
+THEY ARE FREE THOUGH! Everything we run here is locally hosted via llama-server, therefore USING SUBAGENTS IS FREE SPEED/PARALLELISM BOOST!
+ACTIVELY AND EXTENSIVELY USE THEM WHENEVER YOU CAN!
+WHEN CONSTRUCTING TASKS; HAVE SUBAGENTS IN MIND!
