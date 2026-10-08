@@ -9,3 +9,4 @@ smb-secrets
 
 # pi agent
 home-manager/pi/.pi
+.pi/subagents
