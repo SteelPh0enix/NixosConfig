@@ -88,7 +88,8 @@ report.
 
 `session` is a short kebab-case name that decides the directory:
 `.pi/subagents/sessions/<session>-<YYYY-MM-DD>-<HHMMSS>/` under the main working directory (`-2`, `-3` on a clash
-within the same second). Both switches need it, and at least one of them must be set:
+within the same second). Both switches need it, and at least one of them must be set — a bare `session` asks for
+nothing, so it creates no directory:
 
 - `save_session` — persist the task's transcript there with the SDK's `SessionManager.create(cwd, dir)`. Standard
   format, openable in pi afterwards.
@@ -171,7 +172,8 @@ What it pins down, mostly with the bugs it was written against:
 - **config** — `enable` with `disable`, a non-list `enable`, a misspelled tool key and a missing provider/model are all
   refused with a message naming the entry; project overrides user; one bad group limit skips the map; no list inherits
   the main agent's tools, `disable` subtracts from them, and a tool the main agent lacks never leaks in.
-- **renderers** — the state paints as text (once it was `[object Object]`), a blocked spawn says which group, elapsed
+- **renderers** — the state paints as text (once it was `[object Object]`), an abort never overwrites the activity line
+  with a model error, a blocked spawn says which group, elapsed
   formats as `41s` / `3m12s` / `1h05m`, a live wait shows the subagent's last lines and says it is still running, and a
   timed-out wait says so.
 - **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, and every way into a
