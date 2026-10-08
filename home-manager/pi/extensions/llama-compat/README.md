@@ -27,7 +27,8 @@ refresh re-reads the server without restarting pi.
 |---|---|
 | served `n_ctx` | `contextWindow`, and `maxTokens` clamped down to it |
 | vision projector present / absent | `input` `["text", "image"]` / `["text"]` |
-| any thinking switch or effort at all | `reasoning: true`, otherwise `false` |
+| any thinking switch, effort, or thinking tags of its own | `reasoning: true`, otherwise `false` |
+| template emits thinking tags but reads no variable about it (LFM2.5) | `reasoning: true`, no thinking format, `thinkingLevelMap` left as `models.json` gave it - only `off` means anything to it |
 | template declares its own variables (a switch such as `enable_thinking` or `thinking`, or a `*_reasoning_effort`) | `compat.thinkingFormat: "chat-template"` with `chatTemplateKwargs` carrying the switch and, when the template names the values it accepts, the effort too; `preserve_thinking` only when the template declares it |
 | template only reads OpenAI's `reasoning_effort` | `supportsReasoningEffort: true` and a `thinkingLevelMap` over the efforts the template names, others marked null |
 | always | `supportsStore`/`supportsDeveloperRole`/`supportsStrictMode` false, `supportsUsageInStreaming` true, `maxTokensField: "max_tokens"` |

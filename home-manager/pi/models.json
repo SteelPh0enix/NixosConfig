@@ -81,12 +81,7 @@
             "max": null
           }
         }
-      ],
-      "modelOverrides": {
-        "lfm": {
-          "reasoning": true
-        }
-      }
+      ]
     },
     "llama-fwpc-vulkan": {
       "baseUrl": "http://steelph0enix.framework:51536/v1",

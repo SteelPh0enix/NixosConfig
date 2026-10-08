@@ -9,7 +9,7 @@
     "coder": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Implement or fix code in the working tree: reads, edits, runs commands and tests. Best of the two PC models at code, and the faster one to decode.",
+      "description": "Implement or fix code in the working tree: reads, edits, runs commands and tests. The card's best coder, and MTP earns its keep on code rather than prose.",
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
@@ -25,6 +25,27 @@
       "model": "qwen-27B",
       "description": "Investigate a question against the web, upstream docs or the local nixpkgs checkout, and report what was found with sources. Writes nothing.",
       "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
+      "groups": ["pc"]
+    },
+    "writer": {
+      "provider": "llama-pc",
+      "model": "occult-nail",
+      "description": "Write or reword prose: commit messages, docs, release notes, user-facing text. The general-purpose model of the set - more knowledge and steadier wording than Cyber-Tiel, and slow, so keep the scope to words.",
+      "tools": ["read", "edit", "write", "codemode"],
+      "groups": ["pc"]
+    },
+    "runner": {
+      "provider": "llama-pc",
+      "model": "lfm",
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping and triaging logs. The fastest thing here and not clever, so spell out every step and say when to stop.",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["pc"]
+    },
+    "summarizer": {
+      "provider": "llama-pc",
+      "model": "sharp-spark",
+      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. The largest window on the card and cheap prefill; 4B, so ask for extraction rather than judgement.",
+      "tools": ["read", "bash", "codemode"],
       "groups": ["pc"]
     }
   },

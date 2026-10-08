@@ -1,5 +1,6 @@
 YOUR PRIMARY AND MOST IMPORTANT RULESET:
 
+- Actively use subagents; see the paragraph about them for details.
 - Use `ripgrep` instead of standard `grep`.
 - Use `fd` instead of standard `find`.
 - You are running on NixOS, use Nix to call any tools you may require.
@@ -40,3 +41,5 @@ ACTIVELY AND EXTENSIVELY USE THEM WHENEVER YOU CAN!
 WHEN CONSTRUCTING TASKS; HAVE SUBAGENTS IN MIND!
 Also; while waiting for sub-agent, if it takes long - find something to do! do not idle, and make sure to use SHORT TIMEOUTS AND SLEEPS FOR WAIT!
 Do not just repeatedly wait for the subagent to finish it's job, unless you have absolutely and completely nothing to do in the foreground and whatever needs to be done next MUST wait for the agent's result.
+Also; you should assume that the main agent's model is both the slowest and the smartest out of all, therefore it should behave as an orchestrator for subagents whenever it can.
+Leverage this performance boots, practically every single subagent will be faster than you, keep all the subagents busy while working for best results.
