@@ -1,11 +1,11 @@
 // Config schema, loading, and tool resolution for the subagents extension.
 //
 // A subagent is bound to one provider + model. Each subagent also carries a
-// `tools` setting that decides which of the main agent's tools it gets:
-//   - omitted  -> every main-agent tool except the subagent tools themselves
-//   - a list   -> that exact list, and nothing else (subagent tools dropped)
-//   - { enable }   -> an allowlist, same as a list
-//   - { disable }  -> the default set minus those tools
+// `tools` setting that decides which tools it gets, out of `mainTools` (the
+// main agent's active tools, read at spawn):
+//   - omitted        -> mainTools
+//   - { disable }    -> mainTools minus these
+//   - a list / { enable } -> that exact list, and nothing else
 // Validation runs against the TypeBox schemas below; entries that fail are
 // reported and skipped instead of taking the whole config down.
 
@@ -62,17 +62,22 @@ export interface ResolvedTools {
 /**
  * Resolve a subagent's tool setting into `createAgentSession` options.
  * Subagent tools are always excluded (isolation), whatever the setting says.
+ *
+ * Without an exact allowlist the subagent inherits `mainTools`, so a tool the
+ * main agent does not have cannot leak in. An empty `mainTools` means the
+ * caller cannot see the main session's set at all, and pi's own default
+ * selection is left alone.
  */
-export function resolveTools(config: SubagentConfig | undefined): ResolvedTools {
+export function resolveTools(config: SubagentConfig | undefined, mainTools: string[] = []): ResolvedTools {
   const excluded = new Set<string>(SUBAGENT_TOOL_NAMES);
-  if (!config?.tools) return { excludeTools: [...excluded] };
-
-  // Allowlist forms: the subagent tools are simply not part of the list.
-  const allow = Array.isArray(config.tools) ? config.tools : config.tools.enable;
-  if (allow) return { tools: allow.filter((name) => !excluded.has(name)), excludeTools: [] };
-
-  for (const name of config.tools.disable ?? []) excluded.add(name);
-  return { excludeTools: [...excluded] };
+  if (config?.tools) {
+    // Allowlist forms: the subagent tools are simply not part of the list.
+    const allow = Array.isArray(config.tools) ? config.tools : config.tools.enable;
+    if (allow) return { tools: allow.filter((name) => !excluded.has(name)), excludeTools: [] };
+    for (const name of config.tools.disable ?? []) excluded.add(name);
+  }
+  if (mainTools.length === 0) return { excludeTools: [...excluded] };
+  return { tools: mainTools.filter((name) => !excluded.has(name)), excludeTools: [] };
 }
 
 export interface LoadedConfig {

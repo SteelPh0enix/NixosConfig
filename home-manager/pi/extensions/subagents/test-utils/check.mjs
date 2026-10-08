@@ -66,11 +66,15 @@ const aborted = timeoutReg.waitForCompletion(5000, undefined, controller.signal)
 controller.abort();
 ok("Ctrl-C ends the wait instead of holding it", (await aborted) === false);
 
-const done = toSummary(record("task-1", {
-  state: "done", startedAt: Date.now() - 15000, finishedAt: Date.now() - 5000,
+// `now` is pinned twice, far apart, so a summary that quietly measures from the finish cannot pass.
+const endedAt = Date.now() - 5000;
+const ended = record("task-1", {
+  state: "done", startedAt: endedAt - 15000, finishedAt: endedAt,
   recentOutput: "x".repeat(3000),
-}));
-ok("elapsed stops at the finish", done.elapsed > 4900 && done.elapsed < 5100);
+});
+const done = toSummary(ended, endedAt);
+ok("elapsed is how long the task ran", done.elapsed === 15000);
+ok("elapsed stops at the finish", toSummary(ended, endedAt + 60000).elapsed === 15000);
 ok("a running task reports its running time", toSummary(record("task-2", { startedAt: Date.now() - 3000 })).elapsed > 2900);
 const quiet = toSummary(record("task-q", { lastActivityAt: Date.now() - 20000 }));
 ok("a running task says how long it has been silent", quiet.idle > 19900);
@@ -177,6 +181,11 @@ if (!nodeModules) {
   ok("enable is an allowlist too", json(resolveTools(subagents({}).enable)) === json({ tools: ["read", "grep"], excludeTools: [] }));
   ok("disable layers on the default set", json(resolveTools(subagents({}).disable)) === json({ excludeTools: [...SUBAGENT_TOOLS, "write"] }));
   ok("the subagent tools never survive an allowlist", json(resolveTools({ provider: "p", model: "m", tools: ["read", "subagent_spawn"] })) === json({ tools: ["read"], excludeTools: [] }));
+  const main = ["read", "bash", "edit", "write", "codemode", "subagent_spawn"];
+  ok("with no list the subagent inherits the main agent's tools", json(resolveTools({ provider: "p", model: "m" }, main)) === json({ tools: ["read", "bash", "edit", "write", "codemode"], excludeTools: [] }));
+  ok("disable subtracts from the main agent's tools", json(resolveTools(subagents({}).disable, ["read", "bash", "write"])) === json({ tools: ["read", "bash"], excludeTools: [] }));
+  ok("a tool the main agent lacks never leaks in", !JSON.stringify(resolveTools({ provider: "p", model: "m" }, ["read"])).includes("bash"));
+  ok("with no view of the main session pi's own defaults stay", json(resolveTools({ provider: "p", model: "m" }, [])) === json({ excludeTools: SUBAGENT_TOOLS }));
 
   console.log("\nrenderers");
   const theme = { fg: (_token, s) => s, bold: (s) => s };
@@ -249,6 +258,7 @@ if (!nodeModules) {
   const fakePi = {
     registerTool: (tool) => tools.set(tool.name, tool),
     registerCommand: (name, def) => commands.set(name, def),
+    getActiveTools: () => ["read", "bash"],
     on: () => {},
     events: { emit: (_channel, data) => emitted.push(data) },
   };

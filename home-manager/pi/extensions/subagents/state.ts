@@ -70,7 +70,7 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
     name: record.name,
     model: record.model,
     state: record.state,
-    elapsed: Math.max(0, now - (record.finishedAt ?? record.startedAt)),
+    elapsed: Math.max(0, (record.finishedAt ?? now) - record.startedAt),
     idle: record.state === "running" ? Math.max(0, now - record.lastActivityAt) : undefined,
     turns: record.turns,
     tokens: record.usage.tokens,

@@ -291,7 +291,8 @@ export default function subagents(pi: ExtensionAPI): void {
         sessionDir && params.save_session
           ? SessionManager.create(effectiveCwd, sessionDir)
           : SessionManager.inMemory(effectiveCwd);
-      const resolvedTools: ResolvedTools = resolveTools(config);
+      // A subagent without an exact allowlist inherits what the main agent has right now.
+      const resolvedTools: ResolvedTools = resolveTools(config, pi.getActiveTools());
 
       const id = registry.nextId();
       const record: TaskRecord = {
