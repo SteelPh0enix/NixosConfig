@@ -35,6 +35,9 @@ const ToolConfigSchema = Type.Union([
 /** Group name -> max concurrent subagents in that group (integer >= 1). */
 const GroupsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
 
+/** provider/model -> slot count override, for a provider that does not report its own `--parallel` (integer >= 1). */
+const SlotsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
+
 export const SubagentConfigSchema = Type.Object({
   provider: Type.String({ minLength: 1 }),
   model: Type.String({ minLength: 1 }),
@@ -84,6 +87,8 @@ export interface LoadedConfig {
   subagents: Map<string, SubagentConfig>;
   /** Group name -> max concurrent subagents for that group. */
   groups: Map<string, number>;
+  /** provider/model -> slot count, overriding the server's own `--parallel` for that model. */
+  slots: Map<string, number>;
   errors: string[];
 }
 
@@ -120,6 +125,7 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
   const errors: string[] = [];
   const subagents = new Map<string, SubagentConfig>();
   const groups = new Map<string, number>();
+  const slots = new Map<string, number>();
 
   // A config that cannot be read or parsed is not the same as no config: loading on would leave the main agent with
   // no subagents and no clue why, so it throws and pi reports this extension as failed to load.
@@ -143,6 +149,13 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
         errors.push(`${source} config groups must be a { "<name>": <positive integer> } map; skipped`);
       } else {
         for (const [groupName, limit] of Object.entries(data.groups as Record<string, number>)) groups.set(groupName, limit);
+      }
+    }
+    if (data.slots !== undefined) {
+      if (!Value.Check(SlotsSchema, data.slots)) {
+        errors.push(`${source} config slots must be a { "provider/model": <positive integer> } map; skipped`);
+      } else {
+        for (const [providerModel, count] of Object.entries(data.slots as Record<string, number>)) slots.set(providerModel, count);
       }
     }
     for (const [name, raw] of Object.entries(data.subagents)) {
@@ -173,7 +186,7 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
     }
   }
 
-  return { subagents, groups, errors };
+  return { subagents, groups, slots, errors };
 }
 
 /** Build the `name` enum for `subagent_spawn` from the configured subagent names. */

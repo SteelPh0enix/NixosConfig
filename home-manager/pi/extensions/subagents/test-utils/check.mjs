@@ -131,34 +131,38 @@ ok("details carry a bounded output", done.recentOutput.length === 1000);
 // ---- group leases (store.ts) ----
 
 const { LeaseStore } = await importFrom(SRC, "store.ts");
+const { SlotResolver, parallelFromArgs } = await importFrom(SRC, "slots.ts");
+const { DatabaseSync } = await import("node:sqlite");
 const dbDir = mkdtempSync(join(tmpdir(), "subagents-check-"));
 const store = new LeaseStore(join(dbDir, "leases.db"), "inst-A");
 store.start();
 
 console.log("\nleases");
-const held = store.acquire("gpu-batch", [{ group: "gpu", limit: 1 }]);
-ok("acquire holds a slot", Array.isArray(held) && held.length === 1);
-ok("a full group rejects", store.acquire("gpu-batch", [{ group: "gpu", limit: 1 }]) === null);
+// One spawn's claim on a model: "provider/model", that model's slot count, and one id its groups share.
+const claim = (key, capacity, id) => ({ key, capacity, claim: id });
+const oneGroup = [{ group: "gpu", limit: 1 }];
+const held = store.acquire("gpu-batch", claim("llama.cpp/m", 1, "held"), oneGroup);
+ok("acquire holds a slot", held.ok && held.ids.length === 1);
+ok("a full group rejects", store.acquire("gpu-batch", claim("llama.cpp/m", 1, "second"), oneGroup).ok === false);
 const rows = store.list();
-ok("list() names its columns the way the code reads them", rows.length === 1 && typeof rows[0].expiresAt === "number" && typeof rows[0].instanceId === "string" && rows[0].expiresAt > Date.now());
-ok("a multi-group spawn that cannot fill every group fills none", store.acquire("x", [{ group: "gpu", limit: 1 }, { group: "mem", limit: 3 }]) === null && !store.list().some((l) => l.grp === "mem"));
+ok("list() names its columns the way the code reads them", rows.length === 1 && typeof rows[0].expiresAt === "number" && typeof rows[0].instanceId === "string" && rows[0].expiresAt > Date.now() && typeof rows[0].resKey === "string");
+ok("a multi-group spawn that cannot fill every group fills none", store.acquire("x", claim("llama.cpp/m", 1, "third"), [{ group: "gpu", limit: 1 }, { group: "mem", limit: 3 }]).ok === false && !store.list().some((l) => l.grp === "mem"));
 // An expired lease is a slot somebody else may already be standing in; listing it reads as a full group.
-const { DatabaseSync } = await import("node:sqlite");
 const expDir = mkdtempSync(join(tmpdir(), "subagents-exp-"));
 const expiring = new LeaseStore(join(expDir, "leases.db"), "inst-E");
-expiring.acquire("late", [{ group: "gpu", limit: 1 }]);
+expiring.acquire("late", claim("llama.cpp/m", 1, "late"), [{ group: "gpu", limit: 1 }]);
 new DatabaseSync(join(expDir, "leases.db")).exec("UPDATE leases SET expires_at = 1");
 ok("list() hides a lease whose slot has already expired", expiring.list().length === 0);
 ok("an expired lease is still reaped", expiring.reap() === 1);
 expiring.close();
 
-store.release(held[0]);
-ok("release frees the slot", store.acquire("gpu-batch", [{ group: "gpu", limit: 1 }]) !== null);
+store.release(held.ids[0]);
+ok("release frees the slot", store.acquire("gpu-batch", claim("llama.cpp/m", 1, "fourth"), oneGroup).ok === true);
 store.close();
 ok("close empties this instance's leases", store.list().length === 0);
 let closedThrew = false;
 try {
-  store.acquire("x", [{ group: "gpu", limit: 1 }]);
+  store.acquire("x", claim("llama.cpp/m", 1, "closed"), oneGroup);
 } catch {
   closedThrew = true;
 }
@@ -166,6 +170,55 @@ ok("acquire after close says so", closedThrew);
 store.release(1);
 store.heartbeat();
 ok("a late release or heartbeat is harmless", true);
+
+// Two dimensions now: a group limit counts distinct models, and within a model the capacity is its slot count.
+const pc = new LeaseStore(join(dbDir, "pc.db"), "inst-PC");
+const occupant = pc.acquire("writer", claim("llama-pc/occult-nail", 1, "occ"), [{ group: "pc", limit: 1 }]);
+ok("a model holds its group", occupant.ok);
+// A different model is refused as a residency clash even though occult-nail has free slots, and both are named.
+const clash = pc.acquire("coder", claim("llama-pc/cyber-tiel-coder", 2, "clash"), [{ group: "pc", limit: 1 }]);
+ok("a different model is refused by residency", !clash.ok && clash.reason === "resident" && clash.at.includes("occult-nail") && clash.limit === 1);
+ok("a blocked spawn creates nothing", pc.list().length === 1);
+// cyber-tiel-coder has two slots: two of it spawn, a third is refused, naming the model and its slot count.
+const coder = new LeaseStore(join(dbDir, "coder.db"), "inst-CODER");
+const take = (store, key, capacity, id) => store.acquire(id, claim(key, capacity, id), [{ group: "pc", limit: 1 }]);
+ok("first on a 2-slot model spawns", take(coder, "llama-pc/cyber-tiel-coder", 2, "c1").ok);
+ok("second on the same 2-slot model spawns", take(coder, "llama-pc/cyber-tiel-coder", 2, "c2").ok);
+const coderThird = take(coder, "llama-pc/cyber-tiel-coder", 2, "c3");
+ok("a third on the 2-slot model is refused by capacity", !coderThird.ok && coderThird.reason === "full" && coderThird.at.includes("cyber-tiel-coder") && coderThird.capacity === 2);
+// lfm has four slots: four spawn, the fifth is refused.
+const lfm = new LeaseStore(join(dbDir, "lfm.db"), "inst-LFM");
+let lfmOk = true;
+for (let i = 1; i <= 4; i += 1) lfmOk = take(lfm, "llama-pc/lfm", 4, `t${i}`).ok && lfmOk;
+const lfmFifth = take(lfm, "llama-pc/lfm", 4, "t5");
+ok("four on a 4-slot model spawn, the fifth is refused", lfmOk && !lfmFifth.ok && lfmFifth.reason === "full");
+// One spawn that takes two groups on a 2-slot model counts once; a second spawn still fits, a third does not.
+const multi = new LeaseStore(join(dbDir, "multi.db"), "inst-MULTI");
+const takeMulti = (id) => multi.acquire(id, claim("llama-pc/cyber-tiel-coder", 2, id), [
+  { group: "pc", limit: 1 },
+  { group: "mem", limit: 2 },
+]);
+const multiFirst = takeMulti("m1");
+const multiSecond = takeMulti("m2");
+ok("a multi-group spawn fills all its groups", multiFirst.ok && multiFirst.ids.length === 2);
+ok("a second spawn still fits — the first counted once, not twice", multiSecond.ok);
+// Two lease rows per spawn: the label counts spawns, so the second one is slot 2 of 2, never 3.
+ok("the slot label counts spawns, not lease rows", multiFirst.slot.index === 1 && multiSecond.slot.index === 2 && multiSecond.slot.total === 2);
+const multiThird = takeMulti("m3");
+ok("a model reached through two groups still runs only its slot count", !multiThird.ok && multiThird.reason === "full");
+ok("list() exposes the model each lease is on", multi.list().every((l) => l.resKey === "llama-pc/cyber-tiel-coder"));
+pc.close();
+coder.close();
+lfm.close();
+multi.close();
+
+// Discovery only reads /v1/models, never loads a model: a silent server means one slot, an override still wins.
+console.log("\nslots");
+const silent = new SlotResolver("http://127.0.0.1:59999/v1", "p");
+ok("a server that is not answering means one slot", (await silent.slotsFor("p/silent-model", undefined)) === 1);
+ok("an override beats a silent server", (await silent.slotsFor("p/override-model", 4)) === 4);
+ok("--parallel N is read out of a preset's launch args", parallelFromArgs(["--ctx-size", "c", "--parallel", "4"]) === 4);
+ok("a model that reports no --parallel still gets one slot", parallelFromArgs(undefined) === 1 && parallelFromArgs(["--parallel"]) === 1 && parallelFromArgs(["--parallel", "nope"]) === 1);
 
 // ---- config (config.ts) and renderers (ui.ts), through pi's node_modules ----
 
@@ -366,6 +419,12 @@ if (!nodeModules) {
   ok("the spawn result reads `task-1 ← researcher (m)`", spawn.includes("task-1") && spawn.includes("researcher"));
   const blocked = renderSpawnResult({ content: [{ type: "text", text: "spawn blocked: gpu (limit 1) at capacity" }], details: { id: null, name: "g", model: "m", blocked: true } }, opts, theme).render(120).join("\n");
   ok("a blocked spawn says why", blocked.includes("gpu"));
+  const spawned = renderSpawnResult({ content: [{ type: "text", text: "x" }], details: { id: "task-7", name: "coder", model: "m", slot: { index: 2, total: 2 } } }, opts, theme).render(120).join("\n");
+  ok("a spawned task on a multi-slot model shows its slot", spawned.includes("slot 2/2"));
+  const slotSummary = toSummary(record("task-s", { slot: { index: 1, total: 4 } }));
+  const slotStatus = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [slotSummary] } }, opts, theme).render(120).join("\n");
+  ok("a status line shows the slot when a model has more than one", slotStatus.includes("slot 1/4"));
+  ok("a single-slot model shows no slot label", !renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [toSummary(record("task-one"))] } }, opts, theme).render(120).join("\n").includes("slot "));
   ok("elapsed formats as 41s / 3m12s / 1h05m", formatElapsed(41000) === "41s" && formatElapsed(192000) === "3m12s" && formatElapsed(3900000) === "1h05m");
 
   console.log("\nentry point");

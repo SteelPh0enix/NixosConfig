@@ -107,9 +107,10 @@ in
     # Background subagents: spawn named tasks bound to a provider/model, watch them, collect results.
     # Multi-file (index/config/state/task/ui), so the whole directory is copied as-is.
     "${agentDir}/extensions/subagents".source = ./extensions/subagents;
-    # Which subagents exist, and how many may run at once: one in total, because the router keeps a single preset
-    # resident and a second one running alongside would only be swapping the card. One subagent per preset, each
-    # bound to what that preset is good at; its context size is read from the server when the task spawns.
+    # Which subagents exist, and how many may run at once: one *model* at a time, because the router keeps a single
+    # preset resident and running a *different* one alongside would swap the card. `groups: { pc: 1 }` means that; a
+    # model's own slot count (`--parallel`, or the `slots` override) then decides how many of the same preset run
+    # together. Each subagent is bound to what its preset is good at; its context size is read from the server at spawn.
     "${agentDir}/subagents.json".source = ./subagents.json;
     # Link every template by name instead of replacing the whole directory.
     "${agentDir}/prompts" = {

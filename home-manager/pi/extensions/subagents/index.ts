@@ -22,7 +22,8 @@ import type { Usage } from "@earendil-works/pi-ai";
 import { loadSubagentConfigs, resolveTools, nameSchema, type ResolvedTools } from "./config.ts";
 import { IDLE_AFTER_MS, killRecord, TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
 import { SubagentTask } from "./task.ts";
-import { LeaseStore, type LeaseRequest } from "./store.ts";
+import { LeaseStore, type LeaseRequest, type AcquireResult } from "./store.ts";
+import { SlotResolver } from "./slots.ts";
 import {
   emitStatus,
   formatElapsed,
@@ -80,7 +81,7 @@ interface SpawnParams {
 
 export default function subagents(pi: ExtensionAPI): void {
   // The project config is read from the process working directory at startup.
-  const { subagents: configs, groups, errors } = loadSubagentConfigs(process.cwd(), getAgentDir());
+  const { subagents: configs, groups, slots, errors } = loadSubagentConfigs(process.cwd(), getAgentDir());
   for (const error of errors) console.warn(`[subagents] ${error}`);
   const names = [...configs.keys()];
   const registry = new TaskRegistry();
@@ -93,6 +94,15 @@ export default function subagents(pi: ExtensionAPI): void {
       store.start();
     }
     return store;
+  }
+
+  // One slot resolver per provider, so its short cache outlives a spawn: each provider is asked for its slot counts
+  // about every 30 s rather than on every spawn.
+  const resolvers = new Map<string, SlotResolver>();
+  async function slotsFor(provider: string, providerModel: string, baseUrl: string): Promise<number> {
+    const resolver = resolvers.get(provider) ?? new SlotResolver(baseUrl, provider);
+    resolvers.set(provider, resolver);
+    return resolver.slotsFor(providerModel, slots.get(providerModel));
   }
 
   // ---- helpers -------------------------------------------------------------
@@ -130,7 +140,8 @@ export default function subagents(pi: ExtensionAPI): void {
   function formatStatusLine(record: TaskRecord): string {
     const summary = toSummary(record);
     const idle = summary.idle !== undefined && summary.idle >= IDLE_AFTER_MS ? ` (idle ${formatElapsed(summary.idle)})` : "";
-    const activity = summary.lastActivity ? ` — ${summary.lastActivity}${idle}` : "";
+    const slot = summary.slot && summary.slot.total > 1 ? ` (slot ${summary.slot.index}/${summary.slot.total})` : "";
+    const activity = summary.lastActivity ? ` — ${summary.lastActivity}${slot}${idle}` : "";
     const err = summary.error ? ` — ${summary.error}` : "";
     return `${record.id} · ${record.name} (${record.model}) · ${summary.state} · ${formatElapsed(summary.elapsed)}${activity}${err}`;
   }
@@ -175,7 +186,7 @@ export default function subagents(pi: ExtensionAPI): void {
       const lines = leases.map((l) => {
         const when = new Date(l.expiresAt).toISOString();
         const secsLeft = Math.max(0, Math.round((l.expiresAt - now) / 1000));
-        return `${l.grp} · ${l.subagent} · pid ${l.pid} · expires ${when} (+${secsLeft}s)`;
+        return `${l.grp} (${l.resKey}) · ${l.subagent} · pid ${l.pid} · expires ${when} (+${secsLeft}s)`;
       });
       ctx.ui.notify(`subagents: ${leases.length} active lease(s):\n${lines.join("\n")}`);
       return;
@@ -276,7 +287,14 @@ export default function subagents(pi: ExtensionAPI): void {
         throw new Error(`unknown model "${config.provider}/${config.model}"`);
       }
 
-      // Hold a slot in each of this subagent's groups; reject the spawn if any is full.
+      // A group's limit counts distinct models; within a model the capacity is that model's own slot count. Resolve
+      // it (config override, then the server's --parallel, then 1) before taking any slot. Discovery reads only
+      // /v1/models, so it never loads or swaps the resident model, and a silent server means one slot.
+      const providerModel = `${config.provider}/${config.model}`;
+      const capacity = await slotsFor(config.provider, providerModel, model.baseUrl);
+
+      // Hold a slot in each of this subagent's groups; reject if another model already holds a group or this model's
+      // own slots are gone. Every group this spawn takes shares one claim, so it counts once toward capacity.
       const requests: LeaseRequest[] = [];
       for (const group of config.groups ?? []) {
         const limit = groups.get(group);
@@ -287,11 +305,17 @@ export default function subagents(pi: ExtensionAPI): void {
       }
       // An untracked subagent never opens the store.
       const leaseStore = requests.length ? getStore() : undefined;
-      const leaseIds = leaseStore ? leaseStore.acquire(params.name, requests) : [];
-      if (leaseIds === null) {
-        const atCapacity = requests.map((r) => `${r.group} (limit ${r.limit})`).join(", ");
+      const lease: AcquireResult = leaseStore
+        ? leaseStore.acquire(params.name, { key: providerModel, capacity, claim: randomUUID() }, requests)
+        : { ok: true, ids: [], slot: { index: 1, total: capacity } };
+      if (!lease.ok) {
+        const modelId = providerModel.slice(providerModel.lastIndexOf("/") + 1);
+        const message =
+          lease.reason === "resident"
+            ? `"${lease.group}" is holding ${lease.at} (limit ${lease.limit} model)`
+            : `${modelId} has no free slot (${lease.capacity} slots on ${lease.at})`;
         return {
-          content: [{ type: "text", text: `spawn blocked: ${atCapacity} at capacity` }],
+          content: [{ type: "text", text: `spawn blocked: ${message}` }],
           details: { id: null, name: params.name, model: config.model, blocked: true },
           isError: true,
         };
@@ -327,6 +351,7 @@ export default function subagents(pi: ExtensionAPI): void {
         recentOutput: "",
         usage: { tokens: 0, cost: 0, generated: 0 },
         groups: config.groups ?? [],
+        slot: lease.slot,
         claimed: false,
       };
       registry.add(record);
@@ -340,7 +365,7 @@ export default function subagents(pi: ExtensionAPI): void {
         model,
         sessionManager,
         registry,
-        leases: leaseIds,
+        leases: lease.ids,
         store: leaseStore,
         mainSessionPath: ctx.sessionManager.getSessionFile(),
         onStatus: () => emitStatus(pi, registry),
@@ -354,7 +379,7 @@ export default function subagents(pi: ExtensionAPI): void {
 
       return {
         content: [{ type: "text", text: `spawned ${record.name} as ${id}` }],
-        details: { id, name: params.name, model: config.model },
+        details: { id, name: params.name, model: config.model, slot: record.slot },
       };
     },
     renderCall: (args, theme) => renderSpawnCall(args, theme),
