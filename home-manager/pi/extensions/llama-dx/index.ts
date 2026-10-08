@@ -11,13 +11,14 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { syncFooter } from "./footer.ts";
 import { legend } from "./legend.ts";
 import { full, percent } from "./layout.ts";
-import { dropRequest, finishRequest, observeStream, onServerAnswer, paint, resetAll, runtime, sess, startRequest, stopPolling, trackModel, view } from "./state.ts";
+import { dropRequest, finishRequest, isInteractive, observeStream, onServerAnswer, paint, resetAll, runtime, sess, startRequest, stopPolling, trackModel, view } from "./state.ts";
 
 export default function llamaDx(pi: ExtensionAPI) {
   // A server that turns out not to be llama.cpp gets pi's footer back.
   onServerAnswer(() => (runtime.ctx ? syncFooter(runtime.ctx) : paint(false)));
 
   pi.on("session_start", (_event, ctx) => {
+    if (!isInteractive(ctx)) return;
     resetAll();
     trackModel(ctx);
     syncFooter(ctx);
@@ -25,6 +26,7 @@ export default function llamaDx(pi: ExtensionAPI) {
 
   // A new model is a different machine: nothing measured on the old one may leak into these cells.
   pi.on("model_select", (_event, ctx) => {
+    if (!isInteractive(ctx)) return;
     resetAll();
     trackModel(ctx);
     syncFooter(ctx);
@@ -33,15 +35,19 @@ export default function llamaDx(pi: ExtensionAPI) {
 
   pi.on("before_provider_request", async (event, ctx) => startRequest(event.payload as Record<string, unknown>, ctx));
 
-  pi.on("provider_stream_event", async (event) => observeStream(event.data));
+  pi.on("provider_stream_event", async (event, ctx) => {
+    if (isInteractive(ctx)) observeStream(event.data);
+  });
 
-  pi.on("agent_end", async () => {
+  pi.on("agent_end", async (_event, ctx) => {
+    if (!isInteractive(ctx)) return;
     stopPolling();
     finishRequest();
     paint(false);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
+    if (!isInteractive(ctx)) return;
     stopPolling();
     dropRequest();
     ctx.ui.setFooter(undefined);

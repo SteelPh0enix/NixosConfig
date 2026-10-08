@@ -20,7 +20,7 @@ import {
 import { Type } from "typebox";
 import type { Usage } from "@earendil-works/pi-ai";
 import { loadSubagentConfigs, resolveTools, nameSchema, type ResolvedTools } from "./config.ts";
-import { TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
+import { IDLE_AFTER_MS, TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
 import { SubagentTask } from "./task.ts";
 import { LeaseStore, type LeaseRequest } from "./store.ts";
 import {
@@ -122,17 +122,21 @@ export default function subagents(pi: ExtensionAPI): void {
 
   function formatStatusLine(record: TaskRecord): string {
     const summary = toSummary(record);
-    const activity = summary.lastActivity ? ` — ${summary.lastActivity}` : "";
+    const idle = summary.idle !== undefined && summary.idle >= IDLE_AFTER_MS ? ` (idle ${formatElapsed(summary.idle)})` : "";
+    const activity = summary.lastActivity ? ` — ${summary.lastActivity}${idle}` : "";
     const err = summary.error ? ` — ${summary.error}` : "";
     return `${record.id} · ${record.name} (${record.model}) · ${summary.state} · ${formatElapsed(summary.elapsed)}${activity}${err}`;
   }
 
-  // `/subagents <id>`: the status line plus the task's recent assistant output.
+  // `/subagents <id>`: the status line, what the task has cost so far, and its recent assistant output.
   function formatDetail(record: TaskRecord): string {
-    const line = formatStatusLine(record);
+    const summary = toSummary(record);
+    const stats = `${summary.turns} turn(s) · ${summary.tokens} tokens${summary.retry ? ` · retry ${summary.retry}` : ""}`;
     const text = (record.lastText || record.output || "").trim();
     const preview = text.length > 500 ? `${text.slice(0, 499).trimEnd()}…` : text;
-    return preview ? `${line}\n\n${preview}` : line;
+    return preview
+      ? `${formatStatusLine(record)}\n${stats}\n\n${preview}`
+      : `${formatStatusLine(record)}\n${stats}`;
   }
 
   async function killTask(record: TaskRecord): Promise<void> {
@@ -301,6 +305,7 @@ export default function subagents(pi: ExtensionAPI): void {
         startedAt: Date.now(),
         lastActivity: "starting…",
         lastActivityAt: Date.now(),
+        turns: 0,
         lastText: "",
         output: "",
         recentOutput: "",

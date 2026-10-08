@@ -71,7 +71,7 @@ instances and all working directories** through the shared SQLite store at `~/.p
 | Tool | Args | Behavior |
 |---|---|---|
 | `subagent_spawn` | `name`, `task`, `session?`, `save_session?`, `workdir?` | Starts the task in the background and returns its `id` at once. |
-| `subagent_status` | `id?` | One task or all: state, elapsed, last activity, error. Errors on an unknown id. |
+| `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, last activity, retry, error. Errors on an unknown id. |
 | `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Returns finished-but-undelivered tasks immediately, otherwise blocks until one arrives. Delivers each task once; with `ids`, tasks it was not asked for stay queued for the next call. Reports progress through `onUpdate` while blocked, and **ends when the request is aborted** rather than sitting out the timeout. A timeout is a normal result, not an error. |
 | `subagent_result` | `id` | The full report (over 20 000 chars is truncated, with the whole thing written to a temp file). |
 | `subagent_kill` | `id` | Aborts a running task; it ends `killed` holding whatever output it has. |
@@ -108,8 +108,11 @@ artifact worth having after the task ends.
 
 ## UI
 
-- `/subagents` — every live and finished task: id, name, model, state, elapsed, last activity.
-- `/subagents <id>` — the same line plus a preview of the task's recent assistant text.
+- `/subagents` — every live and finished task: id, name, model, state, elapsed, last activity, and — once it has been
+  quiet 15s — how long it has been quiet. Silence and `retrying N/M` are what a server that is not answering looks
+  like; `starting…` with nothing after it means the model was never reached.
+- `/subagents <id>` — the same line, plus turns and tokens (and the retry, mid-backoff), plus a preview of the task's
+  recent assistant text.
 - `/subagents kill <id>` — the user's own abort (tab-completion offers the running ids).
 - `/subagents leases` · `purge` · `drop <group>` · `drop-all` — the cross-instance accounting, which stays out of the
   task views.
@@ -119,8 +122,9 @@ artifact worth having after the task ends.
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
   is waiting on it.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`, `{ tasks: [{ id, name, model, state, elapsed,
-  lastActivity, error, recentOutput }] }`, whenever their state changes. Nothing in this setup subscribes to it yet; it
-  is the seam a footer segment would attach to.
+  idle, turns, tokens, lastActivity, retry, error, recentOutput }] }`, whenever their state changes. Nothing in this
+  setup subscribes to it yet; it is the seam a footer segment would attach to. Emitting into a session pi has replaced
+  throws, so the snapshot swallows that rather than outliving its session.
 
 Token and cost totals of the subagent models are folded into the `usage` of `subagent_wait` and `subagent_result`. That
 `Usage` is synthetic — total tokens and total cost, no input/output/cache split.

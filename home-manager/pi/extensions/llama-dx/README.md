@@ -77,6 +77,9 @@ cell where two real bands meet asks the theme for both colours, so it is the one
 what it means (the table above, cell by cell); `/llama-dx reset` zeroes the request counter and the speed history;
 `LLAMA_DX_DEBUG=1` writes one stderr line per poll and per finished request. State is per session and per
 model: starting a session or switching model drops the counters, so nothing measured on another machine survives.
+Only the interactive pi is watched: pi loads extensions into every session it makes, including the in-memory ones
+another extension runs a subagent in, and those share this module — one footer measuring two servers is unreadable,
+and a subagent's context is thrown away long before the footer stops rendering.
 
 Requirements: `--slots` per instance (llama.cpp default, off only with `--no-slots`), the router reachable at
 `baseUrl` minus `/v1`, and `?model=` accepting what pi sends (preset name or alias). `--metrics` is optional and

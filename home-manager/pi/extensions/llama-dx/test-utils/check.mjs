@@ -143,6 +143,45 @@ expect("a slot that has never been seen busy neither ends the request nor lends 
 await fire("agent_end", {});
 expect("and it is counted once pi's turn ends", /#2\b/.test(lines()[0]));
 
+// pi loads extensions into every session it makes, including the in-memory ones another extension creates (a
+// subagent's). Those share this module, so they may not drive these cells nor be remembered as "the" context.
+const bg = {
+  ...ctx,
+  mode: "print",
+  model: { id: "other", baseUrl: `http://127.0.0.1:${port}/v1`, contextWindow: 140000, reasoning: true },
+  sessionManager: { ...ctx.sessionManager, getCwd: () => "/home/dev/subagent" },
+  getContextUsage: () => ({ tokens: 140000, contextWindow: 140000, percent: 100 }),
+};
+for (const [event, arg] of [
+  ["session_start", {}],
+  ["before_provider_request", { payload: { model: "other", messages: [] } }],
+  ["provider_stream_event", { data: { prompt_progress: { total: 900, cache: 0, processed: 450 } } }],
+  ["agent_end", {}],
+]) {
+  await handlers.get(event)?.(arg, bg);
+}
+expect("a background session leaves the counter alone", /#2\b/.test(lines()[0]));
+expect("and never becomes the session the footer reads", !lines().join("\n").includes("/home/dev/subagent"));
+
+// The context of a session pi has already thrown away: reading it throws, and the footer renders on a timer.
+await fire("model_select", {}); // re-bind, so the ctx broken below is the one the footer holds
+const fields = { cwd: ctx.cwd, mode: ctx.mode, sessionManager: ctx.sessionManager, model: ctx.model };
+for (const name of Object.keys(fields)) {
+  Object.defineProperty(ctx, name, { configurable: true, get() { throw new Error("this ctx is stale"); } });
+}
+let threw = false;
+try {
+  lines();
+} catch {
+  threw = true;
+}
+for (const [name, value] of Object.entries(fields)) {
+  delete ctx[name];
+  ctx[name] = value;
+}
+expect("a ctx pi invalidated leaves the line instead of killing it", !threw);
+await fire("model_select", {});
+
 // Every indicator the line can hold has to be explained by `/llama-dx info`: two places, one set of cells.
 await handlers.get("cmd:llama-dx")("info", ctx);
 const explained = new Set((notes.at(-1) ?? "").split("\n").map((l) => /^ {2}(\S+)\s{2}/.exec(l)?.[1]).filter(Boolean));
