@@ -4,7 +4,7 @@ import type { ExtensionContext, ReadonlyFooterDataProvider, Theme, ThemeColor } 
 import type { Component, TUI } from "@earendil-works/pi-tui";
 import { baseLine, cols, cut, flatten, metricGroups, metricsLine, type Segment, type Tone } from "./layout.ts";
 import { isLlama } from "./server.ts";
-import { paint, runtime, view } from "./state.ts";
+import { ctxSafe, isInteractive, paint, runtime, view } from "./state.ts";
 
 const TONE: Record<Tone, ThemeColor | undefined> = {
   label: "dim",
@@ -53,13 +53,15 @@ function statusLine(footerData: ReadonlyFooterDataProvider, width: number, theme
 }
 
 const cwdOf = (): string => {
-  const path = runtime.ctx?.sessionManager.getCwd() ?? process.cwd();
+  const path = ctxSafe()?.sessionManager.getCwd() ?? process.cwd();
   const home = process.env.HOME ?? process.env.USERPROFILE;
   return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path;
 };
 
+const modelOf = (): string | undefined => ctxSafe()?.model?.id;
+
 const thinkingOf = (): string | null => {
-  const ctx = runtime.ctx;
+  const ctx = ctxSafe();
   if (!ctx?.model?.reasoning) return null;
   return !ctx.thinkingLevel || ctx.thinkingLevel === "off" ? "thinking off" : ctx.thinkingLevel;
 };
@@ -83,11 +85,11 @@ class DxFooter implements Component {
     const status = statusLine(this.footerData, width, this.theme);
     if (status !== undefined) lines.push(status);
     const v = view();
-    if (v === undefined) return [...lines, colorize(baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: runtime.ctx?.model?.id, thinking: thinkingOf(), used: null, total: runtime.model.nCtx }), this.theme, width)];
+    if (v === undefined) return [...lines, colorize(baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: modelOf(), thinking: thinkingOf(), used: null, total: runtime.model.nCtx }), this.theme, width)];
     lines.push(colorize(metricsLine(metricGroups(v.facts), width), this.theme));
     lines.push(
       colorize(
-        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: runtime.ctx?.model?.id, thinking: thinkingOf(), used: v.used, evaluating: v.evaluating, pending: v.pending, generating: v.generating, total: v.total }),
+        baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: modelOf(), thinking: thinkingOf(), used: v.used, evaluating: v.evaluating, pending: v.pending, generating: v.generating, total: v.total }),
         this.theme,
         width,
       ),
@@ -104,8 +106,9 @@ class DxFooter implements Component {
 
 /** Take pi's footer while the model's server answers like llama.cpp, hand it back when it does not. */
 export function syncFooter(ctx: ExtensionContext): void {
+  // A background session has no footer, and its context dies with it, so it may not be remembered.
+  if (!isInteractive(ctx)) return;
   runtime.ctx = ctx;
-  if (ctx.mode !== "tui") return;
   if (isLlama(runtime.model.root)) ctx.ui.setFooter((_tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => ((runtime.tui = _tui), new DxFooter(theme, footerData)));
   else ctx.ui.setFooter(undefined);
 }

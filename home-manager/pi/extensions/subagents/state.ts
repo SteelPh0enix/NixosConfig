@@ -17,6 +17,10 @@ export interface TaskRecord {
   /** Last thing the subagent did, for the status bar and `/subagents <id>`. */
   lastActivity: string;
   lastActivityAt: number;
+  /** Assistant turns finished so far: 0 with a long elapsed time means it never got an answer. */
+  turns: number;
+  /** Set while pi is retrying a failed model call, e.g. "2/5 after 40s". */
+  retry?: string;
   /** Last assistant message text seen so far (streaming progress + final report). */
   lastText: string;
   /** Final assistant text (the report). Only ever handed out by `subagent_result`. */
@@ -45,12 +49,20 @@ export interface TaskSummary {
   state: TaskState;
   /** Milliseconds the task ran (or has been running, measured at call time). */
   elapsed: number;
+  /** Milliseconds since its last event; only while it runs. Silence means the model call is not answering. */
+  idle?: number;
+  turns: number;
+  tokens: number;
   lastActivity: string;
+  retry?: string;
   error?: string;
   recentOutput: string;
 }
 
 const SUMMARY_OUTPUT_LIMIT = 1000;
+
+/** Idle a running task may sit silent for before the status line says so. */
+export const IDLE_AFTER_MS = 15_000;
 
 export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
   return {
@@ -59,7 +71,11 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
     model: record.model,
     state: record.state,
     elapsed: Math.max(0, now - (record.finishedAt ?? record.startedAt)),
+    idle: record.state === "running" ? Math.max(0, now - record.lastActivityAt) : undefined,
+    turns: record.turns,
+    tokens: record.usage.tokens,
     lastActivity: record.lastActivity,
+    retry: record.retry,
     error: record.error,
     recentOutput: record.recentOutput.slice(-SUMMARY_OUTPUT_LIMIT),
   };

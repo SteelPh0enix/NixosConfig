@@ -122,22 +122,49 @@ export class SubagentTask {
     this.unsubscribe = this.session.subscribe((event) => this.onEvent(event));
   }
 
+  /** What the subagent is doing right now, so a task stuck on a silent server is recognisable. */
+  private note(activity: string): void {
+    const { record } = this.options;
+    record.lastActivity = activity;
+    record.lastActivityAt = Date.now();
+  }
+
   private onEvent(event: AgentSessionEvent): void {
     const { record } = this.options;
-    if (event.type === "message_end" && event.message.role === "assistant") {
+    if (event.type === "turn_start") {
+      this.note("thinking…");
+    } else if (event.type === "message_update") {
+      const delta = event.assistantMessageEvent?.type;
+      if (delta === "text_delta" || delta === "reasoning_delta") this.note("writing…");
+    } else if (event.type === "message_end" && event.message.role === "assistant") {
       this.lastAssistant = event.message;
+      record.turns += 1;
       record.lastText = extractText(event.message);
       const usage = event.message.usage;
       if (usage) {
         record.usage.tokens += usage.totalTokens;
         record.usage.cost += usage.cost?.total ?? 0;
       }
-      record.lastActivity = "writing…";
-      record.lastActivityAt = Date.now();
+      this.note(
+        event.message.stopReason === "error"
+          ? `model error: ${oneLine(event.message.errorMessage ?? "unknown error", 120)}`
+          : "writing…",
+      );
     } else if (event.type === "tool_execution_start") {
       const summary = summarizeArgs(event.toolName, event.args);
-      record.lastActivity = summary ? `${event.toolName}: ${summary}` : event.toolName;
-      record.lastActivityAt = Date.now();
+      this.note(summary ? `${event.toolName}: ${summary}` : event.toolName);
+    } else if (event.type === "auto_retry_start") {
+      record.retry = `${event.attempt}/${event.maxAttempts} after ${Math.ceil(event.delayMs / 1000)}s`;
+      this.note(`retrying: ${oneLine(event.errorMessage, 120)}`);
+    } else if (event.type === "auto_retry_end") {
+      record.retry = undefined;
+      this.note(
+        event.success
+          ? `answered after ${event.attempt} attempt(s)`
+          : event.finalError
+            ? `gave up: ${oneLine(event.finalError, 120)}`
+            : "retry cancelled",
+      );
     }
     const now = Date.now();
     if (now - this.lastStatusEmit >= STATUS_THROTTLE_MS) {
@@ -192,6 +219,11 @@ export function extractText(message: AgentMessage): string {
     .map((c) => c.text)
     .join("\n")
     .trim();
+}
+
+function oneLine(value: string, limit: number): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text;
 }
 
 function summarizeArgs(toolName: string, args: unknown): string {

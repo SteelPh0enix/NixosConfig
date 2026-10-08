@@ -25,7 +25,7 @@ const importFrom = (dir, file) => import(pathToFileURL(join(dir, file)).href);
 
 const record = (id, over = {}) => ({
   id, name: "researcher", provider: "p", model: "m", taskText: "t", state: "running", startedAt: Date.now(),
-  lastActivityAt: Date.now(), lastText: "", output: "out", recentOutput: "tail",
+  lastActivityAt: Date.now(), turns: 0, lastText: "", output: "out", recentOutput: "tail",
   usage: { tokens: 1, cost: 0 }, groups: [], claimed: false, ...over,
 });
 
@@ -72,6 +72,9 @@ const done = toSummary(record("task-1", {
 }));
 ok("elapsed stops at the finish", done.elapsed > 4900 && done.elapsed < 5100);
 ok("a running task reports its running time", toSummary(record("task-2", { startedAt: Date.now() - 3000 })).elapsed > 2900);
+const quiet = toSummary(record("task-q", { lastActivityAt: Date.now() - 20000 }));
+ok("a running task says how long it has been silent", quiet.idle > 19900);
+ok("a finished task is never idle", toSummary(record("task-f", { state: "done", finishedAt: Date.now() - 20000 })).idle === undefined);
 ok("details carry a bounded output", done.recentOutput.length === 1000);
 
 // ---- group leases (store.ts) ----
@@ -115,7 +118,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, formatElapsed } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, formatElapsed, emitStatus } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -184,6 +187,32 @@ if (!nodeModules) {
   ok("the expanded status shows the error and the last activity", status.includes("boom") && status.includes("read src/x.ts"));
   const wait = renderWaitResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [summary] } }, opts, theme).render(120).join("\n");
   ok("the wait result names the task", !wait.includes("[object Object]") && wait.includes("task-1"));
+  const stuck = toSummary(record("task-s", { lastActivity: "retrying: Connection error.", lastActivityAt: Date.now() - 90000, retry: "2/5 after 40s" }));
+  const stuckView = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [stuck] } }, opts, theme).render(120).join("\n");
+  ok("the status view names the silence and the retry", stuckView.includes("idle 1m30s") && stuckView.includes("retrying 2/5 after 40s"));
+
+  const { SubagentTask } = await importFrom(ws, "task.ts");
+  const live = record("task-l");
+  const task = new SubagentTask({ record: live, onStatus: () => {} });
+  task.onEvent({ type: "turn_start" });
+  ok("a turn opens as thinking", live.lastActivity === "thinking…");
+  task.onEvent({ type: "auto_retry_start", attempt: 2, maxAttempts: 5, delayMs: 40000, errorMessage: "connect ECONNREFUSED 192.168.0.150:51536" });
+  ok("a retry is reported with its number and delay", live.retry === "2/5 after 40s" && live.lastActivity === "retrying: connect ECONNREFUSED 192.168.0.150:51536");
+  task.onEvent({ type: "message_end", message: { role: "assistant", content: [], stopReason: "error", errorMessage: "Connection error." } });
+  ok("a failed model call reads as one", live.lastActivity === "model error: Connection error." && live.turns === 1);
+  task.onEvent({ type: "auto_retry_end", success: true, attempt: 3 });
+  ok("a recovered retry clears the flag", live.retry === undefined && live.lastActivity === "answered after 3 attempt(s)");
+
+  const reporting = new TaskRegistry();
+  reporting.add(record("task-e"));
+  let statusThrew = false;
+  try {
+    emitStatus({ events: { emit() { throw new Error("this ctx is stale"); } } }, reporting);
+  } catch {
+    statusThrew = true;
+  }
+  ok("reporting into a session pi has replaced does not throw", !statusThrew);
+
   const spawn = renderSpawnResult({ content: [{ type: "text", text: "x" }], details: { id: "task-1", name: "researcher", model: "m" } }, opts, theme).render(120).join("\n");
   ok("the spawn result reads `task-1 ← researcher (m)`", spawn.includes("task-1") && spawn.includes("researcher"));
   const blocked = renderSpawnResult({ content: [{ type: "text", text: "spawn blocked: gpu (limit 1) at capacity" }], details: { id: null, name: "g", model: "m", blocked: true } }, opts, theme).render(120).join("\n");

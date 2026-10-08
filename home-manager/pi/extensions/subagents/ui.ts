@@ -12,7 +12,7 @@ import type {
   Theme,
   ThemeColor,
 } from "@earendil-works/pi-coding-agent";
-import { toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
+import { IDLE_AFTER_MS, toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
 
 // ---- details shapes (matched by renderResult) -----------------------------
 
@@ -85,13 +85,21 @@ function text(content: string): Text {
 
 // ---- live status (pi.events + setStatus fallback) -------------------------
 
-/** Snapshot of the running tasks on `pi.events` (channel: `subagents:status`). */
+/**
+ * Snapshot of the running tasks on `pi.events` (channel: `subagents:status`).
+ * A task reports from the background, so pi may have replaced the session this extension was loaded for;
+ * emitting into a replaced session throws, and a task must not take pi down when it reports.
+ */
 export function emitStatus(pi: ExtensionAPI, registry: TaskRegistry): void {
   const tasks = registry
     .all()
     .filter((r) => r.state === "running")
     .map((r) => toSummary(r));
-  pi.events.emit("subagents:status", { tasks });
+  try {
+    pi.events.emit("subagents:status", { tasks });
+  } catch {
+    // Nobody is listening any more.
+  }
 }
 
 // ---- rendering: calls ------------------------------------------------------
@@ -122,9 +130,12 @@ export function renderKillCall(args: { id: string }, theme: Theme): Text {
 
 function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolean } = {}): Text {
   const header = `${task.id} ${theme.fg("dim", "· ")}${theme.fg("accent", task.name)} ${theme.fg("dim", "· ")}${theme.fg("muted", task.model)}`;
-  const lines = [`${header} ${stateLabel(task.state, theme)} ${theme.fg("dim", formatElapsed(task.elapsed))}`];
+  const idle = task.idle !== undefined && task.idle >= IDLE_AFTER_MS ? theme.fg("warning", ` idle ${formatElapsed(task.idle)}`) : "";
+  const lines = [`${header} ${stateLabel(task.state, theme)} ${theme.fg("dim", formatElapsed(task.elapsed))}${idle}`];
   if (task.error) lines.push(theme.fg("error", `  ${task.error}`));
-  if (task.lastActivity) lines.push(theme.fg("muted", `  ▸ ${task.lastActivity}`));
+  if (task.retry) lines.push(theme.fg("warning", `  retrying ${task.retry}`));
+  const progress = ` · ${task.turns} turn(s), ${task.tokens} tokens`;
+  if (task.lastActivity) lines.push(theme.fg("muted", `  ▸ ${task.lastActivity}${progress}`));
   if (options.expanded) {
     const output = task.recentOutput.trim();
     if (output) lines.push("", theme.fg("dim", truncate(output, 800)));

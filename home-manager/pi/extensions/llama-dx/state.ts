@@ -100,7 +100,31 @@ export const onServerAnswer = (handler: () => void): void => {
   serverAnswer = handler;
 };
 
+/**
+ * The bound context, or nothing. pi invalidates a context as soon as its session is replaced, reloaded or
+ * disposed — a background subagent session does all three — and reading anything from an invalid one throws.
+ * The footer renders on a timer, so it has to ask this way rather than touch `runtime.ctx` directly.
+ */
+export function ctxSafe(): ExtensionContext | undefined {
+  const ctx = runtime.ctx;
+  if (!ctx) return undefined;
+  try {
+    void ctx.cwd;
+  } catch {
+    runtime.ctx = undefined;
+    return undefined;
+  }
+  return ctx;
+}
+
+/**
+ * Whether this is the pi in the terminal. Extensions load into every session pi makes, including the in-memory
+ * ones another extension runs a subagent in, and those share this module — so they are passed over entirely.
+ */
+export const isInteractive = (ctx: ExtensionContext): boolean => ctx.mode === "tui";
+
 export function trackModel(ctx: ExtensionContext): void {
+  if (!isInteractive(ctx)) return;
   runtime.ctx = ctx;
   runtime.model = {
     root: serverRoot(ctx.model as { baseUrl?: string } | undefined),
@@ -372,7 +396,7 @@ let totalsCache: { key: string; value: Totals } | undefined;
  * are taken once per leaf: entries are append-only, and every append moves the leaf.
  */
 function sessionState(): Totals {
-  const ctx = runtime.ctx;
+  const ctx = ctxSafe();
   const key = `${ctx?.sessionManager.getSessionId()}/${ctx?.sessionManager.getLeafId()}/${ctx?.model?.id}`;
   if (totalsCache?.key === key) return totalsCache.value;
   const totals = { input: 0, output: 0, cacheRead: 0 };
@@ -469,6 +493,7 @@ function active(n: Nums): { evaluating: number; generating: number; pending: num
  * timings in every chunk when asked.
  */
 export function startRequest(payload: Record<string, unknown>, ctx: ExtensionContext): Record<string, unknown> | undefined {
+  if (!isInteractive(ctx)) return undefined;
   const root = serverRoot(ctx.model as { baseUrl?: string } | undefined);
   if (!root) return undefined;
   runtime.ctx = ctx;
