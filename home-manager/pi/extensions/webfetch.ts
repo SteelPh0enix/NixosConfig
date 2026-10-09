@@ -30,12 +30,13 @@ const BOT_WALL = /making sure you're not a bot|oh noes!|just a moment|checking y
 
 interface FetchDetails {
   action: string;
-  url: string;
+  url?: string;
   status?: number;
   rendered?: boolean;
   chars?: number;
   truncated?: boolean;
   savedTo?: string;
+  cancelled?: boolean;
   error?: string;
 }
 
@@ -273,6 +274,17 @@ function clampChars(value: number | undefined): number {
   return value && value > 0 ? Math.min(200000, Math.trunc(value)) : MAX_CHARS_DEFAULT;
 }
 
+/**
+ * Cut a body to `limit`, saying where the rest went. A silent cut reads to a model as the whole page, which is the
+ * one thing it cannot work out for itself afterwards.
+ */
+function clip(body: string, limit: number, hint: string): { text: string; truncated: boolean } {
+  if (body.length <= limit) return { text: body, truncated: false };
+  return { text: `${body.slice(0, limit)}\n\n[… truncated at ${limit} of ${body.length} chars; ${hint}]`, truncated: true };
+}
+
+const READ_AGAIN = "ask again with a larger max_chars";
+
 function hostOf(url: string): string {
   try {
     return new URL(url).host;
@@ -340,16 +352,27 @@ export default function (pi: ExtensionAPI) {
         data = fetched.data;
         rendered = fetched.rendered;
       } catch (err) {
-        const details: FetchDetails = { action: "fetch", url, error: clean(errMessage(err), 300) };
-        if (signal?.aborted) return { content: [{ type: "text", text: "Fetch cancelled." }], details: { ...details, error: undefined } };
+        if (signal?.aborted) return { content: [{ type: "text", text: "Fetch cancelled." }], details: { action: "fetch", url, cancelled: true } };
         throw err instanceof Error ? err : new Error(String(err));
       }
 
       const body = cleanNewlines(data.content ?? "");
       const finalUrl = data.finalUrl || data.url || url;
+      const limit = clampChars(params.max_chars);
       if (params.save_to?.trim()) {
         const path = isAbsolute(params.save_to.trim()) ? params.save_to.trim() : resolve(ctx.cwd, params.save_to.trim());
-        writeFileSyncSafe(path, body);
+        try {
+          writeFileSyncSafe(path, body);
+        } catch (err) {
+          // The page was already fetched; throwing the answer away because the path was wrong would be the worse
+          // outcome, so the body comes back here and the failure stays visible.
+          const saved = clip(body, limit, "re-run with filter=…, or a writable save_to=");
+          const reason = `could not save to ${path}: ${errMessage(err)}`;
+          return {
+            content: [{ type: "text", text: `${reason}. The body follows instead.\n\n${saved.text}` }],
+            details: { action: "fetch", url, finalUrl, status: data.status, rendered, chars: body.length, truncated: saved.truncated, error: reason },
+          };
+        }
         const preview = body.slice(0, 800);
         return {
           content: [{ type: "text", text: `Saved ${body.length} chars to ${path}\n\n${preview}${body.length > preview.length ? "\n…" : ""}` }],
@@ -357,13 +380,10 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      const limit = clampChars(params.max_chars);
-      const truncated = body.length > limit;
-      const text = truncated ? `${body.slice(0, limit)}\n\n[… truncated at ${limit} of ${body.length} chars; re-run with filter=… or save_to=…]` : body;
-
+      const read = clip(body, limit, "re-run with filter=… or save_to=…");
       return {
-        content: [{ type: "text", text }],
-        details: { action: "fetch", url: finalUrl, status: data.status, rendered, chars: body.length, truncated },
+        content: [{ type: "text", text: read.text }],
+        details: { action: "fetch", url: finalUrl, status: data.status, rendered, chars: body.length, truncated: read.truncated },
       };
     },
 
@@ -380,6 +400,7 @@ export default function (pi: ExtensionAPI) {
 
     renderResult(result, { expanded }, theme, context) {
       const details = result.details as FetchDetails | undefined;
+      if (details?.cancelled) return new Text(theme.fg("muted", "Cancelled"), 0, 0);
       if (details?.error || context.isError) {
         const message = details?.error ?? result.content.find((c) => c.type === "text")?.text ?? "Unknown error";
         return new Text(theme.fg("error", `Error: ${clean(message, 200)}`), 0, 0);
@@ -444,10 +465,10 @@ export default function (pi: ExtensionAPI) {
           await callCli(["open", normalizeUrl(params.url)], { timeoutMs: BROWSER_TIMEOUT_MS, signal });
           const data = await callJson(["read"], { timeoutMs: BROWSER_TIMEOUT_MS, signal });
           const body = cleanNewlines(data.content ?? "");
-          const limit = clampChars(params.max_chars);
+          const read = clip(body, clampChars(params.max_chars), READ_AGAIN);
           return {
-            content: [{ type: "text", text: body.slice(0, limit) }],
-            details: { action, url: data.finalUrl ?? params.url, rendered: true, chars: body.length },
+            content: [{ type: "text", text: read.text }],
+            details: { action, url: data.finalUrl ?? params.url, rendered: true, chars: body.length, truncated: read.truncated },
           };
         }
 
@@ -455,10 +476,10 @@ export default function (pi: ExtensionAPI) {
           const args = ["snapshot", "-i", ...(params.urls ? ["-u"] : [])];
           const { stdout } = await callCli(args, { timeoutMs: BROWSER_TIMEOUT_MS, signal });
           const body = cleanNewlines(stdout);
-          const limit = clampChars(params.max_chars);
+          const read = clip(body, clampChars(params.max_chars), READ_AGAIN);
           return {
-            content: [{ type: "text", text: body.slice(0, limit) }],
-            details: { action, rendered: true, chars: body.length },
+            content: [{ type: "text", text: read.text }],
+            details: { action, rendered: true, chars: body.length, truncated: read.truncated },
           };
         }
 
@@ -512,13 +533,13 @@ export default function (pi: ExtensionAPI) {
 
         const data = await callJson(["read"], { timeoutMs: BROWSER_TIMEOUT_MS, signal });
         const body = cleanNewlines(data.content ?? "");
-        const limit = clampChars(params.max_chars);
+        const read = clip(body, clampChars(params.max_chars), READ_AGAIN);
         return {
-          content: [{ type: "text", text: body.slice(0, limit) }],
-          details: { action, url: data.finalUrl, rendered: true, chars: body.length },
+          content: [{ type: "text", text: read.text }],
+          details: { action, url: data.finalUrl, rendered: true, chars: body.length, truncated: read.truncated },
         };
       } catch (err) {
-        if (signal?.aborted) return { content: [{ type: "text", text: "Interaction cancelled." }], details: { action } };
+        if (signal?.aborted) return { content: [{ type: "text", text: "Interaction cancelled." }], details: { action, cancelled: true } };
         throw err instanceof Error ? err : new Error(String(err));
       }
     },
@@ -531,12 +552,14 @@ export default function (pi: ExtensionAPI) {
 
     renderResult(result, { expanded }, theme, context) {
       const details = result.details as FetchDetails | undefined;
+      if (details?.cancelled) return new Text(theme.fg("muted", "Cancelled"), 0, 0);
       if (context.isError) {
         const message = result.content.find((c) => c.type === "text")?.text ?? "Unknown error";
         return new Text(theme.fg("error", `Error: ${clean(message, 200)}`), 0, 0);
       }
       const chars = details?.chars;
-      const status = chars ? theme.fg("success", `${formatChars(chars)} read`) : theme.fg("success", "done");
+      let status = chars ? theme.fg("success", `${formatChars(chars)} read`) : theme.fg("success", "done");
+      if (details?.truncated) status += theme.fg("warning", " (truncated)");
       if (!expanded) return new Text(status, 0, 0);
       const text = result.content.find((c) => c.type === "text")?.text ?? "";
       return new Text(`${status}\n${theme.fg("dim", clean(text, 600))}`, 0, 0);

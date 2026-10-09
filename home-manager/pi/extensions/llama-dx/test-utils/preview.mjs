@@ -67,7 +67,9 @@ const fill = (segments, width) => (plain ? flatten(segments) : colorize([...segm
 if (argv.includes("--check")) {
   const BANDS = ["held", "evaluating", "pending", "generating"];
   let bad = 0;
-  for (const width of [40, 60, 80, 96, 120, 140, 160, 200, 240, 280]) {
+  // Down to 20 columns, where only the two numbers and a stub of a bar are left; below ~16 the two numbers alone
+  // need more room than a terminal of that width has, and no layout can say otherwise.
+  for (const width of [20, 24, 28, 32, 40, 60, 80, 96, 120, 140, 160, 200, 240, 280]) {
     for (const s of SCENARIOS) {
       for (const [used, evaluating, pending, generating] of [[0, 0, 0, 0], [s.used, s.evaluating, s.pending, s.generating], [TOTAL, 0, 0, 0], [TOTAL + 9000, 9000, 9000, 9000]]) {
         const state = { used, evaluating, pending, generating };
@@ -85,7 +87,7 @@ if (argv.includes("--check")) {
         const problems = [
           cols(line) === width ? "" : `base ${cols(line)} != ${width}`,
           cols(metrics) <= width ? "" : `metrics ${cols(metrics)} > ${width}`,
-          n >= 10 ? "" : `bar ${n} < 10`,
+          n >= (width >= 40 ? 10 : 1) ? "" : `bar ${n} < ${width >= 40 ? 10 : 1}`,
           // held, evaluating and generating are contiguous unless a forecast sits between the last two, which only
           // ever happens while a request both still has a prompt to read and is already producing tokens.
           pending === 0 || generating === 0

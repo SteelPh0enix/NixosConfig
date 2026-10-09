@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ProviderConfig, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type ExtensionAPI, type ProviderConfig, type ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -262,7 +262,11 @@ type ModelsJsonProvider = {
 
 const debug = process.env.LLAMA_COMPAT_DEBUG === "1" ? (message: string) => process.stderr.write(`llama-compat: ${message}\n`) : () => {};
 
-/** Turn an inference baseUrl (ends with /v1) into the server root that answers /props and /models. */
+/**
+ * Turn an inference baseUrl (ends with /v1) into the server root that answers /props and /models.
+ * The same helper sits in ../llama-dx/server.ts and ../subagents/slots.ts; the three extensions are installed
+ * side by side but never import each other, so a change belongs in all three.
+ */
 function serverRoot(baseUrl: string): string | undefined {
   try {
     const url = new URL(baseUrl);
@@ -308,15 +312,21 @@ function routable(model: RouterModel, autoload: boolean): boolean {
   return autoload && status?.value === "unloaded" && !status.failed && model.source === "preset";
 }
 
-/** The context a preset was started with, for a cold instance that cannot report the served one. */
-function requestedContext(model: RouterModel): number | undefined {
-  const args = model.status?.args ?? [];
-  for (let i = 0; i < args.length - 1; i++) {
-    if (args[i] !== "--ctx-size" && args[i] !== "-c" && args[i] !== "-ctx") continue;
-    const size = Number(args[i + 1]);
-    if (Number.isSafeInteger(size) && size > 0) return size;
+/** The value a launch flag carries, written `--flag 4` or `--flag=4`; undefined when the flag is absent. */
+function flagValue(args: string[], ...flags: string[]): string | undefined {
+  for (let i = 0; i < args.length; i++) {
+    for (const flag of flags) {
+      if (args[i] === flag) return args[i + 1];
+      if (args[i]!.startsWith(`${flag}=`)) return args[i]!.slice(flag.length + 1);
+    }
   }
   return undefined;
+}
+
+/** The context a preset was started with, for a cold instance that cannot report the served one. */
+function requestedContext(model: RouterModel): number | undefined {
+  const size = Number(flagValue(model.status?.args ?? [], "--ctx-size", "-ctx", "-c"));
+  return Number.isSafeInteger(size) && size > 0 ? size : undefined;
 }
 
 /** Instances pi can route a configured model to: the preset name, one of its aliases, or the lowercased name. */
@@ -416,8 +426,7 @@ function withServedInfo(model: ModelsJsonModel, providerCompat: ModelsJsonCompat
 }
 
 async function readConfiguredProviders(): Promise<Map<string, ModelsJsonProvider>> {
-  const agentDir = process.env.PI_CODING_AGENT_DIR ?? join(process.env.HOME ?? "", ".pi", "agent");
-  const text = await readFile(join(agentDir, "models.json"), "utf8").catch(() => undefined);
+  const text = await readFile(join(getAgentDir(), "models.json"), "utf8").catch(() => undefined);
   if (!text) return new Map();
   try {
     const parsed = JSON.parse(text.replace(/^\uFEFF/, "")) as { providers?: Record<string, ModelsJsonProvider> };

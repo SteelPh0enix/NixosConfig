@@ -38,13 +38,18 @@ const GroupsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ m
 /** provider/model -> slot count override, for a provider that does not report its own `--parallel` (integer >= 1). */
 const SlotsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
 
-export const SubagentConfigSchema = Type.Object({
-  provider: Type.String({ minLength: 1 }),
-  model: Type.String({ minLength: 1 }),
-  description: Type.Optional(Type.String()),
-  tools: Type.Optional(ToolConfigSchema),
-  groups: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
-});
+// `additionalProperties: false` matters: an entry whose `groups` key is misspelled would otherwise load as a
+// subagent with no group at all, which is a concurrency limit silently not enforced.
+export const SubagentConfigSchema = Type.Object(
+  {
+    provider: Type.String({ minLength: 1 }),
+    model: Type.String({ minLength: 1 }),
+    description: Type.Optional(Type.String()),
+    tools: Type.Optional(ToolConfigSchema),
+    groups: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
+  },
+  { additionalProperties: false },
+);
 
 export interface SubagentConfig {
   provider: string;
@@ -73,11 +78,12 @@ export interface ResolvedTools {
  */
 export function resolveTools(config: SubagentConfig | undefined, mainTools: string[] = []): ResolvedTools {
   const excluded = new Set<string>(SUBAGENT_TOOL_NAMES);
-  if (config?.tools) {
+  const tools = config?.tools;
+  if (tools) {
     // Allowlist forms: the subagent tools are simply not part of the list.
-    const allow = Array.isArray(config.tools) ? config.tools : config.tools.enable;
-    if (allow) return { tools: allow.filter((name) => !excluded.has(name)), excludeTools: [] };
-    for (const name of config.tools.disable ?? []) excluded.add(name);
+    if (Array.isArray(tools)) return { tools: tools.filter((name) => !excluded.has(name)), excludeTools: [] };
+    if (tools.enable) return { tools: tools.enable.filter((name) => !excluded.has(name)), excludeTools: [] };
+    for (const name of tools.disable ?? []) excluded.add(name);
   }
   if (mainTools.length === 0) return { excludeTools: [...excluded] };
   return { tools: mainTools.filter((name) => !excluded.has(name)), excludeTools: [] };
@@ -112,6 +118,12 @@ function firstError(name: string, value: unknown): string {
     const where = err.instancePath || "#";
     // A union only ever reports "must be array", so name the accepted forms instead.
     if (where === "/tools") return "tools must be a non-empty list, or { enable } / { disable }";
+    // A key nobody spelled right is the mistake worth catching: `groups` misspelled means no limit at all.
+    // typebox reports it twice, once on the key ("schema is false") and once on the entry.
+    if (err.message.includes("additional properties") || err.message === "schema is false") {
+      const key = where === "#" ? "" : ` (${where} is not one of them)`;
+      return `only provider, model, description, tools and groups go in an entry${key}`;
+    }
     return `${where} ${err.message}`;
   }
   return `${name} is malformed`;

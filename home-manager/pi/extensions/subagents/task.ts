@@ -14,7 +14,7 @@ import {
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
-import type { TaskRegistry, TaskRecord } from "./state.ts";
+import { oneLine, type TaskRegistry, type TaskRecord } from "./state.ts";
 import type { LeaseStore } from "./store.ts";
 
 type TaskCallback = (record: TaskRecord) => void;
@@ -73,7 +73,7 @@ export class SubagentTask {
   }
 
   async start(): Promise<void> {
-    const { record, resolvedTools, cwd, agentDir, model, sessionManager, mainSessionPath } = this.options;
+    const { record, resolvedTools, cwd, agentDir, model, sessionManager } = this.options;
     record.runner = this;
 
     try {
@@ -156,7 +156,7 @@ export class SubagentTask {
       if (!this.aborted) this.note("thinking…");
     } else if (event.type === "message_update") {
       const delta = event.assistantMessageEvent?.type;
-      if (delta === "text_delta" || delta === "reasoning_delta") {
+      if (delta === "text_delta" || delta === "thinking_delta") {
         this.note("writing…");
         // What the model has produced so far, counted off the partial message: an estimate, corrected exactly when
         // the turn ends and the provider reports its own figure.
@@ -287,11 +287,6 @@ function generatedChars(message: AgentMessage): number {
     else if (block.type === "thinking") chars += block.thinking.length;
   }
   return chars;
-}
-
-function oneLine(value: string, limit: number): string {
-  const text = value.replace(/\s+/g, " ").trim();
-  return text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text;
 }
 
 function summarizeArgs(toolName: string, args: unknown): string {

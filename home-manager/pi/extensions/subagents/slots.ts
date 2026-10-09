@@ -22,7 +22,9 @@ type RouterModel = {
 
 /**
  * Turn an inference baseUrl (ends with `/v1`) into the server root that answers `/props` and `/v1/models`.
- * A baseUrl without `/v1` is left as-is; anything unparseable is not a router we can ask.
+ * A baseUrl without `/v1` is left as-is; anything unparseable is not a router we can ask. The same helper sits in
+ * ../llama-compat/index.ts and ../llama-dx/server.ts — the three extensions never import each other, so a change
+ * to how that root is found belongs in all three.
  */
 function serverRoot(baseUrl: string): string | undefined {
   try {
@@ -50,15 +52,19 @@ async function getJson<T>(url: string, signal?: AbortSignal): Promise<T | undefi
   }
 }
 
-/** Read `--parallel N` out of a preset's launch args; an absent or invalid flag means one request at a time. */
-export function parallelFromArgs(args: string[] | undefined): number {
-  const list = args ?? [];
-  for (let i = 0; i < list.length - 1; i++) {
-    if (list[i] !== "--parallel") continue;
-    const n = Number(list[i + 1]);
-    if (Number.isSafeInteger(n) && n >= 1) return n;
+/** The value a launch flag carries, written `--flag 4` or `--flag=4`; undefined when the flag is absent. */
+function flagValue(args: string[], flag: string): string | undefined {
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === flag) return args[i + 1];
+    if (args[i]!.startsWith(`${flag}=`)) return args[i]!.slice(flag.length + 1);
   }
-  return 1;
+  return undefined;
+}
+
+/** Read `--parallel` out of a preset's launch args; an absent or invalid flag means one request at a time. */
+export function parallelFromArgs(args: string[] | undefined): number {
+  const parallel = Number(flagValue(args ?? [], "--parallel"));
+  return Number.isSafeInteger(parallel) && parallel >= 1 ? parallel : 1;
 }
 
 /** An override beats the server, which beats 1; anything below 1 or non-integer falls through to the server. */
@@ -77,6 +83,8 @@ export class SlotResolver {
   private readonly provider: string;
   /** provider/model -> discovered --parallel, and when it was read (to honour the TTL). */
   private readonly discovered = new Map<string, { slots: number; at: number }>();
+  /** When the server was last asked, so one that is not answering costs a probe per TTL rather than per spawn. */
+  private attempted = 0;
   private refreshing?: Promise<void>;
 
   constructor(baseUrl: string, provider = "") {
@@ -84,12 +92,13 @@ export class SlotResolver {
     this.provider = provider;
   }
 
-  /** Slots for one model — override, then `--parallel`, then 1 — cached per provider for ~30 s. */
+  /**
+   * Slots for one model — override, then `--parallel`, then 1. The server is asked at most once per TTL per
+   * provider, whether or not it answered: a router that is down, or a model it does not list, would otherwise put
+   * a probe timeout in the way of every spawn.
+   */
   async slotsFor(providerModel: string, override?: number): Promise<number> {
-    const cached = this.discovered.get(providerModel);
-    if (!cached || Date.now() - cached.at >= DISCOVERY_TTL_MS) {
-      await this.refresh();
-    }
+    if (Date.now() - this.attempted >= DISCOVERY_TTL_MS) await this.refresh();
     const found = this.discovered.get(providerModel);
     return pickSlot(found?.slots ?? 1, override);
   }
@@ -98,6 +107,7 @@ export class SlotResolver {
   async refresh(): Promise<void> {
     if (!this.root) return;
     if (this.refreshing) return this.refreshing;
+    this.attempted = Date.now();
     this.refreshing = (async () => {
       const models = (await getJson<{ data?: RouterModel[] }>(`${this.root}/v1/models`))?.data ?? [];
       const now = Date.now();

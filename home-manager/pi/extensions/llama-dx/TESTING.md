@@ -37,8 +37,8 @@ then one whole request through the bar and finishing, then the two lines at widt
 the theme in use rather than the tokens; under `--plain` the pending track looks exactly like the free one, since
 only their colours differ.
 
-`--check` asserts the layout invariants at every width from 40 to 280 and exits non-zero: the base line is exactly
-the terminal width, the metrics line never exceeds it (groups drop from the right instead), the bar keeps at least
+`--check` asserts the layout invariants at every width from 20 to 280 and exits non-zero: the base line is exactly
+the terminal width (below ~16 columns even the two numbers cannot fit, which no layout can argue with), the metrics line never exceeds it (groups drop from the right instead), the bar keeps at least
 ten cells, the number of filled cells is exactly the number of cells the real bands reach
 (`ceil((used + evaluating + generating) / total * cells)`, no tolerance, since a band claims every cell it touches),
 the cells reached once the forecast counts too match the same figure with `pending` added, the bands appear in
@@ -93,7 +93,8 @@ What it asserts, in order:
 - every indicator the metrics line can hold is explained by `/llama-dx info`, and so are the `~`, `—` and bright
   markers; the cells come from `metricGroups(view().facts)`, so a cell the legend does not know turns this red
 - the request is counted, `/llama-dx reset` reports clearing, and a model whose server is not llama.cpp hands the
-  footer back
+  footer back and is never polled or scraped — not while its `/props` probe is still on its way either, which is
+  what `/nope3` (a deliberately slow `/props`) is there for
 
 `--dump` prints the footer as plain text at every poll after the results, which is how you tell whether the bar is
 really moving rather than merely non-empty.

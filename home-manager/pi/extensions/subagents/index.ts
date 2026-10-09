@@ -118,10 +118,15 @@ export default function subagents(pi: ExtensionAPI): void {
     return path;
   }
 
-  function usageFrom(tokens: number, cost: number): Usage {
+  /**
+   * A `Usage` for a finished task, so its calls reach the main session's totals. What its own model wrote goes as
+   * `output` and the rest as `input`; the cache split is not something a task records per direction.
+   */
+  function usageFrom(tokens: number, cost: number, generated = 0): Usage {
+    const output = Math.min(Math.max(0, generated), tokens);
     return {
-      input: tokens,
-      output: 0,
+      input: tokens - output,
+      output,
       cacheRead: 0,
       cacheWrite: 0,
       totalTokens: tokens,
@@ -169,6 +174,24 @@ export default function subagents(pi: ExtensionAPI): void {
   /** Abort a task without ever waiting on it longer than `timeoutS` (see `killRecord`). */
   function killTask(record: TaskRecord, timeoutS = DEFAULT_KILL_TIMEOUT_S): Promise<boolean> {
     return killRecord(record, timeoutS * 1000);
+  }
+
+  /**
+   * Why a wait had nothing to deliver: nothing exists at all, the ids name no task, or the tasks it was given have
+   * already reported. `delivered` is what a wait that ran out of time says about the last case, which it cannot tell
+   * apart from a task that never entered the queue.
+   */
+  function nothingMessage(ids: string[] | undefined, delivered: boolean): string {
+    if (!ids || ids.length === 0) return "subagent_wait: no tasks to wait for";
+    const unknown = ids.filter((id) => !registry.get(id));
+    if (unknown.length === ids.length) return `subagent_wait: no such subagent tasks: ${unknown.join(", ")}`;
+    if (unknown.length > 0) return `subagent_wait: nothing new — no such subagent tasks: ${unknown.join(", ")}`;
+    const known = ids
+      .map((id) => registry.get(id))
+      .filter((r): r is TaskRecord => r !== undefined)
+      .map((r) => `${r.id} (${r.state})`)
+      .join(", ");
+    return delivered ? `subagent_wait: nothing new — already delivered: ${known}` : `subagent_wait: nothing new — ${known}`;
   }
 
   // `/subagents leases ...` — inspect and clean up group concurrency leases.
@@ -352,7 +375,6 @@ export default function subagents(pi: ExtensionAPI): void {
         usage: { tokens: 0, cost: 0, generated: 0 },
         groups: config.groups ?? [],
         slot: lease.slot,
-        claimed: false,
       };
       registry.add(record);
 
@@ -432,14 +454,7 @@ export default function subagents(pi: ExtensionAPI): void {
       // Nothing running and nothing queued means there is nothing this wait could ever deliver, so waiting for
       // `timeout_s` of it would just be standing still: say so at once. An already-aborted request says that instead.
       if (!signal?.aborted && finished.length === 0 && running().length === 0) {
-        const unknown = ids ? ids.filter((id) => !registry.get(id)) : [];
-        const known = ids ? ids.map((id) => registry.get(id)).filter((r): r is TaskRecord => r !== undefined) : [];
-        const text = !ids
-          ? "subagent_wait: no tasks to wait for"
-          : unknown.length === ids.length
-            ? `subagent_wait: no such subagent tasks: ${unknown.join(", ")}`
-            : `subagent_wait: nothing new${unknown.length ? ` — no such subagent tasks: ${unknown.join(", ")}` : ` — ${known.map((r) => `${r.id} (${r.state})`).join(", ")}`}`;
-        return { content: [{ type: "text", text }], details: { count: 0, tasks: [] } };
+        return { content: [{ type: "text", text: nothingMessage(ids, false) }], details: { count: 0, tasks: [] } };
       }
       const deadline = Date.now() + timeoutS * 1000;
 
@@ -448,14 +463,17 @@ export default function subagents(pi: ExtensionAPI): void {
         if (!pending.length) return;
         // The session can be replaced while this blocks, and a dead renderer must not end the wait or take pi down.
         try {
-          const summaries = pending.map((r) => toSummary(r));
-          const lines = pending.map((r, i) => {
-            const stats = formatTokenStats(summaries[i]);
-            return `${r.id}: ${r.lastActivity} (${formatElapsed(Date.now() - r.startedAt)})${stats ? ` ${stats}` : ""}`;
+          const views = pending.map((r) => {
+            const summary = toSummary(r);
+            const stats = formatTokenStats(summary);
+            return {
+              summary: { ...summary, preview: tailLines(r.lastText) },
+              line: `${r.id}: ${r.lastActivity} (${formatElapsed(summary.elapsed)})${stats ? ` ${stats}` : ""}`,
+            };
           });
           onUpdate?.({
-            content: [{ type: "text", text: lines.join("\n") }],
-            details: { count: pending.length, tasks: summaries.map((s, i) => ({ ...s, preview: tailLines(pending[i].lastText) })) },
+            content: [{ type: "text", text: views.map((v) => v.line).join("\n") }],
+            details: { count: pending.length, tasks: views.map((v) => v.summary) },
           });
         } catch {
           // The next tick reports again.
@@ -476,26 +494,19 @@ export default function subagents(pi: ExtensionAPI): void {
         const pending = running();
         const stillRunning = pending.map((r) => `${r.id} (${r.name})`).join(", ");
         // Tasks that were already delivered stay in the registry, so "no such task" would be a lie: say what happened.
-        const unknown = ids ? ids.filter((id) => !registry.get(id)) : [];
-        const known = ids ? ids.map((id) => registry.get(id)).filter((r): r is TaskRecord => r !== undefined) : [];
         const text = signal?.aborted
           ? `subagent_wait: interrupted${pending.length ? ` — still running: ${stillRunning}` : ""}`
           : pending.length !== 0
             ? `subagent_wait: timed out — still running: ${stillRunning}`
-            : !ids
-              ? "subagent_wait: no tasks to wait for"
-              : unknown.length === ids.length
-                ? `subagent_wait: no such subagent tasks: ${unknown.join(", ")}`
-                : `subagent_wait: nothing new${unknown.length ? ` — no such subagent tasks: ${unknown.join(", ")}` : ` — already delivered: ${known.map((r) => `${r.id} (${r.state})`).join(", ")}`}`;
+            : nothingMessage(ids, true);
         return { content: [{ type: "text", text }], details: { count: 0, tasks: pending.map((r) => toSummary(r)) } };
       }
 
-      const totalTokens = finished.reduce((sum, r) => sum + r.usage.tokens, 0);
-      const totalCost = finished.reduce((sum, r) => sum + r.usage.cost, 0);
+      const total = (pick: (record: TaskRecord) => number) => finished.reduce((sum, r) => sum + pick(r), 0);
       return {
         content: [{ type: "text", text: finished.map(formatReportLine).join("\n") }],
         details: { count: finished.length, tasks: finished.map((r) => toSummary(r)) },
-        usage: usageFrom(totalTokens, totalCost),
+        usage: usageFrom(total((r) => r.usage.tokens), total((r) => r.usage.cost), total((r) => r.usage.generated)),
       };
     },
     renderCall: (args, theme) => renderWaitCall(args, theme),
@@ -535,7 +546,7 @@ export default function subagents(pi: ExtensionAPI): void {
       return {
         content: [{ type: "text", text: stats ? `${content}\n\n[${stats}]` : content }],
         details: { id: record.id, truncated, fullPath },
-        ...(reportUsage ? { usage: usageFrom(record.usage.tokens, record.usage.cost) } : {}),
+        ...(reportUsage ? { usage: usageFrom(record.usage.tokens, record.usage.cost, record.usage.generated) } : {}),
       };
     },
     renderCall: (args, theme) => renderResultCall(args, theme),

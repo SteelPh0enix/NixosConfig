@@ -18,7 +18,10 @@ before it has evaluated a single token. Where bands share a cell the topmost one
 lands on the background, drawn as `▒` so both show through — a block can be held *and* generating at once, but never
 pending, which is a forecast rather than something the context holds. Over capacity held gives way and the moving
 bands keep the right edge. `node test-utils/preview.mjs --demo` prints every combination in your own palette. A third
-line appears above these only when another extension has set a status text.
+line appears above these only when another extension has set a status text. Identity gives way before the bar
+does — the thinking level, then the ends of both names, then the percent, then the model, and last the path, the
+one field whose length says nothing; from ~16 columns up the line is always exactly the terminal's width, and
+`preview.mjs --check` holds it to that.
 
 The top line holds the rest, grouped and separated by `│`. **What is dropped is decided by width alone, never by
 the state of the request**: groups disappear from the right as the terminal narrows, in the order
@@ -84,7 +87,8 @@ and a subagent's context is thrown away long before the footer stops rendering.
 Requirements: `--slots` per instance (llama.cpp default, off only with `--no-slots`), the router reachable at
 `baseUrl` minus `/v1`, and `?model=` accepting what pi sends (preset name or alias). `--metrics` is optional and
 only the server/spec-lifetime cells need it. A model that is not served by llama.cpp — checked once per server with
-`/props` — hands the footer back to pi.
+`/props` — hands the footer back to pi, and is asked nothing else: nothing is polled or scraped until that check has said yes, so a request to some
+third-party API never goes out looking for slots and metrics.
 
 Limits: bar granularity is `--chunk-size`/`--batch-size`, so a 2048-batched instance has few real steps per cell.
 With `--parallel > 1` the slot is picked as "the processing one" and the moving bands can describe someone else's
