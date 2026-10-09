@@ -26,7 +26,7 @@ const importFrom = (dir, file) => import(pathToFileURL(join(dir, file)).href);
 const record = (id, over = {}) => ({
   id, name: "researcher", provider: "p", model: "m", taskText: "t", state: "running", startedAt: Date.now(),
   lastActivityAt: Date.now(), turns: 0, lastText: "", output: "out", recentOutput: "tail",
-  usage: { tokens: 1, cost: 0 }, groups: [], claimed: false, ...over,
+  usage: { tokens: 1, cost: 0, generated: 0 }, groups: [], ...over,
 });
 
 // ---- the completion queue (state.ts) ----
@@ -81,6 +81,9 @@ const cleanRecord = record("task-clean", { output: "", lastText: "what it said b
 ok("a kill of a task that stops cleanly says so", (await killRecord(cleanRecord, 1000)) === true && cleanRecord.state === "killed");
 ok("a killed task that had said something keeps it as its report", cleanRecord.output === "what it said before stopping");
 ok("killing a finished task is not a second kill", (await killRecord(record("task-done", { state: "done" }), 10)) === true);
+// A record whose runner never attached has nothing to abort, and reporting it as still running would be a lie.
+const stranded = record("task-stranded");
+ok("a task with no runner is killed, not left running", (await killRecord(stranded, 10)) === true && stranded.state === "killed");
 ok("withTimeout reports a slow promise as timed out", (await withTimeout(new Promise(() => {}), 5)) === false);
 ok("withTimeout reports a rejected promise as settled", (await withTimeout(Promise.reject(new Error("boom")), 1000)) === true);
 
@@ -218,7 +221,25 @@ const silent = new SlotResolver("http://127.0.0.1:59999/v1", "p");
 ok("a server that is not answering means one slot", (await silent.slotsFor("p/silent-model", undefined)) === 1);
 ok("an override beats a silent server", (await silent.slotsFor("p/override-model", 4)) === 4);
 ok("--parallel N is read out of a preset's launch args", parallelFromArgs(["--ctx-size", "c", "--parallel", "4"]) === 4);
+ok("--parallel=N is read out of them too", parallelFromArgs(["--parallel=4"]) === 4);
 ok("a model that reports no --parallel still gets one slot", parallelFromArgs(undefined) === 1 && parallelFromArgs(["--parallel"]) === 1 && parallelFromArgs(["--parallel", "nope"]) === 1);
+
+// A router that answers must cost one probe per TTL, not one per spawn: an unknown model and a dead server look
+// the same to the cache, and both would otherwise put a probe timeout in the way of every spawn.
+const { createServer } = await import("node:http");
+let probes = 0;
+const router = createServer((req, res) => {
+  probes += 1;
+  res.writeHead(200, { "content-type": "application/json" });
+  res.end(JSON.stringify({ data: [{ id: "listed", status: { args: ["--parallel", "3"] } }] }));
+});
+await new Promise((ready) => router.listen(0, "127.0.0.1", ready));
+const asking = new SlotResolver(`http://127.0.0.1:${router.address().port}/v1`, "p");
+const listed = await asking.slotsFor("p/listed", undefined);
+const absentFirst = await asking.slotsFor("p/absent", undefined);
+const absentAgain = await asking.slotsFor("p/absent", undefined);
+router.close();
+ok("the server is asked once for a whole provider", listed === 3 && absentFirst === 1 && absentAgain === 1 && probes === 1);
 
 // ---- config (config.ts) and renderers (ui.ts), through pi's node_modules ----
 
@@ -259,6 +280,7 @@ if (!nodeModules) {
       bothKeys: { provider: "p", model: "m", tools: { enable: ["a"], disable: ["b"] } },
       enableNotList: { provider: "p", model: "m", tools: { enable: 42 } },
       misspelled: { provider: "p", model: "m", tools: { dissable: ["x"] } },
+      groupTypo: { provider: "p", model: "m", group: ["gpu"] },
       noModel: { provider: "p" },
       noProvider: { model: "m" },
     }),
@@ -268,8 +290,11 @@ if (!nodeModules) {
   ok("enable and disable together are refused", !broken.subagents.has("bothKeys"));
   ok("a non-list enable is refused", !broken.subagents.has("enableNotList"));
   ok("a misspelled tool key is refused", !broken.subagents.has("misspelled"));
+  // `groups` misspelled would otherwise load as a subagent with no group: a limit silently not enforced.
+  ok("a key an entry should not have is refused", !broken.subagents.has("groupTypo"));
+  ok("and the message names what an entry may hold", broken.errors.some((e) => e.includes('"groupTypo"') && e.includes("only provider, model")));
   ok("a missing provider or model is refused", !broken.subagents.has("noModel") && !broken.subagents.has("noProvider"));
-  const rejected = ["bothKeys", "enableNotList", "misspelled", "noModel", "noProvider"];
+  const rejected = ["bothKeys", "enableNotList", "misspelled", "groupTypo", "noModel", "noProvider"];
   ok("every rejected entry is named, with a reason", rejected.every((n) => broken.errors.some((e) => e.includes(`"${n}" skipped`))) && broken.errors.filter((e) => e.includes("skipped")).length === rejected.length);
   ok("a bad tools value says what it should have been", broken.errors.some((e) => e.includes("tools must be")));
   ok("a rejected entry never reaches spawn", [...broken.subagents.keys()].join() === "good,enable,disable,grouped,ghost");
@@ -388,6 +413,11 @@ if (!nodeModules) {
   const streamer = new SubagentTask({ record: streaming, onStatus: () => {} });
   streamer.onEvent({ type: "message_update", assistantMessageEvent: { type: "text_delta" }, message: { role: "assistant", content: [{ type: "text", text: "half a report" }] } });
   ok("the report lands in the record while it streams", streaming.lastText === "half a report");
+  // the `out ~N` a running task shows counts thinking, not only the answer text that follows it
+  const thinker = record("task-think");
+  const thinking = new SubagentTask({ record: thinker, onStatus: () => {} });
+  thinking.onEvent({ type: "message_update", assistantMessageEvent: { type: "thinking_delta" }, message: { role: "assistant", content: [{ type: "thinking", thinking: "a thought of some length" }] } });
+  ok("what the model thinks counts towards what it is producing", (thinker.usage.streaming ?? 0) > 0);
   streamer.onEvent({ type: "tool_execution_start", toolName: "bash", args: { command: "sleep 60" } });
   streamer.applyOutcome();
   ok("a finished task stops claiming an activity", streaming.state === "done" && streaming.lastActivity === "");

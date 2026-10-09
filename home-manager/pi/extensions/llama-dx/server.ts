@@ -39,6 +39,11 @@ const PROBE_TIMEOUT_MS = 1500;
 /** `root|instance`, which is what both /metrics caches and the measured speeds are kept under. */
 export const keyOf = (r: { root: string; instance: string }): string => `${r.root}|${r.instance}`;
 
+/**
+ * The server root behind an inference baseUrl, `/v1` stripped. The same helper sits in ../llama-compat/index.ts and
+ * ../subagents/slots.ts: the three extensions are installed side by side but never import each other, so a change
+ * to how that root is found belongs in all three.
+ */
 export function serverRoot(m: { baseUrl?: string } | undefined): string | undefined {
   if (!m?.baseUrl) return undefined;
   try {
@@ -89,6 +94,13 @@ export function probeRoot(root: string, onAnswer: (answer: boolean) => void): vo
 }
 
 export const isLlama = (root: string | undefined): boolean => (root === undefined ? false : llamaRoots.get(root) ?? true);
+
+/**
+ * Whether the `/props` probe has answered *yes* for this root. Until it has, nothing but the probe itself goes out:
+ * a model that is not served by llama.cpp would otherwise have `/slots` and `/metrics` asked of it — of some
+ * third-party API, at worst — while the one request that would say so is still on its way.
+ */
+export const isKnownLlama = (root: string): boolean => llamaRoots.get(root) === true;
 
 export async function fetchSlots(root: string, instance: string): Promise<Slot[] | undefined> {
   try {

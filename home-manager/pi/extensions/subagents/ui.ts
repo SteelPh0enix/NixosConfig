@@ -1,7 +1,7 @@
 // Rendering, live status emission, and completion notifications for the
 // subagents tools. Rendering uses pi-tui's Text + theme colors; the live
-// status is pushed on pi.events so llama-dx (and the setStatus fallback) can
-// render it. Details types are shared with index.ts.
+// status is pushed on pi.events for whatever widget wants to show it.
+// Details types are shared with index.ts.
 
 import { Text } from "@earendil-works/pi-tui";
 import type {
@@ -12,7 +12,7 @@ import type {
   Theme,
   ThemeColor,
 } from "@earendil-works/pi-coding-agent";
-import { IDLE_AFTER_MS, toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
+import { IDLE_AFTER_MS, oneLine, toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
 
 // ---- details shapes (matched by renderResult) -----------------------------
 
@@ -114,6 +114,9 @@ function text(content: string): Text {
 /** How many lines of a running subagent's own text the wait widget shows. */
 export const LIVE_TAIL_LINES = 3;
 
+/** Columns an expanded view is laid out in; `renderResult` is never told how wide the terminal is. */
+const DETAIL_WIDTH = 120;
+
 /** Last `count` lines of `value`, each flattened to one line and cut to `width`. */
 export function tailLines(value: string, count = LIVE_TAIL_LINES, width = 90): string {
   return value
@@ -125,7 +128,7 @@ export function tailLines(value: string, count = LIVE_TAIL_LINES, width = 90): s
     .join("\n");
 }
 
-// ---- live status (pi.events + setStatus fallback) -------------------------
+// ---- live status (pi.events) -----------------------------------------------
 
 /**
  * Snapshot of the running tasks on `pi.events` (channel: `subagents:status`).
@@ -184,14 +187,9 @@ function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolea
   if (task.preview) lines.push(...task.preview.split("\n").map((line) => theme.fg("dim", `  │ ${line}`)));
   if (options.expanded) {
     const output = task.recentOutput.trim();
-    if (output) lines.push("", theme.fg("dim", truncate(output, 800)));
+    if (output) lines.push("", theme.fg("dim", oneLine(output, 800)));
   }
   return text(lines.join("\n"));
-}
-
-function truncate(value: string, limit: number): string {
-  const trimmed = value.replace(/\s+/g, " ").trim();
-  return trimmed.length > limit ? `${trimmed.slice(0, limit - 1).trimEnd()}…` : trimmed;
 }
 
 export function renderSpawnResult(
@@ -227,7 +225,7 @@ export function renderStatusResult(
     return text(`${title} ${theme.fg("dim", `— ${d.count} task(s), ${running} running`)}`);
   }
   const blocks = d.tasks.map((r) => taskBlock(r, theme, { expanded: true }));
-  return text(`${title}\n${blocks.map((b) => b.render(120).join("\n")).join("\n")}`);
+  return text(`${title}\n${blocks.map((b) => b.render(DETAIL_WIDTH).join("\n")).join("\n")}`);
 }
 
 export function renderWaitResult(
@@ -240,11 +238,11 @@ export function renderWaitResult(
   const blocks = d.tasks.map((r) => taskBlock(r, theme, { expanded: opts.expanded }));
   if (d.count === 0) {
     // The tool says which case this is (interrupted, nothing to wait for, timed out); show it with whatever is left.
-    const message = theme.fg("muted", truncate(result.content.find((c) => c.type === "text")?.text ?? "subagent_wait: nothing finished", 200));
-    return text(blocks.length ? `${message}\n${blocks.map((b) => b.render(120).join("\n")).join("\n\n")}` : message);
+    const message = theme.fg("muted", oneLine(result.content.find((c) => c.type === "text")?.text ?? "subagent_wait: nothing finished", 200));
+    return text(blocks.length ? `${message}\n${blocks.map((b) => b.render(DETAIL_WIDTH).join("\n")).join("\n\n")}` : message);
   }
   const header = theme.fg("toolTitle", theme.bold(`subagent_wait · ${d.count} ${opts.isPartial ? "still running" : "finished"}`));
-  return text(`${header}\n${blocks.map((b) => b.render(120).join("\n")).join("\n\n")}`);
+  return text(`${header}\n${blocks.map((b) => b.render(DETAIL_WIDTH).join("\n")).join("\n\n")}`);
 }
 
 export function renderResultResult(
@@ -256,16 +254,16 @@ export function renderResultResult(
   const d = result.details;
   if (!d) {
     const message = result.content.find((c) => c.type === "text")?.text ?? "subagent_result";
-    return text(theme.fg(ctx.isError ? "error" : "muted", truncate(message, 600)));
+    return text(theme.fg(ctx.isError ? "error" : "muted", oneLine(message, 600)));
   }
   const header = theme.fg("toolTitle", theme.bold("subagent_result ")) + theme.fg("accent", d.id);
   if (ctx.isError) {
     const message = result.content.find((c) => c.type === "text")?.text ?? "unknown error";
-    return text(`${header}\n${theme.fg("error", truncate(message, 600))}`);
+    return text(`${header}\n${theme.fg("error", oneLine(message, 600))}`);
   }
   const first = result.content.find((c) => c.type === "text")?.text ?? "";
   if (!opts.expanded) {
-    return text(`${header}\n${theme.fg("dim", truncate(first, 400))}${d.truncated ? theme.fg("muted", "\n(full output saved to temp file)") : ""}`);
+    return text(`${header}\n${theme.fg("dim", oneLine(first, 400))}${d.truncated ? theme.fg("muted", "\n(full output saved to temp file)") : ""}`);
   }
   const full = first.trim() || (d.fullPath ? `(full output saved to ${d.fullPath})` : "");
   return text(`${header}\n${theme.fg("dim", full)}`);

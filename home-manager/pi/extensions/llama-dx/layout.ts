@@ -19,8 +19,9 @@ const TRACK = "░";
 
 const clamp = (v: number, min = 0, max = 1): number => Math.min(max, Math.max(min, v));
 
+// The boundary is where `k` would round up to a million, so the field never reads `1000k` one column short of `1.0M`.
 export const short = (n: number): string =>
-  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n));
+  n >= 999_500 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n));
 
 export const full = (n: number | null | undefined): string =>
   n === undefined || n === null || !Number.isFinite(n) ? "—" : Math.round(n).toLocaleString("en-US");
@@ -271,7 +272,9 @@ export type BaseLineInput = {
 /**
  * The bottom line: path and branch on the left, model and thinking on the right, and between them the tokens held,
  * their percent and the context bar, which takes every column the others leave. Identity gives way before the bar
- * does: the thinking level first, then the ends of both names, then the percent, then the model.
+ * does: the thinking level first, then the ends of both names, then the percent, then the model, and last of all the
+ * path — the one field whose length says nothing. Below about 16 columns the two numbers alone need more room than
+ * the terminal has, and no arrangement of them fits; every width above that comes out exactly `width` wide.
  */
 export function baseLine(i: BaseLineInput): Segment[] {
   const minBar = i.minBar ?? 10;
@@ -291,6 +294,7 @@ export function baseLine(i: BaseLineInput): Segment[] {
   let showPercent = known;
   let showRight = true;
 
+  // Room the bar has left: every fixed block carries a gutter, and putting the bar between them costs one more.
   const avail = () => {
     const blocks = [leftW, usedTxt.length + (showPercent ? 1 + pctTxt.length : 0), totalTxt.length, showRight ? rightW : 0];
     return i.width - blocks.reduce((a, b) => a + b, 0) - GUTTER.length * blocks.filter((b) => b > 0).length;
@@ -306,28 +310,27 @@ export function baseLine(i: BaseLineInput): Segment[] {
     else if (showRight) {
       showRight = false;
       rightW = 0;
-    } else break;
+    } else if (leftW > 0) leftW = 0; // last of all: the path gives what nothing else can
+    else break;
   }
 
+  // A bar of one cell is still a bar; below that the line closes over and reads as path, numbers, model. What is
+  // left over (never more than a few columns, and only under ~20 of them) `colorize` fills, so the line is `width`.
+  const cells = avail();
+  const fixed: Segment[][] = [
+    leftW > 0 ? [{ text: cut(leftRaw, leftW), tone: "ident" }] : [],
+    showPercent
+      ? [{ text: usedTxt, tone: "number" }, { text: " ", tone: "none" }, { text: pctTxt, tone: ZONE[l].percent }]
+      : [{ text: usedTxt, tone: "number" }],
+    cells >= 1 ? contextBar({ cells, used: i.used ?? 0, evaluating: i.evaluating ?? 0, pending: i.pending ?? 0, generating: i.generating ?? 0, total: i.total }, l) : [],
+    [{ text: totalTxt, tone: "number" }],
+    showRight ? [{ text: cut(rightRaw, rightW), tone: "model" }] : [],
+  ];
   const out: Segment[] = [];
-  const emit = (s: string, tone: Tone) => {
-    if (s.length > 0) out.push({ text: s, tone });
-  };
-  emit(cut(leftRaw, leftW), "ident");
-  emit(GUTTER, "none");
-  emit(usedTxt, "number");
-  if (showPercent) {
-    emit(" ", "none");
-    emit(pctTxt, ZONE[l].percent);
-  }
-  emit(GUTTER, "none");
-  out.push(...contextBar({ cells: Math.max(1, avail()), used: i.used ?? 0, evaluating: i.evaluating ?? 0, pending: i.pending ?? 0, generating: i.generating ?? 0, total: i.total }, l));
-  emit(GUTTER, "none");
-  emit(totalTxt, "number");
-  if (showRight) {
-    emit(GUTTER, "none");
-    emit(cut(rightRaw, rightW), "model");
-  }
+  fixed.filter((b) => b.length > 0).forEach((block, n) => {
+    if (n > 0) out.push({ text: GUTTER, tone: "none" });
+    out.push(...block);
+  });
   return out;
 }
 

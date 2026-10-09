@@ -24,12 +24,20 @@ const PROMPT = 10000;
 const CACHE = 4000;
 const TARGET = PROMPT - CACHE;
 let step = 0;
+let askedElsewhere = 0;
 const script = (n) => ({ processed: Math.max(0, Math.min(TARGET, (n - 1) * 800)), decoded: n > 11 ? Math.min(120, (n - 11) * 40) : 0 });
 const server = (await import("node:http")).createServer((req, res) => {
   const send = (body, type = "application/json") => (res.writeHead(200, { "content-type": type }), res.end(body));
   // Anything under /nope answers like a server that is not llama.cpp, which is how the footer hand-back is checked.
   const nope = req.url.startsWith("/nope");
-  if (req.url.endsWith("/props")) return send(JSON.stringify(nope ? {} : { role: "router", model_alias: "qwen", chat_template_caps: {} }));
+  // Nothing is asked of such a server beyond the one /props that says what it is.
+  if (nope && /\/(slots|metrics)(\?|$)/.test(req.url)) askedElsewhere += 1;
+  // /nope3 answers /props late, so a request made just after switching to it is still running with the server's
+  // identity unknown — which is the moment nothing may be asked of it.
+  if (req.url.endsWith("/props")) {
+    if (req.url.startsWith("/nope3")) return setTimeout(() => send("{}"), 400);
+    return send(JSON.stringify(nope ? {} : { role: "router", model_alias: "qwen", chat_template_caps: {} }));
+  }
   if (req.url.startsWith("/slots")) {
     const s = step > 0 ? script(step) : { processed: 2000, decoded: 80 };
     const cache = step > 0 ? CACHE : 1800;
@@ -199,6 +207,14 @@ ctx.model = { ...ctx.model, baseUrl: `http://127.0.0.1:${port}/nope/v1` };
 await fire("model_select", {}, ctx);
 await new Promise((r) => setTimeout(r, 300)); // the /props probe answers asynchronously
 expect("a non-llama.cpp model hands the footer back", footer === null);
+// Handing the footer back is only half of it: the polling and the scraping have to stop going there as well —
+// including for a second server whose /props probe is still on its way while the request goes out.
+await fire("before_provider_request", { payload: { model: "somewhere-else", messages: [] } }, ctx);
+ctx.model = { ...ctx.model, baseUrl: `http://127.0.0.1:${port}/nope3/v1` };
+void fire("model_select", {}, ctx);
+await fire("before_provider_request", { payload: { model: "somewhere-else", messages: [] } }, ctx);
+await new Promise((r) => setTimeout(r, 2400));
+expect("and nothing is ever scraped from it, nor before /props has said what it is", askedElsewhere === 0);
 await fire("session_shutdown", {});
 server.close();
 

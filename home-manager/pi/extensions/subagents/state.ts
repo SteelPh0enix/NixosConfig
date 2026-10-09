@@ -46,8 +46,6 @@ export interface TaskRecord {
    * count. A label, not a reservation — it shifts as other tasks on the same model finish.
    */
   slot?: { index: number; total: number };
-  /** Whether `subagent_wait` has already delivered this task to the main agent. */
-  claimed: boolean;
   /** Whether this task's tokens and cost have already been reported to the main session (they must be once). */
   usageReported?: boolean;
   /** Whether the completion toast has already fired. */
@@ -105,6 +103,12 @@ const SUMMARY_OUTPUT_LIMIT = 1000;
 /** Idle a running task may sit silent for before the status line says so. */
 export const IDLE_AFTER_MS = 15_000;
 
+/** Collapse to one line and cut to `limit`, for activity text, errors and rendered output. */
+export function oneLine(value: string, limit: number): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text;
+}
+
 /** Tokens of the turn being decoded right now, counted off the stream; 0 once the turn has ended. */
 function liveGenerated(record: TaskRecord): number {
   return record.state === "running" ? (record.usage.streaming ?? 0) : 0;
@@ -126,26 +130,33 @@ export function withTimeout(pending: Promise<unknown>, ms: number): Promise<bool
  * Abort a task and report whether it wound down inside `timeoutMs`. Nothing here may block the caller for longer than
  * it was told to: a task whose session is still being created has nothing to abort and no deadline of its own, and
  * the main agent must not end up waiting for it. A task that does not settle is marked killed anyway and hands its
- * group slots back, so the abandoned runner cannot hold a group while it finishes on its own.
+ * group slots back, so the abandoned runner cannot hold a group while it finishes on its own. A record with no
+ * runner is marked killed the same way: a task nothing drives any more is not a running task.
  */
 export async function killRecord(record: TaskRecord, timeoutMs: number): Promise<boolean> {
   if (record.state !== "running") return true;
   const runner = record.runner;
-  if (!runner) return true;
+  if (!runner) {
+    markKilled(record);
+    return true;
+  }
   // A failed abort is not worth an error of its own: the timeout still ends the kill and the lease TTL frees the group.
   void runner.abort().catch(() => {});
   const settled = await withTimeout(runner.done(), timeoutMs);
-  if (record.state === "running") {
-    record.state = "killed";
-    record.finishedAt = record.finishedAt ?? Date.now();
-    // A task stopped between turns still said something; better than reporting nothing.
-    if (!record.output && record.lastText.trim()) {
-      record.output = record.lastText.trim();
-      record.recentOutput = record.output;
-    }
-  }
+  markKilled(record);
   if (!settled) runner.releaseLeases();
   return settled;
+}
+
+/** Stop a running task, keeping what it had already said as its report when it never got to write one. */
+function markKilled(record: TaskRecord): void {
+  if (record.state !== "running") return;
+  record.state = "killed";
+  record.finishedAt = record.finishedAt ?? Date.now();
+  if (!record.output && record.lastText.trim()) {
+    record.output = record.lastText.trim();
+    record.recentOutput = record.output;
+  }
 }
 
 export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
@@ -174,9 +185,8 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
 /**
  * Completion queue for `subagent_wait`.
  *
- * - `claimFinished(ids)` hands out finished-but-unclaimed tasks and marks them
- *   claimed, so the main agent sees each result exactly once. When `ids` is
- *   given, only those tasks are claimed; the rest stay queued for later.
+ * - `claimFinished(ids)` takes finished tasks off the queue, so the main agent sees each result exactly once. When
+ *   `ids` is given, only those tasks are taken; the rest stay queued for later.
  * - `waitForCompletion(timeoutMs, ids, signal)` resolves true as soon as a
  *   claimable task finishes, and false on timeout or abort.
  */
@@ -233,7 +243,6 @@ export class TaskRegistry {
         queued.push(id);
         continue;
       }
-      record.claimed = true;
       // The wait is where the main agent normally collects a task, so that is where its cost gets counted.
       record.usageReported = true;
       claimed.push(record);

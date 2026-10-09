@@ -5,7 +5,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { TUI } from "@earendil-works/pi-tui";
 import { debug } from "./debug.ts";
 import type { Facts } from "./layout.ts";
-import { fetchSlots, isLlama, keyOf, metricsShown, metricsSupport, pickSlot, probeRoot, scrapeMetrics, serverRoot, shortHost, type Metrics, type Timings } from "./server.ts";
+import { fetchSlots, isKnownLlama, isLlama, keyOf, metricsShown, metricsSupport, pickSlot, probeRoot, scrapeMetrics, serverRoot, shortHost, type Metrics, type Timings } from "./server.ts";
 
 /** `/slots` is dear: it posts a task to the server queue and answers with the whole prompt and answer detokenized
  * (~1.8 MB at a 57k context, measured). The stream carries what happens to *this* request, so it only needs to
@@ -290,6 +290,8 @@ function finalize(r: Req): void {
 }
 
 async function refreshMetrics(r: Req): Promise<void> {
+  // Nothing is asked of a server whose identity is still unknown, so a non-llama.cpp model is never scraped.
+  if (!isKnownLlama(r.root)) return;
   const m = await scrapeMetrics(r.root, r.instance);
   if (!m) return;
   r.metrics = m;
@@ -314,8 +316,10 @@ async function poll(): Promise<void> {
 }
 
 async function pollOnce(): Promise<void> {
+  // Waiting for the probe is not waiting on the server: `/props` answers in 1.5 s at worst, and the request the bar
+  // describes is normally long in flight by then.
   const r = req;
-  if (!r) return;
+  if (!r || !isKnownLlama(r.root)) return;
   const slots = (await fetchSlots(r.root, r.instance)) ?? [];
   const slot = pickSlot(slots); // nothing to read while the instance is loading or without --slots
   if (!slot) return;
@@ -394,6 +398,10 @@ let totalsCache: { key: string; value: Totals } | undefined;
 /**
  * What pi recorded for this session, plus its own estimate of the context. Both walk the whole session, so they
  * are taken once per leaf: entries are append-only, and every append moves the leaf.
+ *
+ * The walk is pi's own `getSessionStats()` arithmetic (usage entries, assistant and tool-result messages, and the
+ * usage a compaction or branch summary carries); it has no equivalent on ExtensionContext, so if pi changes what
+ * counts towards a session, this is what has to follow.
  */
 function sessionState(): Totals {
   const ctx = ctxSafe();
@@ -499,11 +507,12 @@ export function startRequest(payload: Record<string, unknown>, ctx: ExtensionCon
   runtime.ctx = ctx;
   // A tool call that finished faster than the idle detection still belongs to the session totals.
   finishRequest();
+  const body = JSON.stringify(payload.messages ?? "");
   req = {
     root,
     instance: String(payload.model ?? ctx.model?.id ?? "?"),
-    chars: JSON.stringify(payload.messages ?? "").length + (Array.isArray(payload.tools) ? JSON.stringify(payload.tools).length : 0),
-    estPrompt: Math.round(JSON.stringify(payload.messages ?? "").length / charsPerToken),
+    chars: body.length + (Array.isArray(payload.tools) ? JSON.stringify(payload.tools).length : 0),
+    estPrompt: Math.round(body.length / charsPerToken),
     processed: 0,
     cached: 0,
     decoded: 0,
