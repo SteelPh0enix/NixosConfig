@@ -3,50 +3,97 @@
     "assistant": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Generic helper: anything delegated that needs both hands - inspect, change, run, check. Use when no narrower subagent fits. Gets the main agent's tools.",
-      "groups": ["pc"]
+      "description": "Generic helper. Use when no narrower subagent fits. Gets the main agent's tools.",
+      "groups": [
+        "pc"
+      ]
     },
     "coder": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Implement or fix code in the working tree: reads, edits, runs commands and tests. The card's best coder, and MTP earns its keep on code rather than prose.",
-      "tools": ["read", "bash", "edit", "write", "codemode"],
-      "groups": ["pc"]
+      "description": "Implement or fix code in the working tree: reads, edits, runs commands and tests.",
+      "tools": [
+        "read",
+        "bash",
+        "edit",
+        "write",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
     },
     "reviewer": {
       "provider": "llama-pc",
       "model": "qwen-27B",
       "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available.",
-      "tools": ["read", "bash", "codemode"],
-      "groups": ["pc"]
+      "tools": [
+        "read",
+        "bash",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
     },
     "researcher": {
       "provider": "llama-pc",
       "model": "qwen-27B",
-      "description": "Investigate a question against the web, upstream docs or the local nixpkgs checkout, and report what was found with sources. Writes nothing.",
-      "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
-      "groups": ["pc"]
+      "description": "Investigate a question against the web, upstream docs, or local files. Report what was found with sources. Read-only.",
+      "tools": [
+        "read",
+        "bash",
+        "web_search",
+        "web_fetch",
+        "web_interact",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
     },
-    "writer": {
-      "provider": "llama-pc",
-      "model": "occult-nail",
-      "description": "Write or reword prose: commit messages, docs, release notes, user-facing text. The general-purpose model of the set - more knowledge and steadier wording than Cyber-Tiel, and slow, so keep the scope to words.",
-      "tools": ["read", "edit", "write", "codemode"],
-      "groups": ["pc"]
-    },
-    "runner": {
+    "Power": {
       "provider": "llama-pc",
       "model": "lfm",
-      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping and triaging logs. The fastest thing here and not clever, so spell out every step and say when to stop.",
-      "tools": ["read", "bash", "edit", "write", "codemode"],
-      "groups": ["pc"]
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping and triaging logs, simple research. The fastest thing here and not clever, so spell out every step and say when to stop.",
+      "tools": [
+        "read",
+        "bash",
+        "edit",
+        "write",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
+    },
+    "Denji": {
+      "provider": "llama-pc",
+      "model": "sharp-spark",
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping and triaging logs, simple research. Bit slower than Power, but a bit smarter (not much though) - write very detailed specification for task for it to prevent it from hallucinating or messing up.",
+      "tools": [
+        "read",
+        "bash",
+        "edit",
+        "write",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
     },
     "summarizer": {
       "provider": "llama-pc",
       "model": "sharp-spark",
       "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. The largest window on the card and cheap prefill; 4B, so ask for extraction rather than judgement.",
-      "tools": ["read", "bash", "codemode"],
-      "groups": ["pc"]
+      "tools": [
+        "read",
+        "bash",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
     }
   },
   "groups": {
