@@ -1,9 +1,17 @@
 {
   "subagents": {
-    "assistant": {
+    "assistant-quick": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Generic helper. Use when no narrower subagent fits. Gets the main agent's tools.",
+      "description": "Generic helper. Use when no narrower subagent fits. Gets the main agent's tools. This one is the faster one, and barely dumber than smart one.",
+      "groups": [
+        "pc"
+      ]
+    },
+    "assistant-smart": {
+      "provider": "llama-pc",
+      "model": "qwen-27B",
+      "description": "Generic helper. Use when no narrower subagent fits. Gets the main agent's tools. Use only if you really need your assistant to reason a lot. Has less context than quick one.",
       "groups": [
         "pc"
       ]
@@ -25,8 +33,21 @@
     },
     "reviewer": {
       "provider": "llama-pc",
+      "model": "cyber-tiel-coder",
+      "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available. Quicker and has more context than dense one.",
+      "tools": [
+        "read",
+        "bash",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
+    },
+    "reviewer-dense": {
+      "provider": "llama-pc",
       "model": "qwen-27B",
-      "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available.",
+      "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available. Has better reasoning than standard one.",
       "tools": [
         "read",
         "bash",
@@ -38,8 +59,24 @@
     },
     "researcher": {
       "provider": "llama-pc",
+      "model": "cyber-tiel-coder",
+      "description": "Investigate a question against the web, upstream docs, or local files. Report what was found with sources. Read-only. Quicker and has more context than dense one.",
+      "tools": [
+        "read",
+        "bash",
+        "web_search",
+        "web_fetch",
+        "web_interact",
+        "codemode"
+      ],
+      "groups": [
+        "pc"
+      ]
+    },
+    "researcher-dense": {
+      "provider": "llama-pc",
       "model": "qwen-27B",
-      "description": "Investigate a question against the web, upstream docs, or local files. Report what was found with sources. Read-only.",
+      "description": "Investigate a question against the web, upstream docs, or local files. Report what was found with sources. Read-only. Has better reasoning than standard one.",
       "tools": [
         "read",
         "bash",
