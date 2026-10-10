@@ -13,11 +13,12 @@ rec {
   # because flake input URLs have to be literals.
   llamaCppPath = "/home/steelph0enix/llama.cpp";
 
-  # GGUF weights and the router's preset file (see nixos/services/llama-server-vulkan). Per-host:
-  # point the weights wherever they live on that machine; the preset stays in the checkout, so
-  # editing it and restarting the unit needs no rebuild.
+  # GGUF weights and the router's preset file (see nixos/services/llama-server-vulkan). Both sit
+  # under /home/LLMs rather than in the checkout: the unit runs as `llama`, and home is 0700, so it
+  # cannot traverse anything below it - the preset read fails with EACCES. The checkout keeps a
+  # symlink to the preset, so editing it and restarting the unit still needs no rebuild.
   llamaModelsPath = "/home/LLMs";
-  llamaPresetsPath = "${repoPath}/nixos/services/llama-server-vulkan/llama-server.ini";
+  llamaPresetsPath = "${llamaModelsPath}/llama-server.ini";
   # Models kept resident at once (see nixos/services/llama-server-vulkan).
   llamaModelsMax = 4;
   # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
