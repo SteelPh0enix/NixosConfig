@@ -18,11 +18,11 @@
 
       settings.llamaRouterPort # llama.cpp router (Vulkan)
       settings.llamaLogsPort # its log web interface
+      settings.llamaStrixPort # llama.cpp router (ROCm, rootless Docker); LAN only, the tunnel dials it out
 
       # Few generic ports for one-shot/test stuff
       11111
       22222
-      33333
       44444
       55555
     ];

@@ -8,6 +8,7 @@
     ./llama-server-vulkan/llama-server-vulkan.nix
     ./llama-vulkan-logs/llama-vulkan-logs.nix
     ./adguardhome.nix
+    ./cloudflared.nix
     ./searxng.nix
     ./samba.nix
     ./tailscale.nix

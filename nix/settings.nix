@@ -26,4 +26,8 @@ rec {
   llamaRouterHost = "0.0.0.0";
   llamaRouterPort = 51536;
   llamaLogsPort = 51580;
+
+  # The ROCm router stack in ~/LLMs/llm-router-docker-compose.yml (rootless Docker). The LAN uses
+  # this port, the internet gets https://clanker.steelph0enix.dev/ through the Cloudflare Tunnel.
+  llamaStrixPort = 33333;
 }
