@@ -23,7 +23,6 @@ import { loadSubagentConfigs, resolveTools, nameSchema, type ResolvedTools } fro
 import { IDLE_AFTER_MS, killRecord, TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
 import { SubagentTask } from "./task.ts";
 import { LeaseStore, type LeaseRequest, type AcquireResult } from "./store.ts";
-import { SlotResolver } from "./slots.ts";
 import {
   emitStatus,
   formatElapsed,
@@ -94,15 +93,6 @@ export default function subagents(pi: ExtensionAPI): void {
       store.start();
     }
     return store;
-  }
-
-  // One slot resolver per provider, so its short cache outlives a spawn: each provider is asked for its slot counts
-  // about every 30 s rather than on every spawn.
-  const resolvers = new Map<string, SlotResolver>();
-  async function slotsFor(provider: string, providerModel: string, baseUrl: string): Promise<number> {
-    const resolver = resolvers.get(provider) ?? new SlotResolver(baseUrl, provider);
-    resolvers.set(provider, resolver);
-    return resolver.slotsFor(providerModel, slots.get(providerModel));
   }
 
   // ---- helpers -------------------------------------------------------------
@@ -253,7 +243,7 @@ export default function subagents(pi: ExtensionAPI): void {
   // ---- tool schemas --------------------------------------------------------
 
   const spawnParameters = Type.Object({
-    name: nameSchema(names),
+    name: nameSchema(configs),
     task: Type.String({
       description: "The task to delegate. Be specific about the goal, constraints, and expected output.",
     }),
@@ -281,7 +271,8 @@ export default function subagents(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "subagent_spawn",
     label: "Spawn a background subagent",
-    description: "Delegate a task to a configured subagent, which runs in the background.",
+    description:
+      "Delegate a task to a configured subagent, which runs in the background. A spawn that cannot get a concurrency slot is refused rather than queued, so retry it once the tasks it names have finished.",
     parameters: spawnParameters,
     execute: async (
       _id,
@@ -310,11 +301,10 @@ export default function subagents(pi: ExtensionAPI): void {
         throw new Error(`unknown model "${config.provider}/${config.model}"`);
       }
 
-      // A group's limit counts distinct models; within a model the capacity is that model's own slot count. Resolve
-      // it (config override, then the server's --parallel, then 1) before taking any slot. Discovery reads only
-      // /v1/models, so it never loads or swaps the resident model, and a silent server means one slot.
+      // A group's limit counts distinct models; within a model the capacity is that model's own slot count, stated in
+      // the config's `slots` map. A model nobody states has one slot.
       const providerModel = `${config.provider}/${config.model}`;
-      const capacity = await slotsFor(config.provider, providerModel, model.baseUrl);
+      const capacity = slots.get(providerModel) ?? 1;
 
       // Hold a slot in each of this subagent's groups; reject if another model already holds a group or this model's
       // own slots are gone. Every group this spawn takes shares one claim, so it counts once toward capacity.
@@ -362,7 +352,6 @@ export default function subagents(pi: ExtensionAPI): void {
         name: params.name,
         provider: config.provider,
         model: config.model,
-        description: config.description,
         taskText: params.task,
         state: "running",
         startedAt: Date.now(),

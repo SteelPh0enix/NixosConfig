@@ -134,7 +134,6 @@ ok("details carry a bounded output", done.recentOutput.length === 1000);
 // ---- group leases (store.ts) ----
 
 const { LeaseStore } = await importFrom(SRC, "store.ts");
-const { SlotResolver, parallelFromArgs } = await importFrom(SRC, "slots.ts");
 const { DatabaseSync } = await import("node:sqlite");
 const dbDir = mkdtempSync(join(tmpdir(), "subagents-check-"));
 const store = new LeaseStore(join(dbDir, "leases.db"), "inst-A");
@@ -215,32 +214,6 @@ coder.close();
 lfm.close();
 multi.close();
 
-// Discovery only reads /v1/models, never loads a model: a silent server means one slot, an override still wins.
-console.log("\nslots");
-const silent = new SlotResolver("http://127.0.0.1:59999/v1", "p");
-ok("a server that is not answering means one slot", (await silent.slotsFor("p/silent-model", undefined)) === 1);
-ok("an override beats a silent server", (await silent.slotsFor("p/override-model", 4)) === 4);
-ok("--parallel N is read out of a preset's launch args", parallelFromArgs(["--ctx-size", "c", "--parallel", "4"]) === 4);
-ok("--parallel=N is read out of them too", parallelFromArgs(["--parallel=4"]) === 4);
-ok("a model that reports no --parallel still gets one slot", parallelFromArgs(undefined) === 1 && parallelFromArgs(["--parallel"]) === 1 && parallelFromArgs(["--parallel", "nope"]) === 1);
-
-// A router that answers must cost one probe per TTL, not one per spawn: an unknown model and a dead server look
-// the same to the cache, and both would otherwise put a probe timeout in the way of every spawn.
-const { createServer } = await import("node:http");
-let probes = 0;
-const router = createServer((req, res) => {
-  probes += 1;
-  res.writeHead(200, { "content-type": "application/json" });
-  res.end(JSON.stringify({ data: [{ id: "listed", status: { args: ["--parallel", "3"] } }] }));
-});
-await new Promise((ready) => router.listen(0, "127.0.0.1", ready));
-const asking = new SlotResolver(`http://127.0.0.1:${router.address().port}/v1`, "p");
-const listed = await asking.slotsFor("p/listed", undefined);
-const absentFirst = await asking.slotsFor("p/absent", undefined);
-const absentAgain = await asking.slotsFor("p/absent", undefined);
-router.close();
-ok("the server is asked once for a whole provider", listed === 3 && absentFirst === 1 && absentAgain === 1 && probes === 1);
-
 // ---- config (config.ts) and renderers (ui.ts), through pi's node_modules ----
 
 const nodeModules = findNodeModules();
@@ -301,6 +274,16 @@ if (!nodeModules) {
 
   write(agentDir, "subagents.json", { subagents: subagents({}), groups: { gpu: 1, wrong: 0 } });
   ok("one bad limit skips the whole groups map", loadSubagentConfigs(projectDir, agentDir).groups.size === 0);
+
+  // Slot counts are stated by hand; a model no one listed has one slot.
+  write(agentDir, "subagents.json", { subagents: subagents({}), groups: { gpu: 1 }, slots: { "llama.cpp/m": 2, "llama.cpp/other": 4 } });
+  const stated = loadSubagentConfigs(projectDir, agentDir);
+  ok("a slots map loads", stated.slots.get("llama.cpp/m") === 2 && stated.slots.get("llama.cpp/other") === 4);
+  ok("a model nobody listed carries no slot count", stated.slots.has("llama.cpp/unlisted") === false);
+  write(agentDir, "subagents.json", { subagents: subagents({}), groups: { gpu: 1 }, slots: { "llama.cpp/m": 0 } });
+  const badSlots = loadSubagentConfigs(projectDir, agentDir);
+  ok("a slots limit below 1 skips the whole slots map", badSlots.slots.size === 0);
+  ok("and says what the map should have held", badSlots.errors.some((e) => e.includes("slots must be")));
 
   mkdirSync(join(projectDir, ".pi"), { recursive: true });
   write(agentDir, "subagents.json", { subagents: { good: { provider: "user", model: "m" }, other: { provider: "user", model: "o" } } });
@@ -468,7 +451,7 @@ if (!nodeModules) {
     join(entryAgent, "subagents.json"),
     JSON.stringify({
       subagents: {
-        worker: { provider: "p", model: "nope" },
+        worker: { provider: "p", model: "nope", description: "does the work" },
         limited: { provider: "p", model: "ok", groups: ["gpu"] },
       },
       groups: {},
@@ -495,6 +478,9 @@ if (!nodeModules) {
   console.warn = warn;
   ok("the five tools register", ["spawn", "status", "wait", "result", "kill"].every((n) => tools.has(`subagent_${n}`)));
   ok("the /subagents command registers", commands.has("subagents"));
+  // The listing on `name` is the only way a description reaches the model, so it has to carry every one.
+  const spawnNames = tools.get("subagent_spawn").parameters.properties.name.description;
+  ok("the spawn tool names every subagent with its description", spawnNames === "worker: does the work\nlimited");
 
   const registryLog = [];
   const ctx = {

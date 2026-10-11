@@ -35,7 +35,7 @@ const ToolConfigSchema = Type.Union([
 /** Group name -> max concurrent subagents in that group (integer >= 1). */
 const GroupsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
 
-/** provider/model -> slot count override, for a provider that does not report its own `--parallel` (integer >= 1). */
+/** provider/model -> how many of that model may run at once (integer >= 1); a model left out of this map has one. */
 const SlotsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
 
 // `additionalProperties: false` matters: an entry whose `groups` key is misspelled would otherwise load as a
@@ -93,7 +93,7 @@ export interface LoadedConfig {
   subagents: Map<string, SubagentConfig>;
   /** Group name -> max concurrent subagents for that group. */
   groups: Map<string, number>;
-  /** provider/model -> slot count, overriding the server's own `--parallel` for that model. */
+  /** provider/model -> how many of that model may run at once; a model left out has one. */
   slots: Map<string, number>;
   errors: string[];
 }
@@ -201,9 +201,15 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
   return { subagents, groups, slots, errors };
 }
 
-/** Build the `name` enum for `subagent_spawn` from the configured subagent names. */
-export function nameSchema(names: string[]) {
-  if (names.length === 0) return Type.String({ description: "configured subagents: (none configured)" });
-  if (names.length === 1) return Type.Literal(names[0], { description: names[0] });
-  return Type.Union(names.map((name) => Type.Literal(name)), { description: names.join(", ") });
+/**
+ * The `name` parameter of `subagent_spawn`: every configured subagent, each with its description on the same line.
+ * pi hands a tool's parameter schema to the provider unchanged, and only the field-level `description` is read
+ * reliably, so this listing is the one place a subagent's description reaches the main agent.
+ */
+export function nameSchema(configs: Map<string, SubagentConfig>) {
+  if (configs.size === 0) return Type.String({ description: "configured subagents: (none configured)" });
+  const listing = [...configs].map(([name, cfg]) => (cfg.description ? `${name}: ${cfg.description}` : name)).join("\n");
+  const names = [...configs.keys()];
+  if (names.length === 1) return Type.Literal(names[0], { description: listing });
+  return Type.Union(names.map((name) => Type.Literal(name)), { description: listing });
 }

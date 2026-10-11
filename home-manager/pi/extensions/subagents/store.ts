@@ -2,7 +2,7 @@
 //
 // A subagent may belong to one or more "groups"; a group's limit is how many *distinct models* may hold it at
 // once (mirrors the router's `--models-max 1`), and within one model the capacity is that model's own slot count
-// (its `--parallel`). So the same limit now reads two dimensions: which model, and how many of it.
+// (its `slots` count). So the same limit reads two dimensions: which model, and how many of it.
 //
 // Enforcement is a lease, not a bare counter, so a crashed instance cannot deadlock a group: each lease expires
 // after LEASE_TTL_MS with no heartbeat and is reaped by any instance. A heartbeat renews active leases so long

@@ -9,7 +9,6 @@ export interface TaskRecord {
   name: string;
   provider: string;
   model: string;
-  description?: string;
   taskText: string;
   state: TaskState;
   startedAt: number;

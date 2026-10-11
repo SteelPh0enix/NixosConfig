@@ -1,139 +1,89 @@
 {
   "subagents": {
-    "assistant-quick": {
-      "provider": "llama-pc",
-      "model": "cyber-tiel-coder",
-      "description": "Generic helper. Use when no narrower subagent fits. Gets the main agent's tools. This one is the faster one, and barely dumber than smart one.",
-      "groups": [
-        "pc"
-      ]
-    },
-    "assistant-smart": {
-      "provider": "llama-pc",
-      "model": "qwen-27B",
-      "description": "Generic helper. Use when no narrower subagent fits. Gets the main agent's tools. Use only if you really need your assistant to reason a lot. Has less context than quick one.",
-      "groups": [
-        "pc"
-      ]
-    },
     "coder": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Implement or fix code in the working tree: reads, edits, runs commands and tests.",
-      "tools": [
-        "read",
-        "bash",
-        "edit",
-        "write",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Implement or fix code in the working tree: reads, edits, runs builds and tests. The strongest coder here, and abliterated, so it takes the jobs others refuse - say what to change and how to verify it. cyber-tiel-coder, 2 slots.",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["pc"]
     },
     "reviewer": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available. Quicker and has more context than dense one.",
-      "tools": [
-        "read",
-        "bash",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
-    },
-    "reviewer-dense": {
-      "provider": "llama-pc",
-      "model": "qwen-27B",
-      "description": "Review a diff or audit files and report findings. No edit/write; read-only by convention, since bash is available. Has better reasoning than standard one.",
-      "tools": [
-        "read",
-        "bash",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Review a diff or audit files and report findings; no edit/write. Quick with 256k context - the usual review, reviewer-dense when judgement beats speed. cyber-tiel-coder, 2 slots.",
+      "tools": ["read", "bash", "codemode"],
+      "groups": ["pc"]
     },
     "researcher": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Investigate a question against the web, upstream docs, or local files. Report what was found with sources. Read-only. Quicker and has more context than dense one.",
-      "tools": [
-        "read",
-        "bash",
-        "web_search",
-        "web_fetch",
-        "web_interact",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Investigate a question against the web, upstream docs or local files. Report what was found with sources. Read-only by convention. cyber-tiel-coder, 2 slots.",
+      "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
+      "groups": ["pc"]
+    },
+    "assistant-quick": {
+      "provider": "llama-pc",
+      "model": "cyber-tiel-coder",
+      "description": "Generic helper with the main agent's whole tool set, for when no narrower subagent fits and the task needs decent code. cyber-tiel-coder, 2 slots.",
+      "groups": ["pc"]
+    },
+    "reviewer-dense": {
+      "provider": "llama-pc",
+      "model": "qwen-27B",
+      "description": "Review a diff or audit files and report findings; no edit/write. Better judgement than reviewer, slower to read, 150k context. qwen-27B, 1 slot - nothing else may sit on its model.",
+      "tools": ["read", "bash", "codemode"],
+      "groups": ["pc"]
     },
     "researcher-dense": {
       "provider": "llama-pc",
       "model": "qwen-27B",
-      "description": "Investigate a question against the web, upstream docs, or local files. Report what was found with sources. Read-only. Has better reasoning than standard one.",
-      "tools": [
-        "read",
-        "bash",
-        "web_search",
-        "web_fetch",
-        "web_interact",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Investigate a question that needs reasoning rather than crawling - web, upstream docs, local files - with sources. Best raw reasoning here; 150k context and the slowest prefill, so no big dumps. qwen-27B, 1 slot.",
+      "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
+      "groups": ["pc"]
+    },
+    "assistant-smart": {
+      "provider": "llama-pc",
+      "model": "qwen-27B",
+      "description": "Generic helper with the main agent's whole tool set, for when you really need it to reason a lot. Least context here (150k) and slowest prefill. qwen-27B, 1 slot.",
+      "groups": ["pc"]
+    },
+    "generalist": {
+      "provider": "llama-pc",
+      "model": "occult-nail",
+      "description": "General-purpose worker for when Cyber-Tiel wobbles or the task wants breadth over code: same family, less quantised, a bit more coherent, but the slowest decode here. occult-nail, 1 slot.",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["pc"]
     },
     "Power": {
       "provider": "llama-pc",
       "model": "lfm",
-      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping and triaging logs, simple research. The fastest thing here and not clever, so spell out every step and say when to stop.",
-      "tools": [
-        "read",
-        "bash",
-        "edit",
-        "write",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs, simple research. Fastest thing here and not clever - spell out every step and say when to stop. lfm, 4 slots, 128k context each.",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["pc"]
     },
     "Denji": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping and triaging logs, simple research. Bit slower than Power, but a bit smarter (not much though) - write very detailed specification for task for it to prevent it from hallucinating or messing up.",
-      "tools": [
-        "read",
-        "bash",
-        "edit",
-        "write",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Mechanical work on a change that is already fully specified, a bit smarter than Power and with the longest context on the box - still 4B, so write a detailed spec and check what comes back. sharp-spark, 4 slots (~190k each when all four run).",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["pc"]
     },
     "summarizer": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. The largest window on the card and cheap prefill; 4B, so ask for extraction rather than judgement.",
-      "tools": [
-        "read",
-        "bash",
-        "codemode"
-      ],
-      "groups": [
-        "pc"
-      ]
+      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. Cheapest prefill and the largest window here; 4B, so ask for extraction, not judgement. sharp-spark, 4 slots.",
+      "tools": ["read", "bash", "codemode"],
+      "groups": ["pc"]
     }
   },
   "groups": {
     "pc": 1
+  },
+  "slots": {
+    "llama-pc/cyber-tiel-coder": 2,
+    "llama-pc/lfm": 4,
+    "llama-pc/occult-nail": 1,
+    "llama-pc/qwen-27B": 1,
+    "llama-pc/sharp-spark": 4
   }
 }
