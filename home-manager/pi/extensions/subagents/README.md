@@ -117,6 +117,17 @@ Workflow: spawn several in one turn → keep working → `subagent_wait` (loop; 
 exactly one call) → `subagent_status` for the laggards, `subagent_kill` for a stuck one, `subagent_result` to re-read a
 report.
 
+## System prompt
+
+The extension introduces itself. `before_agent_start` fills `systemPromptOptions.sections.subagents` with what the
+extension is for, how the five calls differ, and the group and slot limits *read out of the config* — the same numbers
+`store.ts` enforces, so what the model is told cannot drift from what it gets. Built once at load and never rewritten
+mid-session, so the prompt cache stays warm.
+
+It reaches only a session that holds `subagent_spawn`. A subagent's own session has all five tools stripped (see
+[Isolation](#isolation)), so it never gets the section and is never invited to recurse. Nothing about subagents belongs
+in `APPEND_SYSTEM.md`.
+
 ## Task session directory
 
 `session` is a short kebab-case name that decides the directory:
@@ -183,8 +194,9 @@ of its tokens as `input`, with no cache split and every cost but the total at ze
 
 ```
 subagents/
-  index.ts            # config load, five tools, /subagents, lifecycle
+  index.ts            # config load, five tools, /subagents, system prompt section, lifecycle
   config.ts           # subagents.json schema, merging and tool resolution
+  prompt.ts           # the section a spawning session is given, with the config's limits spelled out
   task.ts             # SubagentTask: createAgentSession, progress events, outcome, lease release
   state.ts            # task registry + completion queue, TaskSummary for details and events, kill with a deadline
   store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
@@ -227,6 +239,9 @@ What it pins down, mostly with the bugs it was written against:
   a missing provider/model are all refused with a message naming the entry; a file that cannot be parsed throws; a group named twice is collapsed and
   reported; project overrides user; one bad group limit skips the map; no list inherits the main agent's tools,
   `disable` subtracts from them, and a tool the main agent lacks never leaks in.
+- **system prompt** — the section names all five tools, quotes the group limit and each model's slot count straight
+  from the config, lists each subagent under the model it runs on with the roomiest model first, explains a refusal as
+  a refusal rather than a queue, and is empty when nothing is configured.
 - **renderers** — the state paints as text (once it was `[object Object]`), all five survive a result whose `details`
   are missing (pi then shows a plain-text fallback and logs nothing, so this is easy to lose), a completion toasts once
   rather than again when the report is read, an abort never overwrites the activity line with a model error — not even
@@ -236,7 +251,8 @@ What it pins down, mostly with the bugs it was written against:
   configured subagent with its description, and every way into a spawn fails with a message before a session could be created
   (unconfigured name, unknown model, `save_session`/
   `workdir` without a `session`, a name that is not kebab-case, a group with no limit — and no lease taken for that
-  one). Also the wait/kill messages for ids that do not exist, the aborted wait, and the `/subagents` subcommands.
+  one). Also the wait/kill messages for ids that do not exist, the aborted wait, the `/subagents` subcommands, and
+  `before_agent_start` adding the prompt section only when `subagent_spawn` is active.
   The fixture gives no subagent a resolvable model, so the run cannot reach a server.
 
 Not covered: `task.ts` and `index.ts` end to end, which need a live model — do that in a real pi session with a

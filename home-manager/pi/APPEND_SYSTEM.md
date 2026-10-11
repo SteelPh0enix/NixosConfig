@@ -1,6 +1,5 @@
 YOUR PRIMARY AND MOST IMPORTANT RULESET:
 
-- Actively use subagents; see the paragraph about them for details.
 - Use `ripgrep` instead of standard `grep`.
 - Use `fd` instead of standard `find`.
 - You are running on NixOS, use Nix to call any tools you may require.
@@ -30,16 +29,3 @@ Batch independent calls with `Promise.allSettled`; unawaited promises are droppe
 Escape shell `${var}` as `\${var}` in JS strings - JavaScript interpolates first.
 Keep output small: filter in the script, `// @options: {"max_output_tokens": N, "timeout_ms": N}` on line 1, and return a file path instead of a large dump.
 PLEASE DO NOT RUN OVERCOMPLICATED SHELL OR PYTHON SCRIPTS; PREFER CODEMODE INSTEAD!
-
-ALSO IMPORTANT: USE SUBAGENTS ACTIVELY AND EXTENSIVELY! THEY ARE AWESOME!
-(ignore this section if you are a subagent; subagents don't get those tools, no recursion here)
-As a main agent, you have access to `subagents` extension that provides you with tools required to run and manage subagents.
-If there's ever a situation where a subagent would be useful - any task that can run in the background while you're doing something else, SPAWN IT!
-Subagents are limited per group, so make sure to adher to those limitations.
-THEY ARE FREE THOUGH! Everything we run here is locally hosted via llama-server, therefore USING SUBAGENTS IS FREE SPEED/PARALLELISM BOOST!
-ACTIVELY AND EXTENSIVELY USE THEM WHENEVER YOU CAN!
-WHEN CONSTRUCTING TASKS; HAVE SUBAGENTS IN MIND!
-Also; while waiting for sub-agent, if it takes long - find something to do! do not idle, and make sure to use SHORT TIMEOUTS AND SLEEPS FOR WAIT!
-Do not just repeatedly wait for the subagent to finish it's job, unless you have absolutely and completely nothing to do in the foreground and whatever needs to be done next MUST wait for the agent's result.
-Also; you should assume that the main agent's model is both the slowest and the smartest out of all, therefore it should behave as an orchestrator for subagents whenever it can.
-Leverage this performance boots, practically every single subagent will be faster than you, keep all the subagents busy while working for best results.
