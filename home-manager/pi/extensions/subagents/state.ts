@@ -54,7 +54,7 @@ export interface TaskRecord {
 }
 
 /** What a task's runner offers to whoever wants it stopped. */
-export interface TaskRunner {
+interface TaskRunner {
   abort(): Promise<void>;
   done(): Promise<void>;
   releaseLeases(): void;
@@ -98,6 +98,8 @@ export interface TaskSummary {
 }
 
 const SUMMARY_OUTPUT_LIMIT = 1000;
+/** How much of a task's own text `recentOutput` carries: the tail of its report, or of what it said when it never wrote one. */
+export const RECENT_OUTPUT_LIMIT = 2000;
 
 /** Idle a running task may sit silent for before the status line says so. */
 export const IDLE_AFTER_MS = 15_000;
@@ -147,15 +149,19 @@ export async function killRecord(record: TaskRecord, timeoutMs: number): Promise
   return settled;
 }
 
+/** Hand a task that never wrote a report the last thing it said, so there is something to read instead of nothing. */
+export function keepSaidText(record: TaskRecord): void {
+  if (record.output || !record.lastText.trim()) return;
+  record.output = record.lastText.trim();
+  record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
+}
+
 /** Stop a running task, keeping what it had already said as its report when it never got to write one. */
 function markKilled(record: TaskRecord): void {
   if (record.state !== "running") return;
   record.state = "killed";
   record.finishedAt = record.finishedAt ?? Date.now();
-  if (!record.output && record.lastText.trim()) {
-    record.output = record.lastText.trim();
-    record.recentOutput = record.output;
-  }
+  keepSaidText(record);
 }
 
 export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
