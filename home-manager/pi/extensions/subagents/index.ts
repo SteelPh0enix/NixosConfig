@@ -176,11 +176,8 @@ export default function subagents(pi: ExtensionAPI): void {
     const unknown = ids.filter((id) => !registry.get(id));
     if (unknown.length === ids.length) return `subagent_wait: no such subagent tasks: ${unknown.join(", ")}`;
     if (unknown.length > 0) return `subagent_wait: nothing new — no such subagent tasks: ${unknown.join(", ")}`;
-    const known = ids
-      .map((id) => registry.get(id))
-      .filter((r): r is TaskRecord => r !== undefined)
-      .map((r) => `${r.id} (${r.state})`)
-      .join(", ");
+    // Every id names a task that exists, which is all that is left to say about it.
+    const known = registry.all().filter((r) => ids.includes(r.id)).map((r) => `${r.id} (${r.state})`).join(", ");
     return delivered ? `subagent_wait: nothing new — already delivered: ${known}` : `subagent_wait: nothing new — ${known}`;
   }
 

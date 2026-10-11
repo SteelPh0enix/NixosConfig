@@ -31,7 +31,7 @@ const record = (id, over = {}) => ({
 
 // ---- the completion queue (state.ts) ----
 
-const { TaskRegistry, toSummary, killRecord, withTimeout } = await importFrom(SRC, "state.ts");
+const { TaskRegistry, toSummary, killRecord, withTimeout, oneLine, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "state.ts");
 
 console.log("\nregistry");
 const reg = new TaskRegistry();
@@ -80,6 +80,9 @@ ok("and hands its group slots back", hungRecord.runner.freed === true);
 const cleanRecord = record("task-clean", { output: "", lastText: "what it said before stopping", runner: { abort: async () => {}, done: async () => {}, releaseLeases() {} } });
 ok("a kill of a task that stops cleanly says so", (await killRecord(cleanRecord, 1000)) === true && cleanRecord.state === "killed");
 ok("a killed task that had said something keeps it as its report", cleanRecord.output === "what it said before stopping");
+// A task that said a wall of text but never wrote a report keeps only a bounded tail as its report.
+const killedLong = record("task-killed", { output: "", lastText: "x".repeat(RECENT_OUTPUT_LIMIT + 500) });
+ok("a killed task keeps a bounded recentOutput and its trimmed text as output", (await killRecord(killedLong, 40)) && killedLong.recentOutput.length <= RECENT_OUTPUT_LIMIT && killedLong.output === "x".repeat(RECENT_OUTPUT_LIMIT + 500));
 ok("killing a finished task is not a second kill", (await killRecord(record("task-done", { state: "done" }), 10)) === true);
 // A record whose runner never attached has nothing to abort, and reporting it as still running would be a lie.
 const stranded = record("task-stranded");
@@ -130,6 +133,8 @@ const quiet = toSummary(record("task-q", { lastActivityAt: Date.now() - 20000 })
 ok("a running task says how long it has been silent", quiet.idle > 19900);
 ok("a finished task is never idle", toSummary(record("task-f", { state: "done", finishedAt: Date.now() - 20000 })).idle === undefined);
 ok("details carry a bounded output", done.recentOutput.length === 1000);
+ok("oneLine collapses and trims, and leaves a short string alone", oneLine("  hello   world  ", 100) === "hello world" && oneLine("short", 100) === "short");
+ok("oneLine cuts a long string to limit with a trailing …", oneLine("abcdefghij".repeat(5), 10) === "abcdefghi…");
 
 // ---- group leases (store.ts) ----
 
@@ -226,7 +231,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, formatElapsed, formatTokenStats, emitStatus, notifyCompletion, tailLines } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, formatElapsed, formatTokenStats, formatTokens, emitStatus, notifyCompletion, tailLines } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -354,6 +359,9 @@ if (!nodeModules) {
   ok("tokens read as out and context fill", formatTokenStats(full) === "out 1.2k · ctx 41.2k/262k (16%)");
   ok("a count still being streamed says so", formatTokenStats({ ...full, generatedLive: true }).startsWith("out ~1.2k"));
   ok("an unknown context says what it lacks", formatTokenStats({ ...full, contextTokens: null, contextPercent: null }) === "out 1.2k · ctx ?/262k");
+
+  ok("formatTokens is plain below 1000, 1234 is 1.2k and 1000 is 1k", formatTokens(999) === "999" && formatTokens(1234) === "1.2k" && formatTokens(1000) === "1k");
+  ok("formatTokens rounds 100k and above with no .0", formatTokens(100000) === "100k" && formatTokens(147000) === "147k");
 
   const summary = toSummary(record("task-1", { state: "done", finishedAt: Date.now(), error: "boom", lastActivity: "read src/x.ts" }));
   const status = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [summary] } }, opts, theme).render(120).join("\n");

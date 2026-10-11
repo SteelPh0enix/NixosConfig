@@ -17,7 +17,7 @@ import { join } from "node:path";
  * models never share a lease; `capacity` is that model's slot count; `claim` is one id for the whole spawn, so a
  * spawn holding two groups counts once toward capacity.
  */
-export interface SpawnClaim {
+interface SpawnClaim {
   key: string;
   capacity: number;
   claim: string;
@@ -30,7 +30,7 @@ export interface LeaseRequest {
 }
 
 /** A row in the lease table: one held slot. */
-export interface Lease {
+interface Lease {
   id: number;
   grp: string;
   subagent: string;

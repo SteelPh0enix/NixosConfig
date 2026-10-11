@@ -112,7 +112,7 @@ function text(content: string): Text {
 }
 
 /** How many lines of a running subagent's own text the wait widget shows. */
-export const LIVE_TAIL_LINES = 3;
+const LIVE_TAIL_LINES = 3;
 
 /** Columns an expanded view is laid out in; `renderResult` is never told how wide the terminal is. */
 const DETAIL_WIDTH = 120;

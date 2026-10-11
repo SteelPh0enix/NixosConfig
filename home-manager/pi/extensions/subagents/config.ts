@@ -16,7 +16,7 @@ import { Value } from "typebox/value";
 
 // The five tools this extension exposes to the main agent. Always excluded from
 // a subagent so a subagent can neither spawn nor manage other subagents.
-export const SUBAGENT_TOOL_NAMES: string[] = [
+const SUBAGENT_TOOL_NAMES: string[] = [
   "subagent_spawn",
   "subagent_status",
   "subagent_wait",
@@ -40,7 +40,7 @@ const SlotsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ mi
 
 // `additionalProperties: false` matters: an entry whose `groups` key is misspelled would otherwise load as a
 // subagent with no group at all, which is a concurrency limit silently not enforced.
-export const SubagentConfigSchema = Type.Object(
+const SubagentConfigSchema = Type.Object(
   {
     provider: Type.String({ minLength: 1 }),
     model: Type.String({ minLength: 1 }),
@@ -89,7 +89,7 @@ export function resolveTools(config: SubagentConfig | undefined, mainTools: stri
   return { tools: mainTools.filter((name) => !excluded.has(name)), excludeTools: [] };
 }
 
-export interface LoadedConfig {
+interface LoadedConfig {
   subagents: Map<string, SubagentConfig>;
   /** Group name -> max concurrent subagents for that group. */
   groups: Map<string, number>;

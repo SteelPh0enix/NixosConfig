@@ -14,12 +14,12 @@ import {
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
-import { oneLine, type TaskRegistry, type TaskRecord } from "./state.ts";
+import { keepSaidText, oneLine, RECENT_OUTPUT_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
 import type { LeaseStore } from "./store.ts";
 
 type TaskCallback = (record: TaskRecord) => void;
 
-export interface StartTaskOptions {
+interface StartTaskOptions {
   record: TaskRecord;
   config: SubagentConfig;
   resolvedTools: ResolvedTools;
@@ -40,7 +40,6 @@ export interface StartTaskOptions {
   onFinish: TaskCallback;
 }
 
-const RECENT_OUTPUT_LIMIT = 2000;
 const STATUS_THROTTLE_MS = 1000;
 
 export class SubagentTask {
@@ -258,18 +257,14 @@ export class SubagentTask {
     record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
     // The last figure the task's model reported is the one worth showing next to its totals.
     this.readContextUsage();
-    if (!record.output && record.lastText.trim()) {
-      // A task killed between turns still said something; better than handing back nothing.
-      record.output = record.lastText.trim();
-      record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
-    }
+    keepSaidText(record);
     // A settled task has no "right now", and the last thing it did reads as if it were still going. Where it stopped
     // is worth keeping when it was aborted.
     if (record.state !== "killed") record.lastActivity = "";
   }
 }
 
-export function extractText(message: AgentMessage): string {
+function extractText(message: AgentMessage): string {
   if (message.role !== "assistant") return "";
   return message.content
     .filter((c) => c.type === "text")
