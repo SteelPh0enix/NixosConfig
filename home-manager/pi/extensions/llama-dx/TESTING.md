@@ -5,8 +5,8 @@ none of them needs pi running:
 
 | script | needs | use it for |
 |---|---|---|
-| `preview.mjs` | nothing | what the two lines look like at a given width |
-| `check.mjs` | nothing (fakes llama.cpp) | polling, the moving bands of a request, the `/metrics` cells, taking pi's footer back |
+| `preview.mjs` | nothing | what the lines look like at a given width, the row of subagents included (`--agents`) |
+| `check.mjs` | nothing (fakes llama.cpp) | polling, the moving bands of a request, the `/metrics` cells, the row of subagents, taking pi's footer back |
 | `harness.mjs` | a real llama.cpp instance | one real request end to end |
 
 After a change: `preview.mjs --check` for the layout, `check.mjs` for anything else, then one `harness.mjs` run and
@@ -22,12 +22,13 @@ touch no server and no pi, so they are always safe.
 ## the layout: `node test-utils/preview.mjs`
 
 ```
-node test-utils/preview.mjs [--width 80,120,160] [--only idle,prefilling] [--plain] [--check] [--legend] [--demo] [--cells 48]
+node test-utils/preview.mjs [--width 80,120,160] [--only idle,prefilling] [--plain] [--check] [--legend] [--demo] [--cells 48] [--agents]
 ```
 
 Renders the real `metricGroups`/`metricsLine`/`baseLine` at chosen widths and phases (idle, prefilling, decoding,
 near full, just compacted, no `--metrics`), so the look can be judged without starting pi. `--plain` prints without
-colours, `--only` picks scenarios, `--legend` prints the `/llama-dx info` list instead of the footer.
+colours, `--only` picks scenarios, `--legend` prints the `/llama-dx info` list instead of the footer. `--agents`
+reports three tasks the way the subagents extension does, so the row above the two lines can be judged too.
 
 `--demo` is the one to run after anything touches the bar: every combination of the bands (empty, one token held,
 held, the whole incoming prompt before evaluation starts, mid-prefill, the three frontiers, all the real bands in
@@ -75,6 +76,10 @@ in between.
 What it asserts, in order:
 
 - the footer is taken on a llama.cpp model, and stays taken while the request runs
+- the row of subagents appears above the two lines when the bus reports tasks — naming who runs, for how long and what
+  it is busy with, which one is silent and which is retried — stays inside the width it is given, keeps the count when
+  the tasks no longer fit, and goes away with the last one — while switching pi's model keeps it and a new session
+  starts without the row of the tasks the session before it ran (the check emits on the bus as the subagents extension does)
 - the live `pp` rate from `/slots` carries the `~`, and the server's own `pp`/`tg` (713 and 58 here) replace it once
   `timings` arrive
 - the `q`/`fl`/`bd` cells appear once `/metrics` has answered
@@ -107,7 +112,7 @@ watch that one assertion go red while the others stay green.
 
 ```
 node test-utils/harness.mjs [--root http://steelph0enix.pc:51536] [--model qwen-27B] [--ctx 32768] \
-                            [--seconds 75] [--prompt <text>] [--repeat N] [--max-tokens 200]
+                            [--seconds 75] [--prompt <text>] [--repeat N] [--max-tokens 200] [--agents]
 ```
 
 The testing instance is the router on `steelph0enix.pc:51536`, which serves `qwen-27B` (`--props`, `--slots` and
@@ -149,7 +154,7 @@ llama.cpp actually reported.
 `tsc` from nixpkgs, against pi's own `.d.ts` files: pi's runtime tree ships no dev dependencies, so there is no
 `typescript` inside the install. The repo has no `node_modules`, and `tsc` finds them by walking up from the file it
 is given, so the check runs on a copy with a symlink next to it; it follows imports, so naming only `index.ts` covers
-all seven files.
+all eight files.
 
 ```sh
 TSC="$(nix build --no-link --print-out-paths nixpkgs#typescript)/bin/tsc"

@@ -172,9 +172,9 @@ artifact worth having after the task ends.
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
   is waiting on it, and only once, not again when the report is read.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`, `{ tasks: [{ id, name, model, state, elapsed,
-  idle, turns, tokens, lastActivity, retry, error, recentOutput }] }`, whenever their state changes. Nothing in this
-  setup subscribes to it yet; it is the seam a footer segment would attach to. Emitting into a session pi has replaced
-  throws, so the snapshot swallows that rather than outliving its session.
+  idle, turns, tokens, lastActivity, retry, error, recentOutput }] }`, whenever their state changes. `../llama-dx`
+  subscribes to it and paints a row of its own above the two llama.cpp lines, so nothing here is drawn from it.
+  Emitting into a session pi has replaced throws, so the snapshot swallows that rather than outliving its session.
 
 The `Usage` those two tools report is synthetic: what the task's model produced comes back as `output` and the rest
 of its tokens as `input`, with no cache split and every cost but the total at zero.
@@ -211,9 +211,11 @@ What it pins down, mostly with the bugs it was written against:
   measures startedAt to finishedAt and stops there; `details` carry a bounded output.
 - **kill** — a task that never settles is killed anyway, inside the deadline, with its group slots handed back; one
   that stops cleanly says so; killing a finished task is not a second kill; a task with no runner is killed rather than
-  left running; a task stopped between turns keeps what it had already said as its report.
+  left running; a task stopped between turns keeps what it had already said as its report, and the tail it keeps is as
+  bounded as any other.
 - **tokens** — a running task counts what it is still writing (thinking included) and marks it live, a finished one
-  reports the model's own figure, and `out …/ctx …/%` formats as `out 1.2k · ctx 41.2k/262k (16%)`, or `ctx ?/262k` when pi cannot estimate.
+  reports the model's own figure, and `out …/ctx …/%` formats as `out 1.2k · ctx 41.2k/262k (16%)`, or `ctx ?/262k` when pi cannot estimate;
+  `oneLine` collapses, trims and cuts to its limit, and `formatTokens` reads `999`, `1.2k`, `147k`.
 - **leases** — a limit rejects a *different* model and admits several of the same one up to its slots (2 and 4 are
   exercised), a multi-group claim fills all groups or none and counts once toward capacity, the slot label counts
   spawns rather than lease rows, `list()` returns the column names the code reads (`expiresAt`, not `expires_at`) and

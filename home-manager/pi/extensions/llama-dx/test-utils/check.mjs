@@ -4,7 +4,7 @@
 //   node test-utils/check.mjs [--port 39451] [--dump]
 // Asserts what must be visible in the footer; --dump prints it as plain text at every poll.
 import llamaDx from "../index.ts";
-import { barCells, metricGroups } from "../layout.ts";
+import { barCells, cols, metricGroups } from "../layout.ts";
 import { view } from "../state.ts";
 
 const argv = process.argv.slice(2);
@@ -54,7 +54,14 @@ const server = (await import("node:http")).createServer((req, res) => {
 await new Promise((r) => server.listen(port, "127.0.0.1", r));
 
 const handlers = new Map();
-llamaDx({ on: (event, handler) => handlers.set(event, handler), registerCommand: (name, def) => handlers.set(`cmd:${name}`, def.handler) });
+// pi hands every extension of a session one event bus; this is ours, so the check can report what the subagents
+// extension reports and read what the footer does with it.
+const channels = new Map();
+llamaDx({
+  on: (event, handler) => handlers.set(event, handler),
+  registerCommand: (name, def) => handlers.set(`cmd:${name}`, def.handler),
+  events: { emit: (channel, data) => channels.get(channel)?.(data), on: (channel, handler) => (channels.set(channel, handler), () => channels.delete(channel)) },
+});
 
 // A theme that answers like pi's but paints nothing: the assertions read the text of the two lines, and `colors`
 // is there because a cell where two layers of the bar meet asks for its background.
@@ -132,6 +139,38 @@ expect("and is replaced by llama.cpp's exact number", /fp\s+10k\b/.test(seen.at(
 expect("time to first token is measured", /\btt\b\s+\S/.test(all));
 expect("the footer stays mounted while it is llama.cpp", footer !== null);
 
+// The row of running subagents, reported the way the subagents extension reports it.
+/** Whether these fragments appear in this order — the cells of a line are separated by as much as the layout wants. */
+const inOrder = (line, ...parts) => {
+  let at = 0;
+  return parts.every((part) => {
+    const found = line.indexOf(part, at);
+    at = found === -1 ? line.length : found + part.length;
+    return found !== -1;
+  });
+};
+const render120 = () => footer.render(120);
+const without = render120();
+const report = (tasks) => channels.get("subagents:status")?.({ tasks });
+report(undefined);
+expect("a snapshot of nothing leaves the footer alone", render120().length === without.length);
+report([{ id: "task-1", name: "researcher", state: "running", elapsed: 12_000, idle: 1_000, lastActivity: "bash: nix flake check" }, { id: "task-2", name: "coder", state: "running", elapsed: 192_000, idle: 40_000, lastActivity: "edit home-manager/pi/subagents/ui.ts", slot: { index: 2, total: 2 } }]);
+const row = render120();
+// the two lines of llama.cpp stay where they were, one place further down
+expect("the subagent row sits above the two lines", row.length === without.length + 1 && row[0].startsWith("subagents 2") && row[1].includes("pp") && row[2].includes("/home/dev/src"));
+const wide = footer.render(200)[0];
+expect("a task says who it is, how long it runs and what it is busy with", inOrder(wide, "task-2 coder 2/2", "3m12s", "edit home-manager/pi/subagents/ui…") && inOrder(wide, "task-1 researcher", "12s", "bash: nix flake check"));
+expect("what a task is doing is told in a fixed number of columns", /edit home-manager\/pi\/subagents\/ui…/.test(wide));
+expect("a task silent this long is called out next to its age", inOrder(wide, "3m12s idle 40s") && !/idle 1s/.test(wide));
+expect("a narrower row drops the tasks it has no room for, from the right", row[0].includes("task-1") && !row[0].includes("task-2"));
+expect("the row never runs past the width it is given", [40, 56, 80, 120, 200].every((width) => cols(footer.render(width)[0]) <= width));
+const cramped = footer.render(40)[0];
+expect("and when tasks no longer fit, the count is what stays", cramped.startsWith("subagents 2") && !cramped.includes("task-2"));
+report([{ id: "task-3", name: "reviewer", state: "running", elapsed: 3_900_000, idle: 2_000, retry: "2/5 after 40s" }]);
+expect("a task being retried says so, and for how long it has been at it", inOrder(render120()[0], "task-3 reviewer", "1h05m", "retrying 2/5 after 40s"));
+report([]);
+expect("the row goes away with the last task", render120().length === without.length && !render120().join("\n").includes("subagents "));
+
 await fire("agent_end", {});
 const done = lines()[0];
 expect("the request is counted", /#1/.test(done));
@@ -189,6 +228,13 @@ for (const [name, value] of Object.entries(fields)) {
 }
 expect("a ctx pi invalidated leaves the line instead of killing it", !threw);
 await fire("model_select", {});
+
+// The row belongs to the session that reported it, and this module outlives that session.
+report([{ id: "task-4", name: "coder", state: "running", elapsed: 5_000, idle: 5_000, lastActivity: "thinking…" }]);
+await fire("model_select", {});
+expect("switching pi's model keeps the row of subagents", render120()[0].startsWith("subagents 1"));
+await fire("session_start", {});
+expect("a new session starts with no row of the tasks the session before it ran", !render120().join("\n").includes("subagents "));
 
 // Every indicator the line can hold has to be explained by `/llama-dx info`: two places, one set of cells.
 await handlers.get("cmd:llama-dx")("info", ctx);
