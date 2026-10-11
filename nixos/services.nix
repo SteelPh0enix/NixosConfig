@@ -29,6 +29,26 @@ in
   networking.networkmanager.enable = true;
   networking.hostName = settings.hostId;
 
+  # pi routes its models by these two names, and its extensions decide whether a server is llama.cpp in well under two
+  # seconds - too little for a round trip to the LAN resolver when that one is slow to answer. Keep in step with the
+  # addresses the DHCP reservations hold; search.framework is the same machine as the framework's llama.cpp router.
+  networking.hosts = {
+    "192.168.0.185" = [
+      "steelph0enix.framework"
+      "search.framework"
+    ];
+    "192.168.0.150" = [ "steelph0enix.pc" ];
+  };
+
+  # AdGuard answers in ~15ms but loses about one UDP reply in twenty, and glibc's default of one 5s wait per attempt
+  # turns a single loss into a 5s stall and a pair into a 10s failure. Ask sooner and more often, and ask for the
+  # address families one after the other rather than together, which is what lets a reply go missing in the first place.
+  networking.resolvconf.extraOptions = [
+    "timeout:2"
+    "attempts:3"
+    "single-request-reopen"
+  ];
+
   networking.firewall = {
     enable = true;
     # llama.cpp router and its log viewer (nixos/services/llama-server-vulkan), used by the other box
