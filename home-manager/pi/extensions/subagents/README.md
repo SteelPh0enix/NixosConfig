@@ -32,7 +32,7 @@ project entry wins.
     }
   },
   "groups": { "gpu": 1 },
-  "slots": { "llama-pc/lfm": 4, "openrouter/anthropic/claude-sonnet-4.5": 4 }
+  "slots": { "llama-pc/lfm": 4, "llama-pc/cyber-tiel-coder": 2 }
 }
 ```
 
@@ -40,7 +40,8 @@ project entry wins.
   refreshed and the pair resolved when the task spawns, so a wrong one is a spawn error naming it and a llama.cpp
   model whose context was re-fit since pi started is handed its live window; a server that is not answering just
   leaves the catalog pi already has.
-- `description` — optional, shown in the spawn tool so the main agent knows what each subagent is for.
+- `description` — optional, listed as one `name: description` line on the `name` parameter of `subagent_spawn`, which is the only place the main
+  agent reads it. Worth naming what it is for and how many slots its model has, since a spawn for a model another task already holds is refused.
 - `tools` — optional. Which tools the subagent gets, chosen from the main agent's active set read at spawn
   (`pi.getActiveTools()`); the five `subagent_*` tools are **always** excluded. Three shapes:
   - **omitted** — the main agent's tools as it stands, so `--tools`, the `defaultTools` setting and tools registered by
@@ -57,8 +58,8 @@ project entry wins.
 - `groups` — names of the concurrency groups below. The top-level `groups` map holds their limits, and a limit counts
   how many *distinct models* may hold the group at once (see "Group concurrency"). Naming one group twice is a mistake,
   so it is reported and collapsed to one.
-- `slots` — optional `"provider/model": N`, stating a model's slot count where the server does not report one — a cloud
-  provider, or a server that is not answering. See "Group concurrency".
+- `slots` — top-level map of `"provider/model": N`, how many of that model may run at once. It is stated by hand, and
+  a model left out of it has one slot. See "Group concurrency".
 The entries are validated against a TypeBox schema at load, keys included: an entry carrying `group` instead of
 `groups` is refused rather than loaded as a subagent with no group, which would be a limit silently not enforced.
 A bad entry is dropped with a message naming it
@@ -73,11 +74,15 @@ and pi reports it as a failed extension, rather than starting with no subagents 
 
 A subagent holds a slot in every group it names, and a group's limit means **how many distinct models may hold it at
 once** — the router here keeps one preset resident (`--models-max 1`), so a second, *different* model only swaps the
-card. Within one model the capacity is its own **slot count**: `slots` if configured, else the preset's `--parallel`
-read from `/v1/models` at spawn (which never loads a model, carries the provider's `apiKey` from `models.json` for a
-server behind `--api-key`, and is asked once per 30 s per provider rather than once per spawn, so a router that is
-down costs one probe and not a stalled spawn), else 1. Two `cyber-tiel-coder` tasks (2 slots) run
-together; a `qwen-27B` task beside them is refused as a residency clash. Capacity counts per model across every group,
+card. Within one model the capacity is its own **slot count**, taken from the `slots` map and defaulting to 1 for a
+model nobody listed. Get the number for a llama.cpp preset from the router's `--parallel`, which costs no load:
+
+```bash
+curl -s http://<router>:51536/v1/models | jq -r '.data[] | "\(.id): \(.status.args | index("--parallel") as $i | if $i then .[$i + 1] else 1 end)"'
+```
+
+Two `cyber-tiel-coder` tasks (2 slots) run together; a `qwen-27B` task beside them is refused as a residency clash.
+Capacity counts per model across every group,
 so a model reached through two groups still runs only its slots, and a task shows where it sits as `(slot 2/2)`.
 Enforced **across every pi instance and working directory** through `~/.pi/agent/subagents/leases.db`:
 
@@ -180,7 +185,6 @@ of its tokens as `input`, with no cache split and every cost but the total at ze
 subagents/
   index.ts            # config load, five tools, /subagents, lifecycle
   config.ts           # subagents.json schema, merging and tool resolution
-  slots.ts            # SlotResolver: a model's slot count — config, then the server's --parallel, then 1
   task.ts             # SubagentTask: createAgentSession, progress events, outcome, lease release
   state.ts            # task registry + completion queue, TaskSummary for details and events, kill with a deadline
   store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
@@ -215,9 +219,8 @@ What it pins down, mostly with the bugs it was written against:
   spawns rather than lease rows, `list()` returns the column names the code reads (`expiresAt`, not `expires_at`) and
   the model each lease is on, and hides a lease whose slot already expired; `close()` empties the instance's leases and
   refuses further claims.
-- **slots** — `--parallel` comes out of a preset's launch args in either spelling (absent or malformed means 1), a
-  configured override wins, one provider is asked once per TTL whatever the answer, and a server that is not answering
-  means one slot rather than a failed spawn.
+- **slots** — a configured `slots` map loads and refuses a non-integer or a limit below 1; an unlisted model is one
+  slot. Nothing is probed at spawn.
 - **config** — `enable` with `disable`, a non-list `enable`, a misspelled tool key, a key an entry should not have and
   a missing provider/model are all refused with a message naming the entry; a file that cannot be parsed throws; a group named twice is collapsed and
   reported; project overrides user; one bad group limit skips the map; no list inherits the main agent's tools,
@@ -227,8 +230,9 @@ What it pins down, mostly with the bugs it was written against:
   rather than again when the report is read, an abort never overwrites the activity line with a model error — not even
   the turn pi opens while aborting — a blocked spawn says which group, elapsed formats as `41s` / `3m12s` / `1h05m`, a
   live wait shows the subagent's last lines and says it is still running, and a timed-out wait says so.
-- **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, and every way into a
-  spawn fails with a message before a session could be created (unconfigured name, unknown model, `save_session`/
+- **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, the spawn tool's `name` carrying every
+  configured subagent with its description, and every way into a spawn fails with a message before a session could be created
+  (unconfigured name, unknown model, `save_session`/
   `workdir` without a `session`, a name that is not kebab-case, a group with no limit — and no lease taken for that
   one). Also the wait/kill messages for ids that do not exist, the aborted wait, and the `/subagents` subcommands.
   The fixture gives no subagent a resolvable model, so the run cannot reach a server.

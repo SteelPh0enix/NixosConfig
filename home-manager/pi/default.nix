@@ -109,8 +109,9 @@ in
     "${agentDir}/extensions/subagents".source = ./extensions/subagents;
     # Which subagents exist, and how many may run at once: one *model* at a time, because the router keeps a single
     # preset resident and running a *different* one alongside would swap the card. `groups: { pc: 1 }` means that; a
-    # model's own slot count (`--parallel`, or the `slots` override) then decides how many of the same preset run
-    # together. Each subagent is bound to what its preset is good at; its context size is read from the server at spawn.
+    # model's own slot count, stated under `slots` from its preset's `--parallel`, then decides how many of the same
+    # preset run together (a model left out has one). Each subagent is bound to what its preset is good at; its
+    # context size is read from the server at spawn.
     "${agentDir}/subagents.json".source = ./subagents.json;
     # Link every template by name instead of replacing the whole directory.
     "${agentDir}/prompts" = {
