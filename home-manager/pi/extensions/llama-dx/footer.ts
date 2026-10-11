@@ -1,7 +1,9 @@
-// pi's footer, with llama.cpp in it: the metrics line, and below it path, context bar and model.
+// pi's footer, with llama.cpp in it: the row of running subagents when there are any, then the metrics line, and
+// below it path, context bar and model.
 
 import type { ExtensionContext, ReadonlyFooterDataProvider, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
+import { agentsRow } from "./agents.ts";
 import { baseLine, cols, cut, flatten, metricGroups, metricsLine, type Segment, type Tone } from "./layout.ts";
 import { isLlama } from "./server.ts";
 import { ctxSafe, isInteractive, paint, runtime, view } from "./state.ts";
@@ -84,6 +86,8 @@ class DxFooter implements Component {
     const lines: string[] = [];
     const status = statusLine(this.footerData, width, this.theme);
     if (status !== undefined) lines.push(status);
+    const agents = agentsRow(width);
+    if (agents !== undefined) lines.push(colorize(agents, this.theme, width));
     const v = view();
     if (v === undefined) return [...lines, colorize(baseLine({ width, cwd: cwdOf(), branch: this.footerData.getGitBranch(), model: modelOf(), thinking: thinkingOf(), used: null, total: runtime.model.nCtx }), this.theme, width)];
     lines.push(colorize(metricsLine(metricGroups(v.facts), width), this.theme));

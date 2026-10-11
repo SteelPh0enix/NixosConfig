@@ -2,7 +2,8 @@
 // Dev-only: drives the extension outside pi with a stubbed ExtensionAPI, against a real llama-server, so the
 // polling, the bands of a running request and the held band can be watched live. A cold instance
 // is included in `--seconds`: the first tick shows the model loading, then prefill, then generation.
-//   node test-utils/harness.mjs [--root http://steelph0enix.pc:51536] [--model qwen-27B] [--ctx 32768] [--seconds 75]
+//   node test-utils/harness.mjs [--root http://steelph0enix.pc:51536] [--model qwen-27B] [--ctx 32768] [--seconds 75] [--agents]
+// `--agents` reports a couple of tasks that keep moving, so the row of subagents can be watched without spawning any.
 import llamaDx from "../index.ts";
 
 const argv = process.argv.slice(2);
@@ -25,9 +26,11 @@ const theme = {
 };
 
 const handlers = new Map();
+const channels = new Map();
 const api = {
   on: (event, handler) => handlers.set(event, handler),
   registerCommand: () => {},
+  events: { emit: (channel, data) => channels.get(channel)?.(data), on: (channel, handler) => (channels.set(channel, handler), () => channels.delete(channel)) },
 };
 
 llamaDx(api);
@@ -60,6 +63,19 @@ let usedTokens = 9200;
 const footerData = { getGitBranch: () => "master", getExtensionStatuses: () => new Map(), onBranchChange: () => () => {} };
 
 await fire("session_start", {}, ctx);
+let agentsTimer;
+if (argv.includes("--agents")) {
+  let ticks = 0;
+  agentsTimer = setInterval(() => {
+    ticks += 1;
+    channels.get("subagents:status")?.({
+      tasks: [
+        { id: "task-1", name: "researcher", state: "running", elapsed: ticks * 700, idle: 900, lastActivity: "bash: nix flake check" },
+        { id: "task-2", name: "coder", state: "running", elapsed: ticks * 1400, idle: ticks * 1400, lastActivity: "writing…", slot: { index: 2, total: 2 } },
+      ],
+    });
+  }, 700);
+}
 // `--repeat` stretches the prompt so prefill is long enough to watch and to measure.
 const ask = arg("prompt", "count to 200 out loud, one number per line");
 const again = Number(arg("repeat", "0"));
@@ -75,6 +91,7 @@ const tick = () => {
 };
 const stop = async () => {
   clearInterval(timer);
+  clearInterval(agentsTimer);
   clearTimeout(limit);
   usedTokens = Math.min(nCtx, usedTokens + 3000); // pi would have recorded the answer by now
   await fire("agent_end", {});

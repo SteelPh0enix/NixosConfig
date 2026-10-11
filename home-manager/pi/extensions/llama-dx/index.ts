@@ -1,13 +1,15 @@
-// llama.cpp's diagnostics as pi's footer. Two lines: the metrics line on top, and below it the working directory,
-// the model, and between them a context bar filling whatever room is left — KV held, tokens being evaluated and
-// produced right now, room left. Groups on the metrics line drop from the right as the terminal narrows, so nothing is ever
-// compressed; only the width decides what is there, never the state of the request.
+// llama.cpp's diagnostics as pi's footer: two lines of ours, and — while subagents run — one of theirs above them.
+// Of the two, the metrics line is on top and below it the working directory, the model, and between them a context bar
+// filling whatever room is left: KV held, tokens being evaluated and produced right now, room left. Groups on the
+// metrics line drop from the right as the terminal narrows, so nothing is ever compressed; only the width decides what
+// is there, never the state of the request.
 //
-// layout.ts composes the two lines, server.ts talks to llama.cpp, state.ts turns what comes back into numbers,
-// footer.ts colours them and mounts the result, legend.ts says what the indicators on the top line mean;
-// this file only wires them to pi's events and to /llama-dx.
+// layout.ts composes the two lines, agents.ts the row of subagents, server.ts talks to llama.cpp, state.ts turns what
+// comes back into numbers, footer.ts colours them and mounts the result, legend.ts says what the indicators on the top
+// line mean; this file only wires them to pi's events and to /llama-dx.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { noteAgents } from "./agents.ts";
 import { syncFooter } from "./footer.ts";
 import { legend } from "./legend.ts";
 import { full, percent } from "./layout.ts";
@@ -17,9 +19,17 @@ export default function llamaDx(pi: ExtensionAPI) {
   // A server that turns out not to be llama.cpp gets pi's footer back.
   onServerAnswer(() => (runtime.ctx ? syncFooter(runtime.ctx) : paint(false)));
 
+  // The subagents extension reports its running tasks on pi's event bus; they get a row above the two llama.cpp ones.
+  pi.events.on("subagents:status", (data) => {
+    noteAgents(data);
+    paint();
+  });
+
   pi.on("session_start", (_event, ctx) => {
     if (!isInteractive(ctx)) return;
     resetAll();
+    // A session starts with no subagents of its own, and this module outlives the one whose tasks were just dropped.
+    noteAgents(undefined);
     trackModel(ctx);
     syncFooter(ctx);
   });
@@ -28,6 +38,7 @@ export default function llamaDx(pi: ExtensionAPI) {
   pi.on("model_select", (_event, ctx) => {
     if (!isInteractive(ctx)) return;
     resetAll();
+    // Switching model keeps the row of subagents: those tasks run on their own models, not on the one pi moved to.
     trackModel(ctx);
     syncFooter(ctx);
     paint(false);

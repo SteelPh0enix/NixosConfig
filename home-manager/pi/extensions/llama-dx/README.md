@@ -1,6 +1,7 @@
 # llama-dx
 
-llama.cpp's diagnostics for the request pi is making right now, in pi's footer. Two lines:
+llama.cpp's diagnostics for the request pi is making right now, in pi's footer. Two lines — and one above them while
+subagents run:
 
 ```
 pp ~712 tg   — t/s  │  fp ~15.2k  ev 2.7k  pf  41.3%  re 8.6k  out    0  │  #3  ↑25k  ↓260  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 63%  22/35  st 86%  │  tt    —  │  @pc:51536  # 1/1  max  16k  3.9c/t  fitted
@@ -17,9 +18,38 @@ eats into the green `░` of the incoming prompt, and you can see where the requ
 before it has evaluated a single token. Where bands share a cell the topmost one is the foreground and the one it
 lands on the background, drawn as `▒` so both show through — a block can be held *and* generating at once, but never
 pending, which is a forecast rather than something the context holds. Over capacity held gives way and the moving
-bands keep the right edge. `node test-utils/preview.mjs --demo` prints every combination in your own palette. A third
-line appears above these only when another extension has set a status text. Identity gives way before the bar
-does — the thinking level, then the ends of both names, then the percent, then the model, and last the path, the
+bands keep the right edge. `node test-utils/preview.mjs --demo` prints every combination in your own palette. Two
+lines can sit above these, in this order: pi's own status text when another extension sets one, and the row of running
+subagents. Identity gives way before the bar does — the thinking level, then the ends of both names, then the percent, then the model, and last the path, the
+one field whose length says nothing; from ~16 columns up the line is always exactly the terminal's width, and
+`preview.mjs --check` holds it to that.
+
+The top line holds the rest, grouped and separated by `│`. **What is dropped is decided by width alone, never by
+the state of the request**: groups disappear from the right as the terminal narrows, in the order
+throughput → this request → session → server → speculation → latency → detail. Cells keep their columns, so nothing
+dances when a number changes.
+
+is making right now, in pi's footer. Two lines — and one above them while
+subagents run:
+
+```
+pp ~712 tg   — t/s  │  fp ~15.2k  ev 2.7k  pf  41.3%  re 8.6k  out    0  │  #3  ↑25k  ↓260  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 63%  22/35  st 86%  │  tt    —  │  @pc:51536  # 1/1  max  16k  3.9c/t  fitted
+~/src/steel-pi (master)  24,300 9.4%  █████████▒███░░░░░░░░…░░░░░░░  262,144  qwen3-coder-27b • high
+```
+
+The bottom line is the one that matters: where you are, what you are on, and between them the **context bar** —
+tokens held, the percent they are of the instance's `n_ctx`, and the bar itself taking every column the two names
+leave. Four bands over one row of full blocks: what the context **holds**, what prefill is **evaluating** into it
+this second, the prompt it has **yet to evaluate**, what generation is **producing** this second, and the room left.
+A band claims every cell it touches, so one block stands for `n_ctx / cells` tokens and the bar moves in whole
+cells. What is still to come is the quiet track *in the colour it is about to turn into*: the green `█` of evaluating
+eats into the green `░` of the incoming prompt, and you can see where the request is going to leave the context
+before it has evaluated a single token. Where bands share a cell the topmost one is the foreground and the one it
+lands on the background, drawn as `▒` so both show through — a block can be held *and* generating at once, but never
+pending, which is a forecast rather than something the context holds. Over capacity held gives way and the moving
+bands keep the right edge. `node test-utils/preview.mjs --demo` prints every combination in your own palette. Two
+lines can sit above these, in this order: pi's own status text when another extension sets one, and the row of running
+subagents. Identity gives way before the bar does — the thinking level, then the ends of both names, then the percent, then the model, and last the path, the
 one field whose length says nothing; from ~16 columns up the line is always exactly the terminal's width, and
 `preview.mjs --check` holds it to that.
 
@@ -69,6 +99,21 @@ on a router a plain read would load the instance. Its two throughput gauges are 
 scrape resets the buckets behind them. `--metrics` answers `501`, which is the only answer that turns those cells
 off; a scrape that times out keeps the last one that answered.
 
+### the row of subagents
+
+```
+subagents 2  │  task-1 researcher  12s  bash: nix flake check  │  task-2 coder 2/2  3m12s idle 1m30s  edit home-manager/pi/subagents/ui…
+```
+
+The subagents extension reports its running tasks on pi's event bus (`subagents:status`) and this extension turns
+them into this row — the only thing that reads that channel. A task names itself, its slot when its model has more
+than one, how long it has run, and what it is busy with in at most 34 columns; the count in front never leaves, since
+tasks drop from the right as the terminal narrows and what has been dropped must not look like the whole set.
+Silence of 15 s and a retried model call go to `warning`, an error to `error`. A snapshot arrives only when something
+moved, so the ages keep counting from the moment it was taken, and the row goes away with the last task. Switching pi's model keeps it — those tasks run on their own models — but a
+new session starts without the row of the tasks the session before it ran.
+`preview.mjs --agents` shows it, `check.mjs` asserts it.
+
 Colours are theme tokens: `accent` for what is held (`warning` past 70%, `error` past 90%, pi's own compaction
 thresholds, and the frontier behind it follows), `success` for what prefill is evaluating **and** for the prompt
 still to come — the same green, one density quieter, so `░` becoming `█` is the progress of prefill — `text` for what
@@ -102,6 +147,7 @@ otherwise the bar would shrink by exactly those tokens until the next request re
 |---|---|
 | `index.ts` | wiring to pi's events, and `/llama-dx` |
 | `layout.ts` | both lines as coloured segments of measured width; imports nothing at runtime |
+| `agents.ts` | the row of running subagents, out of the snapshot the subagents extension broadcasts |
 | `server.ts` | the llama.cpp endpoints: `/props`, `/slots`, `/metrics` |
 | `state.ts` | the polled request, the measured speeds, and the numbers the footer shows |
 | `footer.ts` | the component pi renders, and taking pi's footer back when the server is not llama.cpp |

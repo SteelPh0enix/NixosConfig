@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Dev-only preview of the footer: renders the real layout at chosen widths and request phases, so the look can be
 // judged in a terminal without starting pi. Imports ../layout.ts directly, which is why that file has no runtime
-// imports. `node preview.mjs [--width 80,120] [--only idle,prefilling] [--plain] [--check] [--legend] [--demo]`
+// imports. `node preview.mjs [--width 80,120] [--only idle,prefilling] [--plain] [--check] [--legend] [--demo] [--agents]`
+//   --agents  puts the row of running subagents above the two lines, as the subagents extension reports them
 //   --demo  every combination of the context bar's bands, plus one whole request running through the bar
+import { agentsRow, noteAgents } from "../agents.ts";
 import { barCells, baseLine, contextBar, flatten, load, metricGroups, metricsLine } from "../layout.ts";
 import { legend } from "../legend.ts";
 
@@ -171,8 +173,19 @@ if (argv.includes("--demo")) {
   process.exit(0);
 }
 
+if (argv.includes("--agents"))
+  noteAgents({
+    tasks: [
+      { id: "task-1", name: "researcher", state: "running", elapsed: 12_000, idle: 1_000, lastActivity: "bash: nix flake check" },
+      { id: "task-2", name: "coder", state: "running", elapsed: 192_000, idle: 90_000, lastActivity: "edit home-manager/pi/subagents/ui.ts", slot: { index: 2, total: 2 } },
+      { id: "task-3", name: "reviewer", state: "running", elapsed: 41_000, idle: 2_000, retry: "2/5 after 40s" },
+    ],
+  });
+
 for (const width of widths) {
   console.log(`\n${"═".repeat(width)}  ${width} columns`);
+  const agents = agentsRow(width);
+  if (agents !== undefined) console.log(`${"subagents".padEnd(15)}${fill(agents, width)}`);
   for (const s of scenarios) {
     console.log(`${s.name.padEnd(15)}${fill(metricsLine(metricGroups(s.facts), width), width)}`);
     console.log(`${"".padEnd(15)}${fill(lineOf(s, width), width)}`);
