@@ -16,7 +16,7 @@ import { Value } from "typebox/value";
 
 // The five tools this extension exposes to the main agent. Always excluded from
 // a subagent so a subagent can neither spawn nor manage other subagents.
-const SUBAGENT_TOOL_NAMES: string[] = [
+export const SUBAGENT_TOOL_NAMES: string[] = [
   "subagent_spawn",
   "subagent_status",
   "subagent_wait",

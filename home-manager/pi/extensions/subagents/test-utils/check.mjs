@@ -328,6 +328,28 @@ if (!nodeModules) {
   ok("a tool the main agent lacks never leaks in", !JSON.stringify(resolveTools({ provider: "p", model: "m" }, ["read"])).includes("bash"));
   ok("with no view of the main session pi's own defaults stay", json(resolveTools({ provider: "p", model: "m" }, [])) === json({ excludeTools: SUBAGENT_TOOLS }));
 
+  console.log("\nsystem prompt");
+  const { subagentPromptSection } = await importFrom(ws, "prompt.ts");
+  const cfg = new Map([
+    ["coder", { provider: "llama-pc", model: "cyber-tiel-coder" }],
+    ["reviewer", { provider: "llama-pc", model: "cyber-tiel-coder" }],
+    ["summarizer", { provider: "llama-pc", model: "sharp-spark" }],
+  ]);
+  const promptText = subagentPromptSection(
+    cfg,
+    new Map([["pc", 1]]),
+    new Map([["llama-pc/sharp-spark", 4], ["llama-pc/cyber-tiel-coder", 2]]),
+  );
+  const FIVE = ["subagent_spawn", "subagent_status", "subagent_wait", "subagent_result", "subagent_kill"];
+  ok("every tool the model has to call is named", FIVE.every((t) => promptText.includes(t)));
+  ok("a group limit is stated from the config", promptText.includes("`pc`: 1 model at a time"));
+  ok("a model's capacity is stated from the slots map", promptText.includes("sharp-spark: 4 slots") && promptText.includes("cyber-tiel-coder: 2 slots"));
+  ok("subagents are listed under the model they run on", /sharp-spark: 4 slots — summarizer/.test(promptText) && /cyber-tiel-coder: 2 slots — coder, reviewer/.test(promptText));
+  ok("the roomiest model is the first one offered", promptText.indexOf("sharp-spark") < promptText.indexOf("cyber-tiel-coder"));
+  ok("a model nobody gave slots has one", subagentPromptSection(cfg, new Map(), new Map()).includes("cyber-tiel-coder: 1 slot — coder, reviewer"));
+  ok("a refusal is explained as one, not as a queue", promptText.includes("refused on the spot rather than queued"));
+  ok("nothing configured means no section at all", subagentPromptSection(new Map(), new Map(), new Map()) === "");
+
   console.log("\nrenderers");
   const theme = { fg: (_token, s) => s, bold: (s) => s };
   const opts = { expanded: true, isPartial: false };
@@ -472,6 +494,7 @@ if (!nodeModules) {
   const commands = new Map();
   const notices = [];
   const emitted = [];
+  const handlers = new Map();
   // The extension warns about `limited` naming a group nobody limited; that warning is the point of the fixture.
   const warn = console.warn;
   console.warn = () => {};
@@ -479,7 +502,7 @@ if (!nodeModules) {
     registerTool: (tool) => tools.set(tool.name, tool),
     registerCommand: (name, def) => commands.set(name, def),
     getActiveTools: () => ["read", "bash"],
-    on: () => {},
+    on: (event, handler) => handlers.set(event, handler),
     events: { emit: (_channel, data) => emitted.push(data) },
   };
   (await importFrom(entry, "index.ts")).default(fakePi);
@@ -489,6 +512,13 @@ if (!nodeModules) {
   // The listing on `name` is the only way a description reaches the model, so it has to carry every one.
   const spawnNames = tools.get("subagent_spawn").parameters.properties.name.description;
   ok("the spawn tool names every subagent with its description", spawnNames === "worker: does the work\nlimited");
+  // The prompt section is addressed to whoever holds the spawn tool; a subagent's session has none of them.
+  const promptSections = { sections: {} };
+  await handlers.get("before_agent_start")({ systemPromptOptions: promptSections }, {});
+  ok("a session with no spawn tool gets no subagents section", promptSections.sections.subagents === undefined);
+  fakePi.getActiveTools = () => ["read", "bash", "subagent_spawn"];
+  await handlers.get("before_agent_start")({ systemPromptOptions: promptSections }, {});
+  ok("the session that may spawn is told what the extension is", String(promptSections.sections.subagents).includes("subagent_spawn"));
 
   const registryLog = [];
   const ctx = {

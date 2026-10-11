@@ -1,7 +1,8 @@
 // subagents extension entry point.
 //
 // Loads the subagent configuration once at startup, then registers five tools
-// (spawn / status / wait / result / kill) and a `/subagents` command. Each
+// (spawn / status / wait / result / kill), a `/subagents` command, and the system
+// prompt section that introduces them to a session allowed to spawn. Each
 // spawned task runs in its own in-memory SDK session that inherits the main
 // agent's tool set (minus the subagent tools) and a read-only view of the
 // main transcript.
@@ -19,7 +20,8 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { Usage } from "@earendil-works/pi-ai";
-import { loadSubagentConfigs, resolveTools, nameSchema, type ResolvedTools } from "./config.ts";
+import { loadSubagentConfigs, resolveTools, nameSchema, SUBAGENT_TOOL_NAMES, type ResolvedTools } from "./config.ts";
+import { subagentPromptSection } from "./prompt.ts";
 import { IDLE_AFTER_MS, killRecord, TaskRegistry, toSummary, type TaskRecord } from "./state.ts";
 import { SubagentTask } from "./task.ts";
 import { LeaseStore, type LeaseRequest, type AcquireResult } from "./store.ts";
@@ -571,6 +573,17 @@ export default function subagents(pi: ExtensionAPI): void {
     },
     renderCall: (args, theme) => renderKillCall(args, theme),
     renderResult: (result, opts, theme) => renderKillResult(result, opts, theme),
+  });
+
+  // ---- system prompt -------------------------------------------------------
+
+  // A subagent's own session never has these tools active, which is how this handler tells the two apart: the
+  // section goes to the session that can delegate, and a subagent is never told to recurse.
+  const section = subagentPromptSection(configs, groups, slots);
+  pi.on("before_agent_start", (event) => {
+    if (section && pi.getActiveTools().includes(SUBAGENT_TOOL_NAMES[0])) {
+      event.systemPromptOptions.sections.subagents = section;
+    }
   });
 
   // ---- slash command -------------------------------------------------------
