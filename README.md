@@ -93,16 +93,18 @@ and tuned keeps audio power saving off (the `snd-hda-intel.power_save=0` paramet
 
 ## pi
 
-Identical to the other branch, file for file: the same three llama.cpp providers, the same 11
-subagents in `subagents.json` — all on `llama-pc`, i.e. this machine's server, one model in the `pc`
-group at a time. Its extensions are documented next to themselves, a `README.md` for use and an
-`AGENTS.md` for internals:
+pi, the coding agent, is configured with the rest of the user config: `home-manager/pi/` holds its
+settings, `models.json` (three llama.cpp providers: this box's two servers and the other machine's),
+the prompt templates in `prompts/`, and its extensions — five directories, each documented as a
+`README.md` for use and an `AGENTS.md` for its internals:
 
 | extension | what it does |
 |---|---|
 | [`llama-compat`](home-manager/pi/extensions/llama-compat/README.md) | keeps pi's model catalog honest about what a server really serves |
 | [`llama-dx`](home-manager/pi/extensions/llama-dx/README.md) | llama.cpp's diagnostics for the current request, in pi's footer |
+| [`searxng`](home-manager/pi/extensions/searxng/README.md) | `web_search` against the SearXNG instance on this box |
 | [`subagents`](home-manager/pi/extensions/subagents/README.md) | background subagents bound to named models, with concurrency limits |
+| [`webfetch`](home-manager/pi/extensions/webfetch/README.md) | `web_fetch` and `web_interact` through a local Chromium |
 
 Its colours are *generated*: Noctalia's community `pi-agent` template writes
 `~/.pi/agent/themes/noctalia.json` from the live palette, which is why no theme file ships here. The
