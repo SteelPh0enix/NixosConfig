@@ -13,7 +13,6 @@
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.timeout = 5;
 
-  # Version frozen through the pinned `nix-cachyos-kernel` input, see flake.nix.
   boot.kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest-lto-x86_64-v3;
 
   boot.tmp.useTmpfs = true;
