@@ -24,7 +24,10 @@ in
 
     settings = {
       server = {
-        base_url = "http://search.framework:7777/";
+        # Public hostname the Cloudflare "search" tunnel serves (see nixos/services/cloudflared.nix).
+        # The pi extension reaches this instance over the LAN (SEARXNG_URL=http://search.framework:7777)
+        # and calls the JSON API directly, so this only controls the HTML template links below.
+        base_url = "https://search.steelph0enix.dev/";
         bind_address = "0.0.0.0";
         port = 7777;
         secret_key = "$SEARXNG_SECRET";

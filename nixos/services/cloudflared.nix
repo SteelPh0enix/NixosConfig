@@ -1,4 +1,9 @@
 # Cloudflare Tunnel: https://clanker.steelph0enix.dev/ -> the ROCm llama router on :33333.
+# A second tunnel ("search") proxies the SearXNG metasearch engine to https://search.steelph0enix.dev/.
+#
+# Both tunnels are locally managed (routing declared below, not in the dashboard) and dial out to
+# Cloudflare's edge; TLS terminates at the edge with Universal SSL (*.steelph0enix.dev), so the
+# machine stays behind the firewall. The LAN keeps reaching SearXNG on search.framework:7777 directly.
 #
 # cloudflared only ever dials *out* to Cloudflare's edge (QUIC, HTTP/2 fallback), so nothing here
 # listens, no NAT rule exists and the machine stays behind the firewall. TLS terminates at the edge
@@ -57,6 +62,26 @@ in
       originRequest = {
         # A cold router answers 503 while it loads a preset, which is a healthy answer; these only
         # cover the TCP/keepalive side of the loopback hop.
+        connectTimeout = "10s";
+        tcpKeepAlive = "30s";
+      };
+    };
+
+    # Dedicated tunnel for the SearXNG metasearch engine (nixos/services/searxng.nix).
+    # One-time setup stays outside Nix (same as the clanker tunnel above):
+    #   cloudflared tunnel create search --credentials-file ~/nixos-config/secrets/cloudflare-search-credentials.json
+    #   cloudflared tunnel route dns search search.steelph0enix.dev
+    tunnels."search" = {
+      credentialsFile = "${settings.repoPath}/secrets/cloudflare-search-credentials.json";
+
+      # Only the search host is routed here; anything else on the tunnel falls through to default.
+      ingress = {
+        "search.steelph0enix.dev" = "http://127.0.0.1:7777";
+      };
+
+      default = "http_status:404";
+
+      originRequest = {
         connectTimeout = "10s";
         tcpKeepAlive = "30s";
       };
