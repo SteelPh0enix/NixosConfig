@@ -182,7 +182,8 @@ What it pins down, mostly with the bugs it was written against:
 - **prompt files** — a `prompt` that names a file is read from the declaring config's own directory (user config and
   project config each get their own), trimmed, and kept as text when it is not path-like; a missing or empty file drops
   the entry naming it, `replace_system_prompt` without a `prompt` is refused, and the `subagents.json` this repo ships
-  is loaded for real so every prompt it names has to exist.
+  is loaded for real — the repo checkout, or `~/.pi/agent` when the suite runs from the installed copy — so every
+  prompt it names has to exist.
 - **subagent prompt** — the framing alone when an entry has no `prompt`; appending joins it after what pi had and
   touches nothing else; replacing sets `customPrompt`, empties the global append, the context files and the skills,
   and rebuilds the tool index from the snippets (tools without one are left out, and an empty index still says
