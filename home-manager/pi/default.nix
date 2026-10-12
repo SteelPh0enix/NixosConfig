@@ -14,7 +14,7 @@ let
   settings = {
     defaultProvider = "llama-main";
     defaultModel = "Qwen 3.8 Flash Next";
-    defaultThinkingLevel = "high";
+    defaultThinkingLevel = "medium";
     theme = "noctalia";
     transport = "auto";
     treeFilterMode = "default";
