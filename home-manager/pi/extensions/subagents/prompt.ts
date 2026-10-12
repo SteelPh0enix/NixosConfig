@@ -1,8 +1,9 @@
-// The system prompt section addressed to the session that may spawn subagents.
+// System prompt building, both directions: the section addressed to the session that may spawn subagents, and the
+// prompt a subagent itself gets.
 //
 // The limits come out of the config rather than out of prose, so what the model is told and what the lease store
-// enforces cannot drift apart. It is built once at load: the text never changes mid-session, so the prompt cache
-// stays warm.
+// enforces cannot drift apart. The main-agent section is built once at load: the text never changes mid-session, so
+// the prompt cache stays warm.
 
 import type { SubagentConfig } from "./config.ts";
 
@@ -26,6 +27,50 @@ function modelLines(configs: Map<string, SubagentConfig>, slots: Map<string, num
   }));
   rows.sort((a, b) => b.capacity - a.capacity || a.model.localeCompare(b.model));
   return rows.map((r) => `  - ${r.model}: ${slotsWord(r.capacity)} — ${r.names}`).join("\n");
+}
+
+/** Every subagent is one of these, whether or not its config adds anything. */
+export const SUBAGENT_FRAMING =
+  "You are a background subagent handling a single delegated task. You cannot spawn or manage other subagents, and you cannot see or affect other subagents.";
+
+/**
+ * What a subagent's system prompt is built from: the framing, then its own role text.
+ */
+export function subagentPromptText(config: SubagentConfig): string {
+  return config.prompt ? `${SUBAGENT_FRAMING}\n\n${config.prompt}` : SUBAGENT_FRAMING;
+}
+
+/** The part of pi's `NormalizedBuildSystemPromptOptions` this extension touches. */
+export interface SubagentPromptOptions {
+  customPrompt?: string;
+  appendSystemPrompt: string;
+  selectedTools: string[];
+  toolSnippets: Record<string, string>;
+  contextFiles: Array<{ path: string; content: string }>;
+  skills: unknown[];
+  sections: Record<string, string>;
+}
+
+/**
+ * Shape a subagent's prompt options in place, from a `before_agent_start` handler.
+ *
+ * Appending leaves pi's build alone and adds the role text to what pi puts in `<addendum>`, after the user's
+ * APPEND_SYSTEM.md. Replacing goes through `customPrompt`, which is what makes pi drop its own preamble, rules and
+ * docs, and empties the rest of pi's additions (the global append, AGENTS.md, the skills list). pi renders no
+ * `<tools>` section for a custom prompt and a section called `tools` is allowed, so the tool index is rendered here
+ * the same way pi does it - the tool declarations themselves travel with the request either way.
+ */
+export function applySubagentPrompt(options: SubagentPromptOptions, text: string, replace: boolean): void {
+  if (!replace) {
+    options.appendSystemPrompt = options.appendSystemPrompt ? `${options.appendSystemPrompt}\n\n${text}` : text;
+    return;
+  }
+  const listed = options.selectedTools.filter((name) => options.toolSnippets[name]);
+  options.customPrompt = text;
+  options.appendSystemPrompt = "";
+  options.contextFiles = [];
+  options.skills = [];
+  options.sections.tools = listed.length > 0 ? listed.map((name) => `- ${name}: ${options.toolSnippets[name]}`).join("\n") : "(none)";
 }
 
 /**

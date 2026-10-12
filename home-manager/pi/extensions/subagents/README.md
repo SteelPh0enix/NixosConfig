@@ -35,6 +35,7 @@ the project entry wins.
       "provider": "llama.cpp",
       "model": "llama-3.3-70b-instruct",
       "description": "Reads the repo and reports findings. Read-only by convention.",
+      "prompt": "subagents/researcher.md",
       "tools": ["read", "bash", "web_search", "web_fetch"]
     },
     "code-reviewer": {
@@ -46,6 +47,8 @@ the project entry wins.
       "provider": "llama.cpp",
       "model": "llama-3.1-8x22b",
       "description": "Runs GPU-bound inference; limited by the 'gpu' group.",
+      "prompt": "Only rename what the task names, and stop when the last step is done.",
+      "replace_system_prompt": true,
       "groups": ["gpu"]
     }
   },
@@ -61,6 +64,15 @@ the project entry wins.
 - `description` — optional, listed as one `name: description` line on the `name` parameter of `subagent_spawn`, which
   is the only place the main agent reads it. Worth naming what the subagent is for and how many slots its model has,
   since a spawn for a model another task already holds is refused.
+- `prompt` — optional. What the subagent is told about itself, its own text rather than the main agent's: a string, or
+  a file to read (`"subagents/coder.md"`), resolved against the directory of the config that names it — `~/.pi/agent/`
+  for the user file, `.pi/` for the project one. Read at startup along with the rest of the config, so **editing a
+  prompt file needs a restart**. A path that does not exist, or an empty file, drops the entry with a message naming
+  it. By default this text is added to the prompt pi builds for the subagent, after `APPEND_SYSTEM.md`.
+- `replace_system_prompt` — optional, default `false`. With `true` the `prompt` is put **in place of** pi's prompt:
+  pi's own preamble, rules and docs, `APPEND_SYSTEM.md`, the repo's `AGENTS.md` and the skills list all go away. What
+  stays is the tool index, and the tools themselves are declared to the model either way. Needs a `prompt` — an entry
+  replacing the prompt with nothing is refused.
 - `tools` — optional. Which tools the subagent gets, chosen from the main agent's active set at spawn. Omitted: the
   main agent's tools as it stands, so `--tools`, the `defaultTools` setting and tools registered by extensions all
   carry over. A list (or `{ "enable": [...] }`): exactly that allowlist and nothing else. `{ "disable": [...] }`: the

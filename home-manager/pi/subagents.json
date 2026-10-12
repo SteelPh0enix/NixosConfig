@@ -4,6 +4,7 @@
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
       "description": "Implement or fix code in the working tree: reads, edits, runs builds and tests. The strongest coder here, and abliterated, so it takes the jobs others refuse - say what to change and how to verify it. cyber-tiel-coder, 2 slots.",
+      "prompt": "subagents/coder.md",
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
@@ -11,6 +12,7 @@
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
       "description": "Review a diff or audit files and report findings; no edit/write. Quick with 256k context - the usual review, reviewer-dense when judgement beats speed. cyber-tiel-coder, 2 slots.",
+      "prompt": "subagents/reviewer.md",
       "tools": ["read", "bash", "codemode"],
       "groups": ["pc"]
     },
@@ -18,6 +20,7 @@
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
       "description": "Investigate a question against the web, upstream docs or local files. Report what was found with sources. Read-only by convention. cyber-tiel-coder, 2 slots.",
+      "prompt": "subagents/researcher.md",
       "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
       "groups": ["pc"]
     },
@@ -25,12 +28,14 @@
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
       "description": "Generic helper with the main agent's whole tool set, for when no narrower subagent fits and the task needs decent code. cyber-tiel-coder, 2 slots.",
+      "prompt": "subagents/assistant.md",
       "groups": ["pc"]
     },
     "reviewer-dense": {
       "provider": "llama-pc",
       "model": "qwen-27B",
       "description": "Review a diff or audit files and report findings; no edit/write. Better judgement than reviewer, slower to read, 150k context. qwen-27B, 1 slot - nothing else may sit on its model.",
+      "prompt": "subagents/reviewer.md",
       "tools": ["read", "bash", "codemode"],
       "groups": ["pc"]
     },
@@ -38,6 +43,7 @@
       "provider": "llama-pc",
       "model": "qwen-27B",
       "description": "Investigate a question that needs reasoning rather than crawling - web, upstream docs, local files - with sources. Best raw reasoning here; 150k context and the slowest prefill, so no big dumps. qwen-27B, 1 slot.",
+      "prompt": "subagents/researcher.md",
       "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
       "groups": ["pc"]
     },
@@ -45,12 +51,14 @@
       "provider": "llama-pc",
       "model": "qwen-27B",
       "description": "Generic helper with the main agent's whole tool set, for when you really need it to reason a lot. Least context here (150k) and slowest prefill. qwen-27B, 1 slot.",
+      "prompt": "subagents/assistant.md",
       "groups": ["pc"]
     },
     "generalist": {
       "provider": "llama-pc",
       "model": "occult-nail",
       "description": "General-purpose worker for when Cyber-Tiel wobbles or the task wants breadth over code: same family, less quantised, a bit more coherent, but the slowest decode here. occult-nail, 1 slot.",
+      "prompt": "subagents/assistant.md",
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
@@ -58,6 +66,7 @@
       "provider": "llama-pc",
       "model": "lfm",
       "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs, simple research. Fastest thing here and not clever - spell out every step and say when to stop. lfm, 4 slots, 128k context each.",
+      "prompt": "subagents/worker.md",
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
@@ -65,6 +74,7 @@
       "provider": "llama-pc",
       "model": "sharp-spark",
       "description": "Mechanical work on a change that is already fully specified, a bit smarter than Power and with the longest context on the box - still 4B, so write a detailed spec and check what comes back. sharp-spark, 4 slots (~190k each when all four run).",
+      "prompt": "subagents/worker.md",
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
@@ -72,6 +82,7 @@
       "provider": "llama-pc",
       "model": "sharp-spark",
       "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. Cheapest prefill and the largest window here; 4B, so ask for extraction, not judgement. sharp-spark, 4 slots.",
+      "prompt": "subagents/summarizer.md",
       "tools": ["read", "bash", "codemode"],
       "groups": ["pc"]
     }

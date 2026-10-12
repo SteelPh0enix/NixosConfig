@@ -120,6 +120,16 @@ in
     # preset run together (a model left out has one). Each subagent is bound to what its preset is good at; its
     # context size is read from the server at spawn.
     "${agentDir}/subagents.json".source = ./subagents.json;
+    # What each subagent is told about itself. subagents.json names these by its own `prompt` key, resolved against
+    # that file's directory, so `subagents/coder.md` is this one; they are read at startup with the config, so an edit
+    # needs a pi restart. Linked one by one - `${agentDir}/subagents` is a real directory already, holding the lease
+    # database the concurrency store keeps - and a reviewer-dense reuses reviewer.md rather than repeating it.
+    "${agentDir}/subagents/assistant.md".source = ./subagents/assistant.md;
+    "${agentDir}/subagents/coder.md".source = ./subagents/coder.md;
+    "${agentDir}/subagents/researcher.md".source = ./subagents/researcher.md;
+    "${agentDir}/subagents/reviewer.md".source = ./subagents/reviewer.md;
+    "${agentDir}/subagents/summarizer.md".source = ./subagents/summarizer.md;
+    "${agentDir}/subagents/worker.md".source = ./subagents/worker.md;
     # The palette as main-pc's Noctalia template generates it, kept here so both machines colour pi
     # identically. Nothing regenerates it on this host, so this copy is the source: edit it here and
     # re-activate. The name is `noctalia`, the same one main-pc's generated file uses.
