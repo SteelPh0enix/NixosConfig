@@ -16,8 +16,7 @@ and what its servers answer is not evidence about the ones on this machine.
 nix eval --raw .#nixosConfigurations.RX-78-FPC.config.networking.hostName
 nix eval .#nixosConfigurations.RX-78-FPC.config.systemd.services.llama-server-vulkan.serviceConfig.Restart
 
-nh home switch      # a user-side change, applied to $HOME now
-nh os switch        # build the system and activate it now
+nh os switch        # build the system and activate it now, home-manager files included
 nh os boot          # build it and make it the default boot entry; apply on reboot
 
 # the real check for a system change, and a heavy build
@@ -68,7 +67,8 @@ rebuilds it, and `nix` changes never touch it.
 `llama-server-vulkan` after editing `/home/LLMs/llama-server.ini`, `adguardhome` to force a filter-list
 update (the merge drops `last_updated`, so the lists re-download), and the cloudflared tunnels when the
 boot-minute DNS race got them. `home-manager/pi/subagents.json` and `models.json` are read at pi's
-startup, so they need `nh home switch` *and* a pi restart.
+startup, so they need `nh os switch` *and* a pi restart. There is no `nh home switch` here: home-manager is a NixOS
+module of this flake, which exports no `homeConfigurations`.
 
 ## Couplings that break quietly
 

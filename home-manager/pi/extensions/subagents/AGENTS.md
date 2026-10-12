@@ -64,9 +64,12 @@ belongs in `APPEND_SYSTEM.md`.
 ### The subagent's own prompt
 
 `config.ts` turns an entry's `prompt` into text while loading — a value naming a file (one line, absolute or
-path-like) is read there and trimmed, resolved against the directory of the config that declared it; anything else is
-the text. A file that is missing or empty is an entry error, so a subagent never ends up prompted with its own
-filename.
+path-like, which means it contains `/` or ends in `.md`) is read there and trimmed, resolved against the directory of
+the config that declared it; anything else is the text. That test is the whole rule, so a one-line instruction written
+with a path or a `.md` in it is looked for on disk. A file that is missing or empty is an entry error, so a subagent
+never ends up prompted with its own filename. A new prompt file needs a link of its own in `home-manager/pi/default.nix` - `${agentDir}/subagents` is a
+real directory, the lease database lives there, so a directory-wide link is not possible - which is what the suite
+asserts, since a file that is missing only from the installed config is otherwise invisible until activation.
 
 `task.ts` hands the task's resource loader one more extension (`subagentPromptExtension`, hidden from the startup
 list), and its `before_agent_start` calls `applySubagentPrompt` from `prompt.ts`:
@@ -81,8 +84,10 @@ list), and its `before_agent_start` calls `applySubagentPrompt` from `prompt.ts`
 
 `forceSystemPrompt` is deliberately unused: it replaces the whole prompt opaquely, with no sections for pi to diff on
 later. Tool names, descriptions and schemas travel with the request whatever the mode, so replacing the prompt hides
-no tool — the `<tools>` index is only the one-line list. `before_agent_start` hands each handler a fresh copy of the
-prompt options, so these mutations never leak into the session's own base options from one run to the next.
+no tool — the `<tools>` index is only the one-line list. pi normalizes the prompt options once per
+`before_agent_start` emit and hands that one object to every handler, so these mutations never reach the session's own
+base options, but a handler registered after this one does see them - including the emptied `appendSystemPrompt` of a
+replaced prompt.
 
 The fixed "you are a background subagent…" framing lives in `prompt.ts` (`SUBAGENT_FRAMING`) and is part of the system
 prompt in both modes; the user message is only the read-only transcript reference, the report rule and the task.
@@ -183,7 +188,8 @@ What it pins down, mostly with the bugs it was written against:
   project config each get their own), trimmed, and kept as text when it is not path-like; a missing or empty file drops
   the entry naming it, `replace_system_prompt` without a `prompt` is refused, and the `subagents.json` this repo ships
   is loaded for real — the repo checkout, or `~/.pi/agent` when the suite runs from the installed copy — so every
-  prompt it names has to exist.
+  prompt it names has to exist; run from the repo it also requires each of them to be linked by
+  `home-manager/pi/default.nix`.
 - **subagent prompt** — the framing alone when an entry has no `prompt`; appending joins it after what pi had and
   touches nothing else; replacing sets `customPrompt`, empties the global append, the context files and the skills,
   and rebuilds the tool index from the snippets (tools without one are left out, and an empty index still says

@@ -25,8 +25,11 @@ checkout.
 ```bash
 nh os switch                    # build and activate
 nh os boot                      # build and make it the default boot entry; switch on reboot
-nh home switch                  # home-manager only
 ```
+
+Home-manager is wired in as a NixOS module (`home-manager.users.<user>`), so a user-side change goes out with the same
+rebuild. This flake has no `homeConfigurations`, and `nh home switch` fails on it with "flake does not provide
+attribute … homeConfigurations".
 
 The runs that are more than one command are installed as wrapper scripts by `home-manager/shell.nix`:
 

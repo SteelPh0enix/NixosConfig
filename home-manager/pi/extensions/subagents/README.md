@@ -68,11 +68,15 @@ the project entry wins.
   a file to read (`"subagents/coder.md"`), resolved against the directory of the config that names it — `~/.pi/agent/`
   for the user file, `.pi/` for the project one. Read at startup along with the rest of the config, so **editing a
   prompt file needs a restart**. A path that does not exist, or an empty file, drops the entry with a message naming
-  it. By default this text is added to the prompt pi builds for the subagent, after `APPEND_SYSTEM.md`.
+  it. A value is read as a file when it is a single line that is absolute or looks like a path (it contains `/` or ends
+  in `.md`), so a one-line instruction spelled that way is looked for on disk — write it over two lines, or reword it,
+  if you mean it as text. By default this text is added to the prompt pi builds for the subagent, after
+  `APPEND_SYSTEM.md`.
 - `replace_system_prompt` — optional, default `false`. With `true` the `prompt` is put **in place of** pi's prompt:
-  pi's own preamble, rules and docs, `APPEND_SYSTEM.md`, the repo's `AGENTS.md` and the skills list all go away. What
-  stays is the tool index, and the tools themselves are declared to the model either way. Needs a `prompt` — an entry
-  replacing the prompt with nothing is refused.
+  pi's own preamble, rules and docs, `APPEND_SYSTEM.md`, the repo's `AGENTS.md` and the skills list all go away - which
+  includes every convention written in them, so a replaced subagent has to be told the commands of the project in its
+  own prompt. What stays is the tool index and the working directory, and the tools themselves are declared to the
+  model either way. Needs a `prompt` — an entry replacing the prompt with nothing is refused.
 - `tools` — optional. Which tools the subagent gets, chosen from the main agent's active set at spawn. Omitted: the
   main agent's tools as it stands, so `--tools`, the `defaultTools` setting and tools registered by extensions all
   carry over. A list (or `{ "enable": [...] }`): exactly that allowlist and nothing else. `{ "disable": [...] }`: the
