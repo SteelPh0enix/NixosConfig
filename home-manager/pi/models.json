@@ -3,7 +3,7 @@
     "llama-main": {
       "baseUrl": "http://steelph0enix.framework:33333/v1",
       "api": "openai-completions",
-      "apiKey": "none",
+      "apiKey": "!cat /home/steelph0enix/nixos-config/secrets/llama-strix-api-key",
       "models": [
         {
           "id": "Qwen 3.8 Flash Next",

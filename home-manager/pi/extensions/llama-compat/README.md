@@ -46,6 +46,9 @@ and the catalog refresh fills both in.
 
 ## Limits
 
+- A server behind `--api-key` is probed with the provider's `apiKey` from `models.json` - a literal, `$NAME`, or a
+  leading `!` whose trimmed output is the key, which is how the secret stays out of git. With no key to find, every
+  probe is a 401 and the provider stays exactly as `models.json` describes it.
 - The built-in `llama.cpp` provider is skipped: its own code already reads the server, and re-registering it
   would drop its classifier models. Only providers you put in `models.json` are touched.
 - Effort levels are only claimed when the template can take them: a template that validates its effort (most

@@ -1,6 +1,10 @@
 // The llama.cpp server behind pi's model: where it lives, whether it is one at all, and the two endpoints the
 // footer reads. Nothing here knows about pi's request; `state.ts` decides what to do with what comes back.
 
+import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { join } from "node:path";
 import { debug } from "./debug.ts";
 
 export type Slot = {
@@ -46,9 +50,9 @@ const PROBE_WAITS_MS = [2000, 5000, 15000, 30000, 60000];
 export const keyOf = (r: { root: string; instance: string }): string => `${r.root}|${r.instance}`;
 
 /**
- * The server root behind an inference baseUrl, `/v1` stripped. The same helper sits in ../llama-compat/index.ts and
- * ../subagents/slots.ts: the three extensions are installed side by side but never import each other, so a change
- * to how that root is found belongs in all three.
+ * The server root behind an inference baseUrl, `/v1` stripped. The same helper sits in ../llama-compat/index.ts:
+ * the two extensions are installed side by side but never import each other, so a change to how that root is found
+ * belongs in both.
  */
 export function serverRoot(m: { baseUrl?: string } | undefined): string | undefined {
   if (!m?.baseUrl) return undefined;
@@ -76,6 +80,54 @@ export const shortHost = (root: string): string => {
   }
 };
 
+/**
+ * llama.cpp answers 401 for everything but `/health` once it runs with `--api-key`, so the three reads below need the
+ * key pi sends: models.json keeps it next to the provider's baseUrl, and its absence means an open server. The same
+ * helper sits in ../llama-compat/index.ts, so a change to where the key comes from belongs in both.
+ */
+/**
+ * How models.json spells a value: `$NAME` or `${NAME}` is that variable of the environment, a leading `!` runs the
+ * rest in a shell and its trimmed stdout is the value - pi reads keys the same way, which is what lets the secret
+ * stay in a file outside git - and anything else is the value itself.
+ */
+function expandValue(raw: string): string {
+  if (raw.startsWith("!")) {
+    try {
+      return execSync(raw.slice(1), { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    } catch {
+      return "";
+    }
+  }
+  const found = /^\$(?:\{(\w+)\}|(\w+))$/.exec(raw);
+  const name = found?.[1] ?? found?.[2];
+  return name === undefined ? raw : process.env[name] ?? "";
+}
+
+let keys: Map<string, string> | undefined;
+
+function configuredKeys(): Map<string, string> {
+  if (keys) return keys;
+  keys = new Map();
+  try {
+    const dir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+    const text = readFileSync(join(dir, "models.json"), "utf8").replace(/^\uFEFF/, "");
+    const providers = JSON.parse(text).providers as Record<string, { baseUrl?: string; apiKey?: string }> | undefined;
+    for (const provider of Object.values(providers ?? {})) {
+      const root = serverRoot({ baseUrl: provider.baseUrl });
+      const key = expandValue(provider.apiKey ?? "");
+      if (root && key) keys.set(root, key);
+    }
+  } catch (error) {
+    debug(`models.json unreadable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return keys;
+}
+
+function authFor(url: string): Record<string, string> | undefined {
+  const found = [...configuredKeys()].find(([root]) => url.startsWith(`${root}/`));
+  return found ? { authorization: `Bearer ${found[1]}` } : undefined;
+}
+
 /** Settled "is this a llama.cpp server" answers; unknown roots are treated as one. */
 const llamaRoots = new Map<string, boolean>();
 const probing = new Set<string>();
@@ -91,7 +143,8 @@ export function probeRoot(root: string, onAnswer: (answer: boolean) => void): vo
   if (llamaRoots.has(root) || probing.has(root)) return;
   const ask = (waits: number[]): void => {
     probing.add(root);
-    fetch(`${root}/props`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
+    const url = `${root}/props`;
+    fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
       .then(async (response) => {
         if (!response.ok) return false;
         const props = (await response.json()) as { role?: string; model_alias?: string; chat_template_caps?: unknown };
@@ -130,7 +183,8 @@ export const isKnownLlama = (root: string): boolean => llamaRoots.get(root) === 
 
 export async function fetchSlots(root: string, instance: string): Promise<Slot[] | undefined> {
   try {
-    const response = await fetch(`${root}/slots?${new URLSearchParams({ model: instance })}`, { signal: AbortSignal.timeout(1500) });
+    const url = `${root}/slots?${new URLSearchParams({ model: instance })}`;
+    const response = await fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(1500) });
     if (!response.ok) return undefined;
     return (await response.json()) as Slot[];
   } catch (error) {
@@ -169,7 +223,8 @@ function parseMetrics(text: string): Metrics {
  */
 async function fetchMetrics(root: string, instance: string): Promise<Metrics | "off" | undefined> {
   try {
-    const response = await fetch(`${root}/metrics?${new URLSearchParams({ model: instance, autoload: "false" })}`, { signal: AbortSignal.timeout(1500) });
+    const url = `${root}/metrics?${new URLSearchParams({ model: instance, autoload: "false" })}`;
+    const response = await fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(1500) });
     if (response.ok) return parseMetrics(await response.text());
     // 501 "Start it with --metrics" is the only answer that means there is no /metrics; anything else, including a
     // router refusing to speak for an instance that is not loaded, is worth asking about again.

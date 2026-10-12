@@ -43,18 +43,18 @@ let
 
   settingsFile = pkgs.writeText "pi-settings.json" (builtins.toJSON settings);
 
-  # Both files stay real files pi can rewrite; rm models.json to re-seed it from the repo.
-  seedAgentDir = pkgs.writeShellApplication {
-    name = "pi-agent-seed";
+  # settings.json is the one file here that stays real: pi writes its own keys into it, so the
+  # managed ones are merged over it on activation instead of the file being replaced outright.
+  # models.json needs no such care - pi reads it and reloads it on /model but never writes it - so
+  # it is installed like the rest of the config. Its single secret stays out of git (see the note
+  # where it is linked below).
+  mergeSettings = pkgs.writeShellApplication {
+    name = "pi-settings-merge";
     runtimeInputs = [ pkgs.jq ];
     text = # bash
       ''
         dir="$HOME/${agentDir}"
         mkdir -p "$dir"
-
-        if [ ! -e "$dir/models.json" ]; then
-          install -m 0600 ${./models.json} "$dir/models.json"
-        fi
 
         # Managed keys win, keys pi wrote itself survive.
         settings="$dir/settings.json"
@@ -94,6 +94,10 @@ in
   # ~/.pi/agent/themes/noctalia.json from the live palette, and a copy here would only collide on
   # the name `noctalia`.
   home.file = {
+    # Endpoints and model metadata. The strix router answers 401 without a key, and its key is not
+    # in here: `apiKey` holds a `!command` that reads it out of the untracked secrets/ at request
+    # time, so the same file works on every machine. Copy secrets/llama-strix-api-key over by hand.
+    "${agentDir}/models.json".source = ./models.json;
     "${agentDir}/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
     "${agentDir}/extensions/searxng.ts".source = ./extensions/searxng.ts;
     "${agentDir}/extensions/webfetch.ts".source = ./extensions/webfetch.ts;
@@ -120,5 +124,5 @@ in
     };
   };
 
-  home.activation.piAgentSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] (lib.getExe seedAgentDir);
+  home.activation.piSettingsMerge = lib.hm.dag.entryAfter [ "writeBoundary" ] (lib.getExe mergeSettings);
 }
