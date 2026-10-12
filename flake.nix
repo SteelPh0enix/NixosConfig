@@ -25,7 +25,7 @@
     # settings.llamaCppPath.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
-    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
+    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel/release";
 
     nixvim = {
       url = "github:nix-community/nixvim";
