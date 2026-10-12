@@ -1,6 +1,7 @@
 // Runs one subagent task in its own in-memory SDK agent session and reports
 // progress back to the registry. The subagent gets the main agent's tool set
-// (minus the subagent tools) and a read-only view of the main transcript.
+// (minus the subagent tools), a read-only view of the main transcript, and its own
+// system prompt - added to pi's, or swapped in for it - through an inline extension.
 
 import {
   createAgentSession,
@@ -10,10 +11,13 @@ import {
   SettingsManager,
   type AgentSession,
   type AgentSessionEvent,
+  type ExtensionAPI,
+  type InlineExtension,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
+import { applySubagentPrompt, subagentPromptText } from "./prompt.ts";
 import { keepSaidText, oneLine, RECENT_OUTPUT_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
 import type { LeaseStore } from "./store.ts";
 
@@ -78,12 +82,16 @@ export class SubagentTask {
     try {
       // pi only loads codemode, tool_search and MCP in the CLI; an SDK session gets none of them
       // unless the resource loader supplies the extension, and then a tool name in `tools` activates it.
+      const { config } = this.options;
       const settingsManager = SettingsManager.create(cwd, agentDir);
       const resourceLoader = new DefaultResourceLoader({
         cwd,
         agentDir,
         settingsManager,
-        extensionFactories: [createCodemodeExtension()],
+        extensionFactories: [
+          createCodemodeExtension(),
+          subagentPromptExtension(subagentPromptText(config), config.replace_system_prompt === true),
+        ],
       });
       await resourceLoader.reload();
       this.session = (await createAgentSession({
@@ -220,17 +228,15 @@ export class SubagentTask {
 
   private buildPrompt(): string {
     const { record, mainSessionPath } = this.options;
-    const parts = [
-      "You are a background subagent handling a single delegated task. You cannot spawn or manage other subagents, and you cannot see or affect other subagents.",
-    ];
+    const parts: string[] = [];
     if (mainSessionPath) {
       parts.push(
         `Read-only reference: the main agent's conversation transcript is at ${mainSessionPath}. ` +
           "It is an append-only JSONL log; read it with the read tool (follow the parentId chain from the latest entry). Do not edit it.",
+        "",
       );
     }
     parts.push(
-      "",
       "When your work is complete, reply with a clear, self-contained report of your findings.",
       "Your task:",
       record.taskText,
@@ -262,6 +268,23 @@ export class SubagentTask {
     // is worth keeping when it was aborted.
     if (record.state !== "killed") record.lastActivity = "";
   }
+}
+
+/**
+ * Hands the subagent its role prompt at the start of every run: appended to pi's prompt, or - with
+ * `replace` - put in its place, keeping the tool index. See `applySubagentPrompt`. Exported so the check can
+ * exercise the wiring without a session.
+ */
+export function subagentPromptExtension(roleText: string, replace: boolean): InlineExtension {
+  return {
+    name: "subagent-prompt",
+    hidden: true,
+    factory: (pi: ExtensionAPI) => {
+      pi.on("before_agent_start", (event) => {
+        applySubagentPrompt(event.systemPromptOptions, roleText, replace);
+      });
+    },
+  };
 }
 
 function extractText(message: AgentMessage): string {

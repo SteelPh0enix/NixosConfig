@@ -1,16 +1,17 @@
 // Config schema, loading, and tool resolution for the subagents extension.
 //
-// A subagent is bound to one provider + model. Each subagent also carries a
-// `tools` setting that decides which tools it gets, out of `mainTools` (the
-// main agent's active tools, read at spawn):
+// A subagent is bound to one provider + model, carries the system prompt it is
+// told about itself with (`prompt`, plus `replace_system_prompt` to swap pi's out
+// instead of adding to it), and carries a `tools` setting that decides which tools
+// it gets, out of `mainTools` (the main agent's active tools, read at spawn):
 //   - omitted        -> mainTools
 //   - { disable }    -> mainTools minus these
 //   - a list / { enable } -> that exact list, and nothing else
 // Validation runs against the TypeBox schemas below; entries that fail are
 // reported and skipped instead of taking the whole config down.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import { Type } from "typebox";
 import { Value } from "typebox/value";
 
@@ -38,6 +39,8 @@ const GroupsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ m
 /** provider/model -> how many of that model may run at once (integer >= 1); a model left out of this map has one. */
 const SlotsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
 
+const ENTRY_KEYS = "provider, model, description, tools, groups, prompt and replace_system_prompt";
+
 // `additionalProperties: false` matters: an entry whose `groups` key is misspelled would otherwise load as a
 // subagent with no group at all, which is a concurrency limit silently not enforced.
 const SubagentConfigSchema = Type.Object(
@@ -47,6 +50,8 @@ const SubagentConfigSchema = Type.Object(
     description: Type.Optional(Type.String()),
     tools: Type.Optional(ToolConfigSchema),
     groups: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
+    prompt: Type.Optional(Type.String({ minLength: 1 })),
+    replace_system_prompt: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -58,6 +63,13 @@ export interface SubagentConfig {
   tools?: string[] | { enable?: string[]; disable?: string[] };
   /** Groups this subagent occupies a slot in (each must be in the `groups` map). */
   groups?: string[];
+  /**
+   * The subagent's own system prompt text. A value naming a file is replaced by that file's contents at load,
+   * resolved against the directory of the config that declared it.
+   */
+  prompt?: string;
+  /** Replace pi's system prompt with `prompt` rather than appending to it. */
+  replace_system_prompt?: boolean;
 }
 
 export interface ResolvedTools {
@@ -112,6 +124,24 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Turn a config's `prompt` value into text, reading the file when the value names one, so a spawn never has to.
+ * A value is a file when it is one line and either absolute or path-like (`subagents/coder.md`); anything else is
+ * the text itself. A path that cannot be read is an error rather than a subagent prompted with "coder.md".
+ */
+function resolvePromptText(value: string, configDir: string): { text?: string; error?: string } {
+  const isFile = !value.includes("\n") && (isAbsolute(value) || value.includes("/") || value.endsWith(".md"));
+  if (!isFile) return { text: value };
+  const path = isAbsolute(value) ? value : resolve(configDir, value);
+  if (!existsSync(path)) return { error: `prompt file ${path} does not exist` };
+  try {
+    const text = readFileSync(path, "utf8").trim();
+    return text ? { text } : { error: `prompt file ${path} is empty` };
+  } catch (err) {
+    return { error: `prompt file ${path} could not be read: ${(err as Error).message}` };
+  }
+}
+
 /** First validation complaint about an entry, in words a config author can use. */
 function firstError(name: string, value: unknown): string {
   for (const err of Value.Errors(SubagentConfigSchema, value)) {
@@ -122,7 +152,7 @@ function firstError(name: string, value: unknown): string {
     // typebox reports it twice, once on the key ("schema is false") and once on the entry.
     if (err.message.includes("additional properties") || err.message === "schema is false") {
       const key = where === "#" ? "" : ` (${where} is not one of them)`;
-      return `only provider, model, description, tools and groups go in an entry${key}`;
+      return `only ${ENTRY_KEYS} go in an entry${key}`;
     }
     return `${where} ${err.message}`;
   }
@@ -146,12 +176,13 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
   const project = readJson(join(cwd, ".pi", "subagents.json"));
   if (project.error) throw new Error(project.error);
 
-  const sources: Array<{ data: unknown; source: string }> = [];
-  if (user.data !== undefined) sources.push({ data: user.data, source: "user" });
-  if (project.data !== undefined) sources.push({ data: project.data, source: "project" });
+  // Each source resolves its own `prompt` paths, so a project entry can name a file in the repo.
+  const sources: Array<{ data: unknown; source: string; dir: string }> = [];
+  if (user.data !== undefined) sources.push({ data: user.data, source: "user", dir: agentDir });
+  if (project.data !== undefined) sources.push({ data: project.data, source: "project", dir: join(cwd, ".pi") });
 
   // User first, then project, so a project entry overrides a user entry of the same name.
-  for (const { data, source } of sources) {
+  for (const { data, source, dir } of sources) {
     if (!isObject(data) || !isObject(data.subagents)) {
       errors.push(`${source} config is malformed (expected { "subagents": { "<name>": { "provider", "model" } } } ); skipped`);
       continue;
@@ -175,7 +206,21 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
         errors.push(`${source} subagent "${name}" skipped: ${firstError(name, raw)}`);
         continue;
       }
-      subagents.set(name, raw as SubagentConfig);
+      const entry = raw as SubagentConfig;
+      if (entry.prompt !== undefined) {
+        const resolved = resolvePromptText(entry.prompt, dir);
+        if (resolved.error) {
+          errors.push(`${source} subagent "${name}" skipped: ${resolved.error}`);
+          continue;
+        }
+        entry.prompt = resolved.text;
+      }
+      // An empty preamble is not a preference: it is a subagent with no instructions at all.
+      if (entry.replace_system_prompt && !entry.prompt) {
+        errors.push(`${source} subagent "${name}" skipped: replace_system_prompt needs a prompt to replace with`);
+        continue;
+      }
+      subagents.set(name, entry);
     }
   }
 

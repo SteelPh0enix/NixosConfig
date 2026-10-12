@@ -315,6 +315,78 @@ if (!nodeModules) {
   ok("a duplicated group is collapsed to one slot", dupRead.subagents.get("dupg").groups.join() === "gpu,fast");
   ok("and reported as a mistake in the config", dupRead.errors.some((e) => e.includes("dupg") && e.includes("more than once")));
 
+  // A subagent's prompt is inline text, or a file read at load, relative to the config that names it.
+  const promptDir = mkdtempSync(join(tmpdir(), "subagents-prompt-"));
+  const promptProj = mkdtempSync(join(tmpdir(), "subagents-prompt-proj-"));
+  mkdirSync(join(promptDir, "subagents"), { recursive: true });
+  mkdirSync(join(promptProj, ".pi", "subagents"), { recursive: true });
+  writeFileSync(join(promptDir, "subagents", "user-role.md"), "  From the user config.\n");
+  writeFileSync(join(promptDir, "subagents", "empty.md"), "   \n");
+  writeFileSync(join(promptProj, ".pi", "subagents", "proj-role.md"), "From the project config.");
+  write(promptDir, "subagents.json", {
+    subagents: {
+      fromFile: { provider: "p", model: "m", prompt: "subagents/user-role.md" },
+      inline: { provider: "p", model: "m", prompt: "Plain text, no path." },
+      multiline: { provider: "p", model: "m", prompt: "line one\nline two" },
+      missingFile: { provider: "p", model: "m", prompt: "subagents/nope.md" },
+      emptyFile: { provider: "p", model: "m", prompt: "subagents/empty.md" },
+      replaceNoPrompt: { provider: "p", model: "m", replace_system_prompt: true },
+      replacing: { provider: "p", model: "m", prompt: "subagents/user-role.md", replace_system_prompt: true },
+    },
+  });
+  write(join(promptProj, ".pi"), "subagents.json", {
+    subagents: { projectFile: { provider: "p", model: "m", prompt: "subagents/proj-role.md" } },
+  });
+  const prompted = loadSubagentConfigs(promptProj, promptDir);
+  ok("a prompt file is read at load and trimmed", prompted.subagents.get("fromFile").prompt === "From the user config.");
+  ok("a project config resolves its prompt against its own directory", prompted.subagents.get("projectFile").prompt === "From the project config.");
+  ok("inline prompt text is kept as it is", prompted.subagents.get("inline").prompt === "Plain text, no path.");
+  ok("multiline text is never taken for a path", prompted.subagents.get("multiline").prompt === "line one\nline two");
+  ok("a prompt file that does not exist drops the entry, naming it", !prompted.subagents.has("missingFile") && prompted.errors.some((e) => e.includes('"missingFile"') && e.includes("prompt file")));
+  ok("an empty prompt file drops the entry too", !prompted.subagents.has("emptyFile"));
+  ok("replace_system_prompt without a prompt is refused", !prompted.subagents.has("replaceNoPrompt"));
+  ok("replace_system_prompt loads beside its prompt", prompted.subagents.get("replacing").replace_system_prompt === true);
+
+  console.log("\nsubagent system prompt");
+  const { subagentPromptText, applySubagentPrompt, SUBAGENT_FRAMING } = await importFrom(ws, "prompt.ts");
+  ok("a subagent with no prompt of its own still gets the framing", subagentPromptText({ provider: "p", model: "m" }) === SUBAGENT_FRAMING);
+  ok("its own text follows the framing", subagentPromptText({ provider: "p", model: "m", prompt: "You are the coder." }) === `${SUBAGENT_FRAMING}\n\nYou are the coder.`);
+  const snippets = { read: "Read files", bash: "Run commands" };
+  const optionsFor = () => ({
+    appendSystemPrompt: "GLOBAL", selectedTools: ["read", "bash", "quiet_tool"], toolSnippets: snippets,
+    contextFiles: [{ path: "AGENTS.md", content: "repo rules" }], skills: ["a skill"], sections: {},
+  });
+  const appended = optionsFor();
+  applySubagentPrompt(appended, "ROLE", false);
+  ok("appending puts the role after what pi already had", appended.appendSystemPrompt === "GLOBAL\n\nROLE");
+  ok("appending touches nothing else", appended.customPrompt === undefined && appended.contextFiles.length === 1 && appended.skills.length === 1 && appended.sections.tools === undefined);
+  const bareAppend = { ...optionsFor(), appendSystemPrompt: "" };
+  applySubagentPrompt(bareAppend, "ROLE", false);
+  ok("appending to nothing just sets the role", bareAppend.appendSystemPrompt === "ROLE");
+  const replaced = optionsFor();
+  applySubagentPrompt(replaced, "ROLE", true);
+  ok("replacing puts the role where pi's preamble was", replaced.customPrompt === "ROLE");
+  ok("replacing drops pi's own additions", replaced.appendSystemPrompt === "" && replaced.contextFiles.length === 0 && replaced.skills.length === 0);
+  ok("replacing keeps the tool index with its descriptions, and only tools that have one", replaced.sections.tools === "- read: Read files\n- bash: Run commands");
+  const noSnippets = { ...optionsFor(), selectedTools: ["quiet_tool"], sections: {} };
+  applySubagentPrompt(noSnippets, "ROLE", true);
+  ok("a subagent whose tools have no snippets still gets a tool index", noSnippets.sections.tools === "(none)");
+
+  // The extension task.ts hands the resource loader: a fake ExtensionAPI shows what it wires up, no session needed.
+  const { subagentPromptExtension } = await importFrom(ws, "task.ts");
+  const registered = new Map();
+  const role = subagentPromptExtension("ROLE", true);
+  await role.factory({ on: (name, handler) => registered.set(name, handler) });
+  const wired = optionsFor();
+  await registered.get("before_agent_start")({ systemPromptOptions: wired });
+  ok("the task's extension registers before_agent_start and applies the prompt", registered.has("before_agent_start") && wired.customPrompt === "ROLE");
+  ok("and it stays out of the startup extension list", role.hidden === true);
+
+  // The prompts this repo ships: every `prompt` in home-manager/pi/subagents.json has to resolve from that directory.
+  const shipped = loadSubagentConfigs(mkdtempSync(join(tmpdir(), "subagents-shipped-")), join(SRC, "..", ".."));
+  ok("every shipped subagent names a prompt that exists", shipped.subagents.size > 0 && [...shipped.subagents.values()].every((c) => (c.prompt ?? "").length > 40));
+  ok("the shipped config loads without complaint", shipped.errors.length === 0);
+
   const json = (v) => JSON.stringify(v);
   const SUBAGENT_TOOLS = ["subagent_spawn", "subagent_status", "subagent_wait", "subagent_result", "subagent_kill"];
   ok("omitted tools exclude only the subagent tools", json(resolveTools({ provider: "p", model: "m" })) === json({ excludeTools: SUBAGENT_TOOLS }));
@@ -585,6 +657,8 @@ if (!nodeModules) {
   rmSync(ws, { recursive: true, force: true });
   rmSync(agentDir, { recursive: true, force: true });
   rmSync(projectDir, { recursive: true, force: true });
+  rmSync(promptDir, { recursive: true, force: true });
+  rmSync(promptProj, { recursive: true, force: true });
 }
 
 rmSync(dbDir, { recursive: true, force: true });

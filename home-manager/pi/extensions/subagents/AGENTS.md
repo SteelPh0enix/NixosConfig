@@ -61,6 +61,32 @@ It reaches only a session that holds `subagent_spawn`. A subagent's own session 
 [Isolation](#isolation)), so it never gets the section and is never invited to recurse. Nothing about subagents
 belongs in `APPEND_SYSTEM.md`.
 
+### The subagent's own prompt
+
+`config.ts` turns an entry's `prompt` into text while loading — a value naming a file (one line, absolute or
+path-like) is read there and trimmed, resolved against the directory of the config that declared it; anything else is
+the text. A file that is missing or empty is an entry error, so a subagent never ends up prompted with its own
+filename.
+
+`task.ts` hands the task's resource loader one more extension (`subagentPromptExtension`, hidden from the startup
+list), and its `before_agent_start` calls `applySubagentPrompt` from `prompt.ts`:
+
+- **append** (the default) puts the text at the end of `appendSystemPrompt`, where pi collects `APPEND_SYSTEM.md`;
+  everything else pi builds stays.
+- **replace** (`replace_system_prompt`) sets `customPrompt` — that is what makes pi drop its preamble, rules and docs —
+  and empties `appendSystemPrompt`, `contextFiles` and `skills`, so neither `APPEND_SYSTEM.md`, nor the repo's
+  `AGENTS.md`, nor the skills list reaches a subagent running on its own prompt. pi renders no `<tools>` section for a
+  custom prompt, so the tool index is rendered from `selectedTools` and `toolSnippets` the way pi renders it and put
+  into `sections.tools`; a section by that name is allowed (`preamble` is the one name that is not).
+
+`forceSystemPrompt` is deliberately unused: it replaces the whole prompt opaquely, with no sections for pi to diff on
+later. Tool names, descriptions and schemas travel with the request whatever the mode, so replacing the prompt hides
+no tool — the `<tools>` index is only the one-line list. `before_agent_start` hands each handler a fresh copy of the
+prompt options, so these mutations never leak into the session's own base options from one run to the next.
+
+The fixed "you are a background subagent…" framing lives in `prompt.ts` (`SUBAGENT_FRAMING`) and is part of the system
+prompt in both modes; the user message is only the read-only transcript reference, the report rule and the task.
+
 ## Task session directory
 
 `session` is a short kebab-case name that decides the directory:
@@ -108,9 +134,9 @@ nothing, so it creates no directory.
 ```
 subagents/
   index.ts            # config load, five tools, /subagents, system prompt section, lifecycle
-  config.ts           # subagents.json schema, merging and tool resolution
-  prompt.ts           # the section a spawning session is given, with the config's limits spelled out
-  task.ts             # SubagentTask: createAgentSession, progress events, outcome, lease release
+  config.ts           # subagents.json schema, merging, prompt files and tool resolution
+  prompt.ts           # the section a spawning session is given, and how a subagent's own prompt is applied
+  task.ts             # SubagentTask: createAgentSession, the prompt extension, progress events, outcome, lease release
   state.ts            # task registry + completion queue, TaskSummary for details and events, kill with a deadline
   store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
   ui.ts               # event emission, renderCall/renderResult, completion toast
@@ -153,6 +179,14 @@ What it pins down, mostly with the bugs it was written against:
   a missing provider/model are all refused with a message naming the entry; a file that cannot be parsed throws; a
   group named twice is collapsed and reported; project overrides user; one bad group limit skips the map; no list
   inherits the main agent's tools, `disable` subtracts from them, and a tool the main agent lacks never leaks in.
+- **prompt files** — a `prompt` that names a file is read from the declaring config's own directory (user config and
+  project config each get their own), trimmed, and kept as text when it is not path-like; a missing or empty file drops
+  the entry naming it, `replace_system_prompt` without a `prompt` is refused, and the `subagents.json` this repo ships
+  is loaded for real so every prompt it names has to exist.
+- **subagent prompt** — the framing alone when an entry has no `prompt`; appending joins it after what pi had and
+  touches nothing else; replacing sets `customPrompt`, empties the global append, the context files and the skills,
+  and rebuilds the tool index from the snippets (tools without one are left out, and an empty index still says
+  `(none)`); the extension `task.ts` registers asks for `before_agent_start` and stays hidden.
 - **system prompt** — the section names all five tools, quotes the group limit and each model's slot count straight
   from the config, lists each subagent under the model it runs on with the roomiest model first, explains a refusal as
   a refusal rather than a queue, and is empty when nothing is configured.
@@ -171,6 +205,10 @@ What it pins down, mostly with the bugs it was written against:
 
 Not covered: `task.ts` and `index.ts` end to end, which need a live model — do that in a real pi session with a
 `subagents.json` naming a small local model, and follow the rule in `../llama-dx/TESTING.md`: a test that reaches a
-server never takes one from pi's default model. The fake-pi fixture deliberately gives no subagent a resolvable model,
+server never takes one from pi's default model. The prompt pipeline is the part that can be checked without pi: build
+a `DefaultResourceLoader` with `extensionFactories: [createCodemodeExtension(), subagentPromptExtension(text, replace)]`,
+prompt a small model, and read the `sections` of the system message — appending leaves `preamble`, `tools`, `rules`,
+`docs`, `addendum`, `cwd` and puts the role text at the end of `addendum`; replacing leaves `preamble` (the role text),
+`tools` (rendered here) and `cwd` and nothing else. The fake-pi fixture deliberately gives no subagent a resolvable model,
 so it cannot create a task record; the wording of `subagent_wait` for ids already delivered, and of a `subagent_kill`
 that ran out of time, is therefore checked only at the `killRecord` level.
