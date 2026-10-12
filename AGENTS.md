@@ -119,6 +119,8 @@ branch, and the docs are kept identical too. Run the scripts from inside the ext
 directory:
 
 - `subagents/`: `node test-utils/check.mjs` — about a second, no pi running, no model called.
+- `compact-delegate/`: `node test-utils/check.mjs` — offline; its `AGENTS.md` has the way to force a real
+  compaction in an isolated agent dir without touching the live one.
 - `llama-dx/`: `preview.mjs --check` for the layout, `check.mjs` for everything else, `harness.mjs`
   for one real request; `TESTING.md` has the commands and the `tsc` invocation.
 

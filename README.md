@@ -98,11 +98,12 @@ and tuned keeps audio power saving off (the `snd-hda-intel.power_save=0` paramet
 
 pi, the coding agent, is configured with the rest of the user config: `home-manager/pi/` holds its
 settings, `models.json` (three llama.cpp providers: this box's two servers and the other machine's),
-the prompt templates in `prompts/`, and its extensions — five directories, each documented as a
+the prompt templates in `prompts/`, and its extensions — six directories, each documented as a
 `README.md` for use and an `AGENTS.md` for its internals:
 
 | extension | what it does |
 |---|---|
+| [`compact-delegate`](home-manager/pi/extensions/compact-delegate/README.md) | context compaction summarized by another model, with its larger window |
 | [`llama-compat`](home-manager/pi/extensions/llama-compat/README.md) | keeps pi's model catalog honest about what a server really serves |
 | [`llama-dx`](home-manager/pi/extensions/llama-dx/README.md) | llama.cpp's diagnostics for the current request, in pi's footer |
 | [`searxng`](home-manager/pi/extensions/searxng/README.md) | `web_search` against the SearXNG instance on this box |

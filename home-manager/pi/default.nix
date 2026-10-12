@@ -99,6 +99,10 @@ in
     # time, so the same file works on every machine. Copy secrets/llama-strix-api-key over by hand.
     "${agentDir}/models.json".source = ./models.json;
     "${agentDir}/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
+    # Context compaction handled by another model: the summarizer subagent's model writes the summary,
+    # so the conversation it reads is clipped by its own window rather than by pi's 2000-char-per-result
+    # fit for the session model that just ran out of one.
+    "${agentDir}/extensions/compact-delegate".source = ./extensions/compact-delegate;
     "${agentDir}/extensions/llama-compat".source = ./extensions/llama-compat;
     # llama-dx shows what the server is doing with the current request: prefill progress and speed,
     # tokens left to process, decode speed, KV reuse and speculative-decode acceptance, in a bar under
