@@ -83,16 +83,16 @@ in
   # Read by the extensions at runtime; LLAMA_COMPAT_DEBUG=1 shows what llama-compat changed in the catalog.
   home.sessionVariables = {
     PI_WEBFETCH_BIN = "${pkgs.agent-browser}/bin/agent-browser";
-    # SearXNG runs on fwpc, so the extension's 127.0.0.1:7777 default never connects from here.
+    # SearXNG runs on this machine: nixos/services/searxng.nix binds 0.0.0.0:7777 and the LAN name
+    # comes from the AdGuard rewrite. Spelled out rather than left at the extension's default so pi
+    # reads the same URL the rest of the LAN does.
     SEARXNG_URL = "http://search.framework:7777";
     # LLAMA_COMPAT_DEBUG = "1";
   };
 
   # pi's conventional agent-dir locations: APPEND_SYSTEM.md extends the system prompt, extensions/
-  # loads .ts files and directories with an index.ts, prompts/ becomes slash commands.
-  # No themes: Noctalia's community `pi-agent` template (hyprland/noctalia.nix) writes
-  # ~/.pi/agent/themes/noctalia.json from the live palette, and a copy here would only collide on
-  # the name `noctalia`.
+  # loads .ts files and directories with an index.ts, prompts/ becomes slash commands, themes/ holds
+  # the colour files.
   home.file = {
     # Endpoints and model metadata. The strix router answers 401 without a key, and its key is not
     # in here: `apiKey` holds a `!command` that reads it out of the untracked secrets/ at request
@@ -117,6 +117,10 @@ in
     # preset run together (a model left out has one). Each subagent is bound to what its preset is good at; its
     # context size is read from the server at spawn.
     "${agentDir}/subagents.json".source = ./subagents.json;
+    # The palette as main-pc's Noctalia template generates it, kept here so both machines colour pi
+    # identically. Nothing regenerates it on this host, so this copy is the source: edit it here and
+    # re-activate. The name is `noctalia`, the same one main-pc's generated file uses.
+    "${agentDir}/themes/noctalia.json".source = ./themes/noctalia.json;
     # Link every template by name instead of replacing the whole directory.
     "${agentDir}/prompts" = {
       source = ./prompts;
