@@ -13,6 +13,8 @@
     fd
     file
     flac
+    fwupd
+    fwupd-efi
     gparted
     hdparm
     hyprpicker # colour picker
@@ -45,12 +47,12 @@
     tree
     uhubctl
     unrar
+    unzip
     usbutils
     wayland-utils
     wdisplays # GUI monitor layout (Hyprland implements wlr-output-management)
     wget
     wl-clipboard
     zip
-    unzip
   ];
 }
