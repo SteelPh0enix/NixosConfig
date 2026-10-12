@@ -99,8 +99,6 @@ in
     # time, so the same file works on every machine. Copy secrets/llama-strix-api-key over by hand.
     "${agentDir}/models.json".source = ./models.json;
     "${agentDir}/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
-    "${agentDir}/extensions/searxng.ts".source = ./extensions/searxng.ts;
-    "${agentDir}/extensions/webfetch.ts".source = ./extensions/webfetch.ts;
     "${agentDir}/extensions/llama-compat".source = ./extensions/llama-compat;
     # llama-dx shows what the server is doing with the current request: prefill progress and speed,
     # tokens left to process, decode speed, KV reuse and speculative-decode acceptance, in a bar under
@@ -108,9 +106,14 @@ in
     # The whole directory, since it is several .ts files importing each other. test-utils/ holds the
     # dev-only scripts: preview, harness against a real instance, check against a fake one.
     "${agentDir}/extensions/llama-dx".source = ./extensions/llama-dx;
+    # web_search against the SearXNG this box runs (nixos/services/searxng.nix), reached through SEARXNG_URL.
+    "${agentDir}/extensions/searxng".source = ./extensions/searxng;
     # Background subagents: spawn named tasks bound to a provider/model, watch them, collect results.
     # Multi-file (index/config/state/task/ui), so the whole directory is copied as-is.
     "${agentDir}/extensions/subagents".source = ./extensions/subagents;
+    # web_fetch and web_interact, driven through agent-browser - which is why the package and PI_WEBFETCH_BIN
+    # appear above, and why the extension's README starts with its install steps.
+    "${agentDir}/extensions/webfetch".source = ./extensions/webfetch;
     # Which subagents exist, and how many may run at once: one *model* at a time, because the router keeps a single
     # preset resident and running a *different* one alongside would swap the card. `groups: { pc: 1 }` means that; a
     # model's own slot count, stated under `slots` from its preset's `--parallel`, then decides how many of the same

@@ -77,15 +77,16 @@ web search talks to.
 
 pi, the coding agent, is configured with the rest of the user config: `home-manager/pi/` holds its
 settings, `models.json` (three llama.cpp providers: this box's two servers and the other machine's),
-the prompt templates in `prompts/`, and its extensions — two single-file tools (`searxng.ts`,
-`webfetch.ts`) and three directories, each documented as a `README.md` for use and an `AGENTS.md` for
-its internals:
+the prompt templates in `prompts/`, and its extensions — five directories, each documented as a
+`README.md` for use and an `AGENTS.md` for its internals:
 
 | extension | what it does |
 |---|---|
 | [`llama-compat`](home-manager/pi/extensions/llama-compat/README.md) | keeps pi's model catalog honest about what a server really serves |
 | [`llama-dx`](home-manager/pi/extensions/llama-dx/README.md) | llama.cpp's diagnostics for the current request, in pi's footer |
+| [`searxng`](home-manager/pi/extensions/searxng/README.md) | `web_search` against the SearXNG instance on this box |
 | [`subagents`](home-manager/pi/extensions/subagents/README.md) | background subagents bound to named models, with concurrency limits |
+| [`webfetch`](home-manager/pi/extensions/webfetch/README.md) | `web_fetch` and `web_interact` through a local Chromium |
 
 Its colours come from `themes/noctalia.json`, kept here so this machine and the other one colour pi the
 same way.
