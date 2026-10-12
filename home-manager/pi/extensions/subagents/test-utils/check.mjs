@@ -382,10 +382,16 @@ if (!nodeModules) {
   ok("the task's extension registers before_agent_start and applies the prompt", registered.has("before_agent_start") && wired.customPrompt === "ROLE");
   ok("and it stays out of the startup extension list", role.hidden === true);
 
-  // The prompts this repo ships: every `prompt` in home-manager/pi/subagents.json has to resolve from that directory.
-  const shipped = loadSubagentConfigs(mkdtempSync(join(tmpdir(), "subagents-shipped-")), join(SRC, "..", ".."));
-  ok("every shipped subagent names a prompt that exists", shipped.subagents.size > 0 && [...shipped.subagents.values()].every((c) => (c.prompt ?? "").length > 40));
-  ok("the shipped config loads without complaint", shipped.errors.length === 0);
+  // The prompts shipped with this config, whichever copy the suite runs from: the repo checkout, or the installed
+  // agent dir. Every `prompt` it names has to resolve from that config's own directory.
+  const shippedDir = [join(SRC, "..", ".."), join(process.env.HOME ?? "", ".pi", "agent")].find((dir) => existsSync(join(dir, "subagents.json")));
+  if (!shippedDir) {
+    ok("a shipped subagents.json was found to check", false);
+  } else {
+    const shipped = loadSubagentConfigs(mkdtempSync(join(tmpdir(), "subagents-shipped-")), shippedDir);
+    ok("every prompt named by the shipped config exists", shipped.subagents.size > 0 && [...shipped.subagents.values()].every((c) => (c.prompt ?? "").length > 40));
+    ok("and the shipped config loads without complaint", shipped.errors.length === 0);
+  }
 
   const json = (v) => JSON.stringify(v);
   const SUBAGENT_TOOLS = ["subagent_spawn", "subagent_status", "subagent_wait", "subagent_result", "subagent_kill"];
