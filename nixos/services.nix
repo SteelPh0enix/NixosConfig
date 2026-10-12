@@ -52,27 +52,29 @@ in
   };
 
   # DNS readiness check service - ensures DNS is actually functional
+  #
+  # The probe asks for a public name and insists on a real answer. A local name (the old
+  # steelph0enix.framework) was a false positive: AdGuard serves its custom rewrites from the
+  # config it loaded at startup, so it answers them even while upstream forwarding is dead - which
+  # is exactly what the dependents below need working. `dig` alone is not enough either, since it
+  # exits 0 on SERVFAIL. AdGuard listens on 127.0.0.1 and the LAN address, so ask it there; naming
+  # `localhost` makes dig try ::1 first, which AdGuard does not bind.
   systemd.services."dns-ready-check" = {
     description = "DNS readiness check";
     after = [ "adguardhome.service" ];
     requires = [ "adguardhome.service" ];
     serviceConfig = {
       Type = "oneshot";
-      User = "root";
       RemainAfterExit = true;
     };
     script = ''
-      # Wait for DNS to be ready by testing resolution
       echo "Waiting for DNS to be ready..."
-
-      # Try DNS resolution with retries
       max_attempts=30
       attempt=1
 
       while [ $attempt -le $max_attempts ]; do
-        # Try to resolve steelph0enix.framework
-        if ${pkgs.dig}/bin/dig @localhost steelph0enix.framework +time=1 +tries=1 >/dev/null 2>&1; then
-          echo "DNS is ready! Resolved steelph0enix.framework successfully."
+        if [ -n "$(${pkgs.dig}/bin/dig @127.0.0.1 example.com +time=2 +tries=1 +short 2>/dev/null)" ]; then
+          echo "DNS is ready: example.com resolved."
           exit 0
         fi
 

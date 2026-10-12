@@ -56,6 +56,15 @@ let
   ];
 in
 {
+  # NetworkManager assigns the LAN address a moment after the services start, and binding a host
+  # it does not own yet is fatal for AdGuard (`listen udp 192.168.0.185:53: cannot assign requested
+  # address`). It then loses 10s to its own restart delay, and every service behind dnsWait waits
+  # with it, so wait for the address instead.
+  systemd.services.adguardhome = {
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+  };
+
   services.adguardhome = {
     enable = true;
     # Only opens the control panel port; port 53 stays in nixos/networking.nix.

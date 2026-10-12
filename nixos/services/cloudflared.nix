@@ -36,6 +36,25 @@ let
   # The router is served by rootless Docker, whose port handler binds IPv4; `localhost` would be a
   # coin toss against ::1.
   router = "http://127.0.0.1:${toString settings.llamaStrixPort}";
+
+  # Before dialing out, cloudflared looks up the edge (SRV at region1.v2.argotunnel.com) exactly
+  # once and quits with status 1 if the answer fails - no retry, no backoff (cloudflare/cloudflared
+  # #269). That happened here: AdGuard owns port 53 on this box, it needs ~10s after boot to bind
+  # it, and the tunnels came up in that gap. So they wait for the dns-ready gate
+  # (nixos/services.nix), and the restart limit is lifted - the default lets a process that dies
+  # in under a second fail 5 times before systemd gives up on the unit for good, which is how a
+  # 10-second race turned into a tunnel that stayed down until someone looked.
+  dnsGate = {
+    wants = [ "dns-ready.target" ];
+    after = [ "dns-ready.target" ];
+
+    serviceConfig.RestartSec = "5s";
+
+    unitConfig = {
+      # 0 means no rate limit; combined with RestartSec above, a bad minute at boot self-heals.
+      StartLimitIntervalSec = 0;
+    };
+  };
 in
 {
   services.cloudflared = {
@@ -87,4 +106,7 @@ in
       };
     };
   };
+
+  systemd.services.cloudflared-tunnel-clanker = dnsGate;
+  systemd.services.cloudflared-tunnel-search = dnsGate;
 }
