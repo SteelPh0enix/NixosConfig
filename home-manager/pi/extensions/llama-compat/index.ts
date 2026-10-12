@@ -1,5 +1,6 @@
 import { getAgentDir, type ExtensionAPI, type ProviderConfig, type ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
+import { execSync } from "node:child_process";
 import { join } from "node:path";
 
 // pi doesn't know what llama.cpp server actually serves: the served n_ctx after a re-fit, whether the
@@ -264,8 +265,8 @@ const debug = process.env.LLAMA_COMPAT_DEBUG === "1" ? (message: string) => proc
 
 /**
  * Turn an inference baseUrl (ends with /v1) into the server root that answers /props and /models.
- * The same helper sits in ../llama-dx/server.ts and ../subagents/slots.ts; the three extensions are installed
- * side by side but never import each other, so a change belongs in all three.
+ * The same helper sits in ../llama-dx/server.ts; the two extensions are installed side by side but never
+ * import each other, so a change belongs in both.
  */
 function serverRoot(baseUrl: string): string | undefined {
   try {
@@ -280,8 +281,19 @@ function serverRoot(baseUrl: string): string | undefined {
   }
 }
 
-/** `$NAME` and `${NAME}` stand for that variable of the environment; anything else is the value itself. */
+/**
+ * How models.json spells a value: `$NAME` or `${NAME}` is that variable of the environment, a leading `!` runs the
+ * rest in a shell and its trimmed stdout is the value - pi reads keys the same way, which is what lets the secret
+ * stay in a file outside git - and anything else is the value itself.
+ */
 function expandValue(raw: string): string {
+  if (raw.startsWith("!")) {
+    try {
+      return execSync(raw.slice(1), { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    } catch {
+      return "";
+    }
+  }
   const found = /^\$(?:\{(\w+)\}|(\w+))$/.exec(raw);
   const name = found?.[1] ?? found?.[2];
   return name === undefined ? raw : process.env[name] ?? "";
@@ -302,8 +314,8 @@ function keysOf(providers: Map<string, ModelsJsonProvider>): Map<string, string>
 
 /**
  * llama.cpp answers 401 for everything but `/health` once it is started with `--api-key`, so these probes need the
- * key pi sends. models.json keeps it next to the provider's baseUrl; the same helper sits in ../llama-dx/server.ts
- * and ../subagents/slots.ts, so a change to where the key is found belongs in all three.
+ * key pi sends. models.json keeps it next to the provider's baseUrl; the same helper sits in ../llama-dx/server.ts,
+ * so a change to where the key is found belongs in both.
  */
 function authFor(url: string): Record<string, string> | undefined {
   const found = [...keys].find(([root]) => url.startsWith(`${root}/`));
@@ -523,7 +535,8 @@ export default async function llamaCompat(pi: ExtensionAPI) {
           return current;
         },
       };
-      // models.json holds the key as a literal or as $NAME interpolation, both accepted here.
+      // models.json spells the key as a literal, as $NAME or as a !command; pi accepts all three, and the
+      // value is forwarded unresolved so pi is the one that reads the secret.
       if (provider.apiKey) config.apiKey = provider.apiKey;
 
       pi.registerProvider(name, config);

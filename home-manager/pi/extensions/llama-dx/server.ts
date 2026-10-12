@@ -3,6 +3,7 @@
 
 import { homedir } from "node:os";
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { join } from "node:path";
 import { debug } from "./debug.ts";
 
@@ -49,9 +50,9 @@ const PROBE_WAITS_MS = [2000, 5000, 15000, 30000, 60000];
 export const keyOf = (r: { root: string; instance: string }): string => `${r.root}|${r.instance}`;
 
 /**
- * The server root behind an inference baseUrl, `/v1` stripped. The same helper sits in ../llama-compat/index.ts and
- * ../subagents/slots.ts: the three extensions are installed side by side but never import each other, so a change
- * to how that root is found belongs in all three.
+ * The server root behind an inference baseUrl, `/v1` stripped. The same helper sits in ../llama-compat/index.ts:
+ * the two extensions are installed side by side but never import each other, so a change to how that root is found
+ * belongs in both.
  */
 export function serverRoot(m: { baseUrl?: string } | undefined): string | undefined {
   if (!m?.baseUrl) return undefined;
@@ -81,12 +82,22 @@ export const shortHost = (root: string): string => {
 
 /**
  * llama.cpp answers 401 for everything but `/health` once it runs with `--api-key`, so the three reads below need the
- * key pi sends: models.json keeps it next to the provider's baseUrl, as a literal or as `$NAME`, and its absence
- * means an open server. The same helper sits in ../llama-compat/index.ts and ../subagents/slots.ts, so a change to
- * where the key comes from belongs in all three.
+ * key pi sends: models.json keeps it next to the provider's baseUrl, and its absence means an open server. The same
+ * helper sits in ../llama-compat/index.ts, so a change to where the key comes from belongs in both.
  */
-/** `$NAME` and `${NAME}` stand for that variable of the environment; anything else is the key itself. */
+/**
+ * How models.json spells a value: `$NAME` or `${NAME}` is that variable of the environment, a leading `!` runs the
+ * rest in a shell and its trimmed stdout is the value - pi reads keys the same way, which is what lets the secret
+ * stay in a file outside git - and anything else is the value itself.
+ */
 function expandValue(raw: string): string {
+  if (raw.startsWith("!")) {
+    try {
+      return execSync(raw.slice(1), { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    } catch {
+      return "";
+    }
+  }
   const found = /^\$(?:\{(\w+)\}|(\w+))$/.exec(raw);
   const name = found?.[1] ?? found?.[2];
   return name === undefined ? raw : process.env[name] ?? "";
@@ -132,7 +143,8 @@ export function probeRoot(root: string, onAnswer: (answer: boolean) => void): vo
   if (llamaRoots.has(root) || probing.has(root)) return;
   const ask = (waits: number[]): void => {
     probing.add(root);
-    fetch(`${root}/props`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
+    const url = `${root}/props`;
+    fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
       .then(async (response) => {
         if (!response.ok) return false;
         const props = (await response.json()) as { role?: string; model_alias?: string; chat_template_caps?: unknown };
