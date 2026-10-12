@@ -36,9 +36,10 @@ nix eval --override-input llama-cpp "path:$HOME/llama.cpp" \
 ```
 
 ```bash
-nh home switch      # a user-side change, applied to $HOME now
-nh os switch        # build the system and activate it now
+nh os switch        # build the system and activate it now, home-manager files included
 nh os boot          # build it and make it the default boot entry; apply on reboot
+# no `nh home switch`: home-manager is a NixOS module of this flake, which exports no
+# homeConfigurations - a user-side change goes out with `nh os switch` too
 
 nix build .#nixosConfigurations.steelph0enix-pc.config.system.build.toplevel --no-link  # heavy
 ```

@@ -42,9 +42,12 @@ machine — runs on.
 
 ```bash
 nh os switch                    # build and activate
-nh os boot                      # build and make it the default boot entry
-nh home switch                  # home-manager only
+nh os boot                      # build and make it the default boot entry; switch on reboot
 ```
+
+Home-manager is wired in as a NixOS module (`home-manager.users.<user>`), so a user-side change goes
+out with the same rebuild. This flake has no `homeConfigurations`, and `nh home switch` fails on it
+with "flake does not provide attribute … homeConfigurations".
 
 `os-rebuild`, `os-rebuild-switch`, `os-update`, `os-repair`, `os-clean`, `os-check` wrap those with
 `--keep-going`, `--refresh`, `--commit-lock-file` and friends; they are defined in

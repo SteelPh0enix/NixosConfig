@@ -11,9 +11,9 @@
     "reviewer": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Review a diff or audit files and report findings; no edit/write. Quick with 256k context - the usual review, reviewer-dense when judgement beats speed. cyber-tiel-coder, 2 slots.",
+      "description": "Review a diff or audit files and report findings; no edit/write, but it can read upstream docs on the web. Quick with 256k context - the usual review, reviewer-dense when judgement beats speed. cyber-tiel-coder, 2 slots.",
       "prompt": "subagents/reviewer.md",
-      "tools": ["read", "bash", "codemode"],
+      "tools": ["read", "bash", "web_search", "web_fetch", "codemode"],
       "groups": ["pc"]
     },
     "researcher": {
@@ -34,9 +34,9 @@
     "reviewer-dense": {
       "provider": "llama-pc",
       "model": "qwen-27B",
-      "description": "Review a diff or audit files and report findings; no edit/write. Better judgement than reviewer, slower to read, 150k context. qwen-27B, 1 slot - nothing else may sit on its model.",
+      "description": "Review a diff or audit files and report findings; no edit/write, but it can read upstream docs on the web. Better judgement than reviewer, slower to read, 150k context. qwen-27B, 1 slot - nothing else may sit on its model.",
       "prompt": "subagents/reviewer.md",
-      "tools": ["read", "bash", "codemode"],
+      "tools": ["read", "bash", "web_search", "web_fetch", "codemode"],
       "groups": ["pc"]
     },
     "researcher-dense": {
@@ -65,24 +65,27 @@
     "Power": {
       "provider": "llama-pc",
       "model": "lfm",
-      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs, simple research. Fastest thing here and not clever - spell out every step and say when to stop. lfm, 4 slots, 128k context each.",
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs, simple research. Fastest thing here and not clever - spell out every step and say when to stop. Its own system prompt, so it never sees the repo's AGENTS.md: name the commands to run. lfm, 4 slots, 128k context each.",
       "prompt": "subagents/worker.md",
+      "replace_system_prompt": true,
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
     "Denji": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Mechanical work on a change that is already fully specified, a bit smarter than Power and with the longest context on the box - still 4B, so write a detailed spec and check what comes back. sharp-spark, 4 slots (~190k each when all four run).",
+      "description": "Mechanical work on a change that is already fully specified, a bit smarter than Power and with the longest context on the box - still 4B, so write a detailed spec and check what comes back. Its own system prompt, so it never sees the repo's AGENTS.md: name the commands to run. sharp-spark, 4 slots (~190k each when all four run).",
       "prompt": "subagents/worker.md",
+      "replace_system_prompt": true,
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
     "summarizer": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. Cheapest prefill and the largest window here; 4B, so ask for extraction, not judgement. sharp-spark, 4 slots.",
+      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. Cheapest prefill and the largest window here; 4B, so ask for extraction, not judgement. Its own system prompt, so it never sees the repo's AGENTS.md. sharp-spark, 4 slots.",
       "prompt": "subagents/summarizer.md",
+      "replace_system_prompt": true,
       "tools": ["read", "bash", "codemode"],
       "groups": ["pc"]
     }

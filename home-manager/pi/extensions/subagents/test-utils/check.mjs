@@ -9,7 +9,7 @@
 // PI_NODE_MODULES=/nix/store/<hash>-pi/lib/pi/node_modules. A run prints one line per assertion and exits non-zero
 // on the first failure. node:sqlite prints an ExperimentalWarning; that is expected.
 import { execSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -391,6 +391,20 @@ if (!nodeModules) {
     const shipped = loadSubagentConfigs(mkdtempSync(join(tmpdir(), "subagents-shipped-")), shippedDir);
     ok("every prompt named by the shipped config exists", shipped.subagents.size > 0 && [...shipped.subagents.values()].every((c) => (c.prompt ?? "").length > 40));
     ok("and the shipped config loads without complaint", shipped.errors.length === 0);
+
+    // home-manager links the prompt files one by one, so a file it forgot to name exists in the repo, loads fine in
+    // the run above, and is missing only from the installed config.
+    const install = join(SRC, "..", "..", "default.nix");
+    if (!existsSync(install)) {
+      console.log("SKIP  prompt files are linked by home-manager (no default.nix beside the installed config)");
+    } else {
+      const declared = JSON.parse(readFileSync(join(shippedDir, "subagents.json"), "utf8")).subagents;
+      const nix = readFileSync(install, "utf8");
+      const named = [...new Set(Object.values(declared).map((e) => e.prompt)
+        .filter((p) => typeof p === "string" && !p.includes("\n") && (p.includes("/") || p.endsWith(".md"))))];
+      const linked = (p) => nix.includes("${agentDir}/" + p + '"');
+      ok("every prompt file is linked by home-manager", named.length > 0 && named.every(linked));
+    }
   }
 
   const json = (v) => JSON.stringify(v);
