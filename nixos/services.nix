@@ -340,4 +340,6 @@ in
     settings.dynamic_tuning = true;
     recommend.accelerator-performance = { };
   };
+
+  services.fwupd.enable = true;
 }

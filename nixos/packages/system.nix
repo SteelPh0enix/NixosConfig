@@ -3,8 +3,8 @@
   environment.systemPackages = with pkgs; [
     ascii-image-converter
     bindfs
-    btop-rocm
     boxes
+    btop-rocm
     bzip3
     cifs-utils
     cpupower-gui
@@ -33,9 +33,9 @@
     ncdu
     nerd-font-patcher
     nh
+    nix-output-monitor
     nmap
     ntfs3g
-    nix-output-monitor
     p7zip
     parallel-full
     parted
