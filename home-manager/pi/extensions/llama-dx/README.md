@@ -131,10 +131,11 @@ and a subagent's context is thrown away long before the footer stops rendering.
 
 Requirements: `--slots` per instance (llama.cpp default, off only with `--no-slots`), the router reachable at
 `baseUrl` minus `/v1`, and `?model=` accepting what pi sends (preset name or alias). `--metrics` is optional and
-only the server/spec-lifetime cells need it. A model that is not served by llama.cpp — checked once per server with
-`/props` — hands the footer back to pi, and is asked nothing else: nothing is polled or scraped until that check has said yes, so a request to some
-third-party API never goes out looking for slots and metrics. All three reads carry the provider's `apiKey` from
-`models.json` (a literal or `$NAME`), since a llama.cpp started with `--api-key` answers 401 for everything but `/health`.
+only the server/spec-lifetime cells need it. A model that is not served by llama.cpp — only a `/props` answer says
+that, once per server — hands the footer back to pi, and is asked nothing else: nothing is polled or scraped until
+that check has said yes, so a request to some third-party API never goes out looking for slots and metrics. A `/props`
+that gets no reply is not an answer: the footer stays and the question is asked again up to five times, so a stalled
+lookup or a router still loading costs the moving cells rather than the whole line.
 
 Limits: bar granularity is `--chunk-size`/`--batch-size`, so a 2048-batched instance has few real steps per cell.
 With `--parallel > 1` the slot is picked as "the processing one" and the moving bands can describe someone else's

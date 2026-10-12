@@ -39,6 +39,12 @@ export type Metrics = {
 
 const PROBE_TIMEOUT_MS = 1500;
 
+/**
+ * Waits between the asks of one `/props` round. A root whose round ends without an answer is left unknown until the
+ * next round, which `probeRoot` starts afresh on a new session or a model switch.
+ */
+const PROBE_WAITS_MS = [2000, 5000, 15000, 30000, 60000];
+
 /** `root|instance`, which is what both /metrics caches and the measured speeds are kept under. */
 export const keyOf = (r: { root: string; instance: string }): string => `${r.root}|${r.instance}`;
 
@@ -115,24 +121,43 @@ function authFor(url: string): Record<string, string> | undefined {
 const llamaRoots = new Map<string, boolean>();
 const probing = new Set<string>();
 
-/** One /props per server, off the request path: it decides polling, timings injection and whether to take the footer at all. */
+/**
+ * One /props per server, off the request path: it decides polling, timings injection and whether to take the footer
+ * at all. An answer - either way - is settled for good. A request that gets no usable reply says nothing about what
+ * the server is (a stalled DNS lookup, a router still loading, a proxy's empty 200), so nothing is kept from it and
+ * the question is asked again after a wait; while it is outstanding the root is unknown, which holds everything but
+ * the probe itself back. Only a server that answers stops being asked.
+ */
 export function probeRoot(root: string, onAnswer: (answer: boolean) => void): void {
   if (llamaRoots.has(root) || probing.has(root)) return;
-  probing.add(root);
-  const url = `${root}/props`;
-  fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
-    .then(async (response) => {
-      if (!response.ok) return false;
-      const props = (await response.json()) as { role?: string; model_alias?: string; chat_template_caps?: unknown };
-      return props.role === "router" || typeof props.model_alias === "string" || props.chat_template_caps !== undefined;
-    })
-    .catch(() => false)
-    .then((answer) => {
-      llamaRoots.set(root, answer);
-      probing.delete(root);
-      debug(`${root}: llama.cpp=${answer}`);
-      onAnswer(answer);
-    });
+  const ask = (waits: number[]): void => {
+    probing.add(root);
+    fetch(`${root}/props`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
+      .then(async (response) => {
+        if (!response.ok) return false;
+        const props = (await response.json()) as { role?: string; model_alias?: string; chat_template_caps?: unknown };
+        return props.role === "router" || typeof props.model_alias === "string" || props.chat_template_caps !== undefined;
+      })
+      .then((answer) => {
+        probing.delete(root);
+        llamaRoots.set(root, answer);
+        debug(`${root}: llama.cpp=${answer}`);
+        onAnswer(answer);
+      })
+      .catch((error: unknown) => {
+        const [wait, ...rest] = waits;
+        const why = error instanceof Error ? error.message : String(error);
+        if (wait === undefined) {
+          // Out of asks: the root stays unknown, and the next session or model switch starts a fresh round.
+          probing.delete(root);
+          return void debug(`${root}: no answer (${why}), left unknown`);
+        }
+        debug(`${root}: no answer (${why}), asking again in ${wait / 1000}s`);
+        // Unreferenced, so a retry still owed never keeps pi running a moment past what it was asked to do.
+        (setTimeout(ask, wait, rest) as { unref?: () => void }).unref?.();
+      });
+  };
+  ask(PROBE_WAITS_MS);
 }
 
 export const isLlama = (root: string | undefined): boolean => (root === undefined ? false : llamaRoots.get(root) ?? true);

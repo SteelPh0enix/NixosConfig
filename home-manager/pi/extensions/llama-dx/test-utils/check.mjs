@@ -253,6 +253,12 @@ ctx.model = { ...ctx.model, baseUrl: `http://127.0.0.1:${port}/nope/v1` };
 await fire("model_select", {}, ctx);
 await new Promise((r) => setTimeout(r, 300)); // the /props probe answers asynchronously
 expect("a non-llama.cpp model hands the footer back", footer === null);
+// Not reaching a server says nothing about what it is, so it is not the moment to hand the footer back either: the
+// root stays unknown, the line survives, and the probe asks again instead of settling for a guess.
+ctx.model = { ...ctx.model, baseUrl: "http://127.0.0.1:1/v1" };
+await fire("model_select", {}, ctx);
+await new Promise((r) => setTimeout(r, 300));
+expect("an unreachable server leaves the footer alone", footer !== null);
 // Handing the footer back is only half of it: the polling and the scraping have to stop going there as well —
 // including for a second server whose /props probe is still on its way while the request goes out.
 await fire("before_provider_request", { payload: { model: "somewhere-else", messages: [] } }, ctx);
