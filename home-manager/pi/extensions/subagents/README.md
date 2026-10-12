@@ -74,8 +74,9 @@ and pi reports it as a failed extension, rather than starting with no subagents 
 A subagent holds a slot in every group it names, and a group's limit means **how many distinct models may hold it at
 once** — the router here keeps one preset resident (`--models-max 1`), so a second, *different* model only swaps the
 card. Within one model the capacity is its own **slot count**: `slots` if configured, else the preset's `--parallel`
-read from `/v1/models` at spawn (which never loads a model, and is asked once per 30 s per provider rather than
-once per spawn, so a router that is down costs one probe and not a stalled spawn), else 1. Two `cyber-tiel-coder` tasks (2 slots) run
+read from `/v1/models` at spawn (which never loads a model, carries the provider's `apiKey` from `models.json` for a
+server behind `--api-key`, and is asked once per 30 s per provider rather than once per spawn, so a router that is
+down costs one probe and not a stalled spawn), else 1. Two `cyber-tiel-coder` tasks (2 slots) run
 together; a `qwen-27B` task beside them is refused as a residency clash. Capacity counts per model across every group,
 so a model reached through two groups still runs only its slots, and a task shows where it sits as `(slot 2/2)`.
 Enforced **across every pi instance and working directory** through `~/.pi/agent/subagents/leases.db`:

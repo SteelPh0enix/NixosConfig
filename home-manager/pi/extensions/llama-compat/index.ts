@@ -280,11 +280,41 @@ function serverRoot(baseUrl: string): string | undefined {
   }
 }
 
+/** `$NAME` and `${NAME}` stand for that variable of the environment; anything else is the value itself. */
+function expandValue(raw: string): string {
+  const found = /^\$(?:\{(\w+)\}|(\w+))$/.exec(raw);
+  const name = found?.[1] ?? found?.[2];
+  return name === undefined ? raw : process.env[name] ?? "";
+}
+
+/** Servers with a key, under the root pi reaches them at; empty until the configured providers are read. */
+let keys = new Map<string, string>();
+
+function keysOf(providers: Map<string, ModelsJsonProvider>): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const provider of providers.values()) {
+    const root = serverRoot(provider.baseUrl ?? provider.models?.[0]?.baseUrl ?? "");
+    const key = expandValue(provider.apiKey ?? "");
+    if (root && key) found.set(root, key);
+  }
+  return found;
+}
+
+/**
+ * llama.cpp answers 401 for everything but `/health` once it is started with `--api-key`, so these probes need the
+ * key pi sends. models.json keeps it next to the provider's baseUrl; the same helper sits in ../llama-dx/server.ts
+ * and ../subagents/slots.ts, so a change to where the key is found belongs in all three.
+ */
+function authFor(url: string): Record<string, string> | undefined {
+  const found = [...keys].find(([root]) => url.startsWith(`${root}/`));
+  return found ? { authorization: `Bearer ${found[1]}` } : undefined;
+}
+
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T | undefined> {
   const timeout = AbortSignal.timeout(PROBE_TIMEOUT_MS);
   const linked = signal ? AbortSignal.any([signal, timeout]) : timeout;
   try {
-    const response = await fetch(url, { signal: linked });
+    const response = await fetch(url, { signal: linked, headers: authFor(url) });
     if (!response.ok) return undefined;
     return JSON.parse(await response.text()) as T;
   } catch (error) {
@@ -439,6 +469,7 @@ async function readConfiguredProviders(): Promise<Map<string, ModelsJsonProvider
 
 export default async function llamaCompat(pi: ExtensionAPI) {
   const providers = await readConfiguredProviders();
+  keys = keysOf(providers);
 
   await Promise.all(
     [...providers].map(async ([name, provider]) => {

@@ -11,6 +11,10 @@
 // Discovery reads only `/v1/models`, never anything that could load or swap a model, and a server that does not
 // answer simply means one slot — it is never fatal, so a quiet router never blocks a spawn on its own.
 
+import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 /** Cache a discovered slot count this long before asking the server again. */
 const DISCOVERY_TTL_MS = 30_000;
 const PROBE_TIMEOUT_MS = 2000;
@@ -39,12 +43,51 @@ function serverRoot(baseUrl: string): string | undefined {
   }
 }
 
+/**
+ * llama.cpp answers 401 for everything but `/health` once it runs with `--api-key`, so discovery needs the key pi
+ * sends. It sits in models.json next to the provider's baseUrl, as a literal or as `$NAME`; a server without one is
+ * open. The same helper sits in ../llama-compat/index.ts and ../llama-dx/server.ts — these extensions never import
+ * each other, so a change to where the key is found belongs in all three.
+ */
+/** `$NAME` and `${NAME}` stand for that variable of the environment; anything else is the key itself. */
+function expandValue(raw: string): string {
+  const found = /^\$(?:\{(\w+)\}|(\w+))$/.exec(raw);
+  const name = found?.[1] ?? found?.[2];
+  return name === undefined ? raw : process.env[name] ?? "";
+}
+
+let keys: Map<string, string> | undefined;
+
+function configuredKeys(): Map<string, string> {
+  if (keys) return keys;
+  keys = new Map();
+  try {
+    const dir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+    const providers = JSON.parse(readFileSync(join(dir, "models.json"), "utf8").replace(/^\uFEFF/, "")).providers as
+      | Record<string, { baseUrl?: string; apiKey?: string }>
+      | undefined;
+    for (const provider of Object.values(providers ?? {})) {
+      const root = serverRoot(provider.baseUrl ?? "");
+      const key = expandValue(provider.apiKey ?? "");
+      if (root && key) keys.set(root, key);
+    }
+  } catch {
+    // Without the config there is nothing to send, which is how things were before --api-key existed.
+  }
+  return keys;
+}
+
+function authFor(url: string): Record<string, string> | undefined {
+  const found = [...configuredKeys()].find(([root]) => url.startsWith(`${root}/`));
+  return found ? { authorization: `Bearer ${found[1]}` } : undefined;
+}
+
 /** Fetch a URL that answers quickly and never loads a model; never throws, always JSON or `undefined`. */
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T | undefined> {
   const timeout = AbortSignal.timeout(PROBE_TIMEOUT_MS);
   const linked = signal ? AbortSignal.any([signal, timeout]) : timeout;
   try {
-    const response = await fetch(url, { signal: linked });
+    const response = await fetch(url, { headers: authFor(url), signal: linked });
     if (!response.ok) return undefined;
     return JSON.parse(await response.text()) as T;
   } catch {
