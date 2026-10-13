@@ -8,8 +8,8 @@ the spawn tool's `name` parameter is built from the config, so anything unconfig
 
 | Tool | Args | Behavior |
 |---|---|---|
-| `subagent_spawn` | `name`, `task`, `session?`, `save_session?`, `workdir?` | Starts the task in the background and returns its `id` at once. |
-| `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, what its model produced and how full its context is, last activity, retry, error. Errors on an unknown id. |
+| `subagent_spawn` | `name`, `task`, `session`, `workdir?` | Starts the task in the background and returns its `id` at once. |
+| `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, what its model produced and how full its context is, the tool it is on with a live timer, the last few calls, retry, error. Errors on an unknown id. |
 | `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Blocks until a task finishes and returns it. Each task is delivered once, and reading a report with `subagent_result` counts as that delivery. A timeout is a normal result, not an error. |
 | `subagent_result` | `id` | The full report (over 20 000 chars is truncated, with the whole thing written to a temp file), followed by what the task cost. A task that ended with nothing to show says so, with its error where it has one. |
 | `subagent_kill` | `id`, `timeout_s?` (default 10) | Aborts a running task; it ends `killed` holding whatever output it has. |
@@ -18,9 +18,10 @@ Workflow: spawn several in one turn → keep working → `subagent_wait` (loop; 
 exactly one call) → `subagent_status` for the laggards, `subagent_kill` for a stuck one, `subagent_result` to re-read
 a report. A toast fires when a task reaches `done`/`failed`/`killed`, whether or not anyone is waiting on it.
 
-`session` names a directory under `.pi/subagents/sessions/` and both remaining switches need it: `save_session` keeps
-the task's transcript there, `workdir` runs the task inside it as an isolated scratchpad. Those directories are kept
-deliberately — a transcript or scratchpad is an artifact worth having after the task ends.
+`session` is required: it names the task and the directory under `.pi/subagents/sessions/` where its transcript is
+always saved, openable in pi afterwards. `workdir` additionally runs the task inside that directory as an isolated
+scratchpad. Those directories are kept deliberately — a transcript or scratchpad is an artifact worth having after
+the task ends.
 
 ## Configuration
 
@@ -99,7 +100,7 @@ supplied by the task, and `tool_search` and MCP tools are not loaded whatever yo
 - `/subagents` — every live and finished task: id, name, model, state, elapsed, last activity and, once it has been
   quiet 15s, how long it has been quiet. Silence and `retrying N/M` are what a server that is not answering looks
   like; `starting…` with nothing after it means the model was never reached.
-- `/subagents <id>` — the same line, plus turns and tokens, plus a preview of the task's recent output.
+- `/subagents <id>` — the same line, plus turns and tokens, plus the last few tool calls and a preview of the task's recent output.
 - `/subagents kill <id>` — the user's own abort (tab-completion offers the running ids).
 - `/subagents leases` · `purge` · `drop <group>` · `drop-all` — the cross-instance concurrency accounting.
 

@@ -4,7 +4,7 @@ llama.cpp's diagnostics for the request pi is making right now, in pi's footer. 
 subagents run:
 
 ```
-pp ~712 tg   — t/s  │  fp ~15.2k  ev 2.7k  pf 41.3%  re 8.6k  out    0  │  #3  ↑25k  ↓260  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 63%  22/35  st 86%  │  tt    —  │  @pc:51536  # 1/1  max  16k  3.9c/t  fitted
+pp  712 tg   — t/s  │  fp 15.2k  ev 2.7k  pf 41.3%  re 8.6k  out    0  │  #3  ↑25k  ↓260  R13k  │  q 0  fl 1/1  bd 1.00  │  sc 63%  22/35  st 86%  │  tt    —  │  @pc:51536  # 1/1  max  16k
 ~/src/steel-pi (master)  24,300 9.4%  █████████▒███░░░░░░░░…░░░░░░░  262,144  qwen3-coder-27b • high
 ```
 
@@ -21,16 +21,20 @@ the order below; the identity on the bottom line gives way before the bar does.
 
 | group | cells |
 |---|---|
-| throughput | `pp` `tg` t/s — prompt processing and generation, from `timings` once llama.cpp has measured enough of them (200 prompt tokens, 16 generated); until then `~` values |
+| compaction | `compact` the reason, `before` the tokens being rewritten, elapsed — only while pi is compacting |
+| throughput | `pp` `tg` t/s — prompt processing and generation, llama.cpp's own `timings` once it has measured enough of them (200 prompt tokens, 16 generated); between measurements the last value it reported is held |
 | this request | `fp` full prompt, `ev` tokens that had to be evaluated, `pf` how far that evaluation has got (`ev` over what has to be evaluated; `—` when the whole prompt came from the cache), `re` taken from the KV cache, `out` generated |
 | session | `#` requests llama.cpp served, `↑` in, `↓` out, `R` read from cache — pi's own totals, never a parallel bookkeeping |
 | server | `q` deferred requests, `fl` processing over slots, `bd` busy slots per decode (above 1.00 several requests drag each other) |
 | speculation | `sc` accepted/drafted this request, `st` over the instance's lifetime |
 | latency | `tt` time to the first content token, measured client-side: prefill, queueing and model loading in one number |
-| detail | `@` host, `#` slot over slots, `max` `n_tokens_max`, characters per token, and whether the speeds are `exact` or `fitted` |
+| detail | `@` host, `#` slot over slots, `max` `n_tokens_max` |
 
-A `~` means "not llama.cpp's own number" — a live rate, or one fitted from recent requests to this server and model —
-never "roughly". `—` means there is nothing to hold.
+There are no approximate values: a speed, a prompt size or a prefill percentage is shown only when llama.cpp has
+reported it. Between reports the last value stands, and `—` means there is nothing to hold — never a zero and never a
+number of ours. Compaction is the exception the pipeline forces: its summarizer runs outside the request hooks, so
+the line leads with `compact <reason> before <tokens> <elapsed>` while the bar holds at the context being rewritten,
+and a finished compaction drops the request that led to it so the bar reads the rebuilt context.
 
 ## Configuration
 

@@ -1,5 +1,5 @@
 // What llama.cpp is doing with the request pi is making: the polled slot, the scraped metrics and the stream's
-// timings turned into the numbers the footer shows, plus the speeds measured for this server and model so far.
+// timings turned into the numbers the footer shows, with the last speeds llama.cpp reported standing in between.
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { TUI } from "@earendil-works/pi-tui";
@@ -12,15 +12,8 @@ import { fetchSlots, isKnownLlama, isLlama, keyOf, metricsShown, metricsSupport,
  * say whether the slot is busy and how big it is. */
 const POLL_MS = 1000;
 const METRICS_EVERY_MS = 2000;
-const WINDOW_MS = 3000;
-/** Shorter than this the window covers a single batch step, which is a spike rather than a speed. */
-const MIN_SPAN_MS = 1200;
-/** Share of a fresh rate the cell takes each poll: prefill advances in whole batches, so the raw window rate jumps by hundreds. */
-const BLEND = 0.4;
 /** Repaint at most this often: `timings_per_token` means one stream event per generated token. */
 const RENDER_MIN_MS = 200;
-/** How many recent measurements an estimate is built from; lives only for this session and model. */
-const HISTORY = 10;
 /** Below these measured amounts the server's own speed is noise rather than a signal. */
 const TRUST_PP = 200;
 const TRUST_TG = 16;
@@ -28,8 +21,6 @@ const TRUST_TG = 16;
 type Req = {
   root: string;
   instance: string;
-  chars: number;
-  estPrompt: number;
   processed: number;
   cached: number;
   decoded: number;
@@ -41,13 +32,13 @@ type Req = {
   busy: boolean;
   /** llama.cpp's own prefill progress: the whole prompt, its cached prefix, and how much of it is evaluated. */
   progress?: { total: number; cache: number; done: number };
+  /** The prompt size llama.cpp reported in a stream `usage`, for a server without progress chunks. */
+  promptTotal?: number;
   /** The slot's counters as they were last poll; a smaller one means the slot moved to another task. */
   raw?: { processed: number; decoded: number };
   started: number;
   /** What pi called the context when this request went out: the bar's used zone, without what is landing now. */
   base: number | null;
-  shownPp?: number;
-  shownTg?: number;
   firstToken?: number;
   ended?: number;
   timings?: Timings;
@@ -58,15 +49,10 @@ type Req = {
 
 type Nums = {
   pp?: number;
-  /** True when the value is not llama.cpp's own number: a live window rate or an estimate from history. */
-  ppEstimated: boolean;
-  tgEstimated: boolean;
   tg?: number;
   spec?: [accepted: number, drafted: number];
   ttft?: number;
   prompt?: number;
-  /** True while the prompt size is the body-size estimate rather than llama.cpp's number. */
-  estimated: boolean;
   evalToks?: number;
   reuse?: number;
   out?: number;
@@ -87,12 +73,15 @@ let req: Req | undefined;
 let last: Req | undefined;
 /** Requests llama.cpp has served in this session; pi's own usage entries carry the token totals. */
 export const sess = { reqs: 0 };
-let samples: { t: number; processed: number; decoded: number }[] = [];
-let charsPerToken = 3.6;
 let idlePolls = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 /** The numbers of the request that ended last, frozen: a new request holds them until it measures its own. */
 let settled: Nums | undefined;
+
+/** A compaction pi is running. It is not one of our requests, so nothing is polled, but the bar must keep its level. */
+type Compaction = { reason: "manual" | "threshold" | "overflow"; tokensBefore: number; started: number };
+let compacting: Compaction | undefined;
+let compactTimer: ReturnType<typeof setInterval> | undefined;
 /** What to do when a server's identity settles, which may hand the footer back to pi. */
 let serverAnswer: () => void = () => paint(false);
 
@@ -127,7 +116,7 @@ export function trackModel(ctx: ExtensionContext): void {
   if (!isInteractive(ctx)) return;
   runtime.ctx = ctx;
   runtime.model = {
-    root: serverRoot(ctx.model as { baseUrl?: string } | undefined),
+    root: serverRoot(ctx.model?.baseUrl ?? ""),
     nCtx: ctx.model?.contextWindow ?? 0,
   };
   if (runtime.model.root) probeRoot(runtime.model.root, () => serverAnswer());
@@ -138,141 +127,76 @@ export function resetAll(): void {
   req = undefined;
   last = undefined;
   settled = undefined;
-  samples = [];
+  compacting = undefined;
+  if (compactTimer) clearInterval(compactTimer);
+  compactTimer = undefined;
   metricsShown.clear();
-  prefillHist.clear();
-  decodeHist.clear();
 }
 
 /**
- * Rate over the last WINDOW_MS, between the samples at its ends: divided by the time since the window started it
- * would decay towards 0 for as long as the counter stands still, which it does between batch steps.
+ * pi is compacting the context. The summarizer runs outside the request pipeline - pi's own compaction and a
+ * delegated one both call the model directly - so there are no timings to show; what is known is the reason and the
+ * size of the context being rewritten, and the elapsed time is the only progress there is.
  */
-function windowRate(t: number, counter: (s: { t: number; processed: number; decoded: number }) => number, minStep: number): number {
-  const window = samples.filter((s) => t - s.t <= WINDOW_MS);
-  const oldest = window[0];
-  const newest = window[window.length - 1];
-  const step = oldest && newest ? counter(newest) - counter(oldest) : 0;
-  if (!oldest || !newest || newest.t - oldest.t < MIN_SPAN_MS || step < minStep) return 0;
-  return step / ((newest.t - oldest.t) / 1000);
+export function beginCompaction(info: { reason: Compaction["reason"]; tokensBefore: number }): void {
+  stopPolling();
+  compacting = { ...info, started: Date.now() };
+  if (compactTimer) clearInterval(compactTimer);
+  compactTimer = setInterval(() => paint(false), 1000); // the elapsed time on the line has to move
+  paint(false);
 }
-
-/** A window over too little of the phase is a rate of nothing: prefill advances in batches, generation token by token. */
-const prefillRate = (t: number): number => windowRate(t, (s) => s.processed, 64);
-
-const decodeRate = (t: number): number => windowRate(t, (s) => s.decoded, 8);
 
 /**
- * The rate for this poll: the fresh one taken towards the one already shown, and the shown one held when nothing
- * new arrived. Speeds are properties of the machine, so holding one across a stall of a second says no lie.
+ * A compaction that ended. A successful one rebuilt the context from the summary, so the request that triggered it
+ * describes the context *before* the rewrite and must not lend its tokens to the bar; a failed one changed nothing.
  */
-const blend = (fresh: number, shown: number | undefined): number | undefined =>
-  fresh <= 0
-    ? shown !== undefined && shown > 0
-      ? shown
-      : undefined
-    : shown !== undefined && shown > 0
-      ? shown + (fresh - shown) * BLEND
-      : fresh;
-
-type PrefillSample = { ctx: number; tps: number };
-
-/**
- * Measured speeds per server+instance. Both are properties of the machine, so a request that cannot measure
- * one yet (nothing to prefill, nothing generated) shows the estimate from the recent ones instead of a blank.
- * Prefill declines slowly as the context grows, so its estimate is fitted against context.
- */
-const prefillHist = new Map<string, PrefillSample[]>();
-const decodeHist = new Map<string, number[]>();
-
-function push<T>(map: Map<string, T[]>, key: string, value: T): void {
-  const list = map.get(key) ?? [];
-  list.push(value);
-  if (list.length > HISTORY) list.shift();
-  map.set(key, list);
+export function endCompaction(succeeded: boolean): void {
+  if (compactTimer) clearInterval(compactTimer);
+  compactTimer = undefined;
+  compacting = undefined;
+  if (succeeded) {
+    req = undefined;
+    last = undefined;
+    settled = undefined;
+    stopPolling();
+  }
+  paint(false);
 }
 
-const trimmedMean = (values: number[], trim = 0.1): number => {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const drop = Math.floor(sorted.length * trim);
-  const core = drop * 2 >= sorted.length ? sorted : sorted.slice(drop, sorted.length - drop);
-  return core.reduce((a, b) => a + b, 0) / core.length;
-};
-
-const mean = (values: number[]): number => (values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length);
-
-const estimateDecode = (key: string): number | undefined => {
-  const recent = decodeHist.get(key) ?? [];
-  return recent.length === 0 ? undefined : trimmedMean(recent) || undefined;
-};
-
-/** Trimmed mean, adjusted to the given context by a least-squares fit of speed against context. */
-function estimatePrefill(key: string, ctx: number): number | undefined {
-  const recent = prefillHist.get(key) ?? [];
-  if (recent.length === 0) return undefined;
-  const avg = trimmedMean(recent.map((s) => s.tps));
-  if (avg <= 0 || recent.length < 5) return avg || undefined;
-  const xs = recent.map((s) => s.ctx / 1000);
-  const ys = recent.map((s) => s.tps);
-  const mx = mean(xs);
-  const my = mean(ys);
-  const sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
-  if (sxx < 1000) return avg; // no context spread to fit against
-  const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i]! - my), 0) / sxx;
-  const fitted = my + slope * (ctx / 1000 - mx);
-  // A dozen samples never justify a big swing, so keep the fit inside a band around the mean.
-  return Math.min(avg * 1.25, Math.max(avg * 0.75, fitted));
-}
-
-function record(r: Req, n: Nums): void {
-  const key = keyOf(r);
-  if (!n.ppEstimated && n.pp) push(prefillHist, key, { ctx: ctxUsed(n), tps: n.pp });
-  if (!n.tgEstimated && n.tg) push(decodeHist, key, n.tg);
-}
-
-/** The numbers of one request: llama.cpp's own once they arrived, the live counters until then. */
-function numbers(r: Req, t = Date.now()): Nums {
+/** The numbers of one request: only what llama.cpp reported, or nothing until it has. */
+function numbers(r: Req): Nums {
   const timing = r.timings;
   // Only a finished task's timings describe its whole prompt: `timings_per_token` repeats them after every token with
   // `prompt_n` counting what has been evaluated *so far*. llama.cpp's progress chunks carry the real total for the
   // same reason, and they arrive before prefill has done anything with the prompt.
   const exact = timing !== undefined && r.ended !== undefined;
-  const total = r.progress?.total ?? (exact ? (timing.prompt_n ?? 0) + (timing.cache_n ?? 0) : 0);
-  const ctx = total + (timing?.predicted_n ?? r.decoded);
-  // A server number measured over a handful of tokens is worse than no number: below the trust threshold the cell
-  // keeps its own smoothed live rate, or the recent estimate, and carries the ~ marker.
-  const ppExact = (timing?.prompt_n ?? 0) >= TRUST_PP ? timing?.prompt_per_second : undefined;
-  const tgExact = (timing?.predicted_n ?? 0) >= TRUST_TG ? timing?.predicted_per_second : undefined;
-  const key = keyOf(r);
-  const n: Nums = {
-    pp: ppExact ?? blend(r.processed >= TRUST_PP ? prefillRate(t) : 0, r.shownPp) ?? estimatePrefill(key, ctx),
-    ppEstimated: ppExact === undefined,
-    tg: tgExact ?? blend(decodeRate(t), r.shownTg) ?? estimateDecode(key),
-    tgEstimated: tgExact === undefined,
+  const total = r.progress?.total ?? r.promptTotal ?? (exact ? (timing.prompt_n ?? 0) + (timing.cache_n ?? 0) : 0);
+  // A server number measured over a handful of tokens is worse than no number at all; below the trust threshold the
+  // cell keeps the last one llama.cpp reported, which `hold` puts back.
+  return {
+    pp: (timing?.prompt_n ?? 0) >= TRUST_PP ? timing?.prompt_per_second : undefined,
+    tg: (timing?.predicted_n ?? 0) >= TRUST_TG ? timing?.predicted_per_second : undefined,
     spec: timing?.draft_n ? [timing.draft_n_accepted ?? 0, timing.draft_n] : undefined,
     ttft: r.firstToken,
-    prompt: total > 0 ? total : r.estPrompt,
-    estimated: total === 0,
+    prompt: total > 0 ? total : undefined,
     evalToks: Math.max(timing?.prompt_n ?? 0, r.progress?.done ?? 0, r.processed),
     reuse: r.progress?.cache ?? (exact ? (timing.cache_n ?? 0) : r.cached),
     out: timing?.predicted_n ?? r.decoded,
     nCtx: r.nCtx,
   };
-  r.shownPp = n.pp;
-  r.shownTg = n.tg;
-  return n;
 }
 
 /**
- * The holes of the running request filled with the previous one's numbers; the KV context survives between them.
- * Once the request knows its own prompt it needs none of them: the tokens they count are not this request's.
+ * The holes of the running request filled with the last values llama.cpp reported; speeds are held whatever else is
+ * known. Once the request knows its own prompt its token counters are its own, and nothing is taken from the last one.
  */
 function hold(n: Nums): void {
   const p = settled;
   if (!p) return;
   if (!n.nCtx) n.nCtx = p.nCtx;
-  if (!n.estimated) return;
+  if (n.pp === undefined) n.pp = p.pp;
+  if (n.tg === undefined) n.tg = p.tg;
+  if (n.prompt !== undefined) return;
   if (!n.evalToks) n.evalToks = p.evalToks;
   if (!n.reuse) n.reuse = p.reuse;
   if (!n.out) n.out = p.out;
@@ -283,7 +207,6 @@ function finalize(r: Req): void {
   r.counted = true;
   const n = numbers(r);
   settled = n;
-  record(r, n);
   sess.reqs += 1;
   last = r;
   debug(`#${sess.reqs} prompt=${n.prompt} eval=${n.evalToks} reuse=${n.reuse} out=${n.out} pp=${Math.round(n.pp ?? 0)} tg=${Math.round(n.tg ?? 0)} ttft=${n.ttft}`);
@@ -339,13 +262,11 @@ async function pollOnce(): Promise<void> {
       r.processed = 0;
       r.decoded = 0;
       r.cached = 0;
-      samples = [];
     }
     r.raw = { processed, decoded };
     r.processed = Math.max(r.processed, processed);
     r.decoded = Math.max(r.decoded, decoded);
     r.cached = Math.max(r.cached, slot.n_prompt_tokens_cache ?? 0);
-    samples = [...samples.filter((s) => t - s.t <= WINDOW_MS), { t, processed, decoded }];
   }
   r.busy ||= r.processing;
   if (metricsSupport.get(keyOf(r)) !== false && t - (r.metricsAt ?? 0) >= METRICS_EVERY_MS) {
@@ -361,7 +282,7 @@ async function pollOnce(): Promise<void> {
     r.ended = t;
     finalize(r);
   }
-  debug(`total=${slot.n_prompt_tokens ?? 0} processed=${processed} cache=${slot.n_prompt_tokens_cache ?? 0} decoded=${decoded} pp=${Math.round(prefillRate(t))} tg=${Math.round(decodeRate(t))}`);
+  debug(`total=${slot.n_prompt_tokens ?? 0} processed=${processed} cache=${slot.n_prompt_tokens_cache ?? 0} decoded=${decoded}`);
   paint();
 }
 
@@ -378,13 +299,11 @@ export function paint(throttled = true): void {
 export function stopPolling(): void {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = undefined;
-  samples = [];
   idlePolls = 0;
 }
 
-const ctxUsed = (n: Nums): number => (n.evalToks ?? 0) + (n.reuse ?? 0) + (n.out ?? 0);
-
-const phaseOf = (): "idle" | "prefill" | "decode" | "done" => {
+const phaseOf = (): "idle" | "prefill" | "decode" | "done" | "compact" => {
+  if (compacting) return "compact";
   const r = req;
   if (!r) return last ? "done" : "idle";
   if (r.ended !== undefined) return "done";
@@ -431,7 +350,7 @@ export function view(): { facts: Facts; used: number | null; evaluating: number;
   if (!isLlama(root)) return undefined;
   const r = req ?? last;
   const phase = phaseOf();
-  const n: Nums = r ? numbers(r) : { estimated: false, ppEstimated: true, tgEstimated: true, nCtx: runtime.model.nCtx };
+  const n: Nums = r ? numbers(r) : { nCtx: runtime.model.nCtx };
   if (req?.ended === undefined) hold(n);
   const session = sessionState();
   const m = r ? (r.metrics ?? metricsShown.get(keyOf(r))) : undefined;
@@ -441,15 +360,14 @@ export function view(): { facts: Facts; used: number | null; evaluating: number;
   // arriving now belongs to the live layers. Once the request has ended what it added is committed context, and
   // joining it back in is what keeps the bar from shrinking by those very tokens until the next request starts.
   const committed = req !== undefined && req.ended !== undefined ? (n.evalToks ?? 0) + (n.out ?? 0) : 0;
-  const base = req ? (req.base === null ? null : req.base + committed) : (session.context?.tokens ?? last?.base ?? null);
+  // While compaction runs the bar holds at the context it is rewriting, not at a request's committed tokens.
+  const base = compacting ? compacting.tokensBefore : req ? (req.base === null ? null : req.base + committed) : (session.context?.tokens ?? last?.base ?? null);
   const facts: Facts = {
     live: phase,
+    compacting: compacting ? { reason: compacting.reason, tokensBefore: compacting.tokensBefore, elapsed: Date.now() - compacting.started } : undefined,
     pp: n.pp,
-    ppEstimated: n.ppEstimated,
     tg: n.tg,
-    tgEstimated: n.tgEstimated,
     prompt: n.prompt,
-    promptEstimated: n.estimated,
     eval: n.evalToks,
     pfDone: n.evalToks,
     pfTarget: prefillTarget(n),
@@ -466,8 +384,6 @@ export function view(): { facts: Facts; used: number | null; evaluating: number;
     slotId: r?.slotId,
     slots: Math.max(r?.slots ?? 1, 1),
     nTokensMax: m?.nmax,
-    charsPerToken,
-    exactTimings: r?.timings !== undefined,
   };
   if (hasMetrics) {
     facts.queue = m?.deferred;
@@ -490,29 +406,27 @@ const prefillTarget = (n: Nums): number => Math.max(0, (n.prompt ?? 0) - (n.reus
  */
 function active(n: Nums): { evaluating: number; generating: number; pending: number } {
   const r = req;
-  if (r === undefined || r.ended !== undefined) return { evaluating: 0, generating: 0, pending: 0 };
+  if (compacting || r === undefined || r.ended !== undefined) return { evaluating: 0, generating: 0, pending: 0 };
   const done = n.evalToks ?? 0;
   return { evaluating: done, generating: Math.max(r.decoded, r.timings?.predicted_n ?? 0), pending: Math.max(0, prefillTarget(n) - done) };
 }
 
 /**
- * The outgoing request: everything the footer can only learn from the body pi sends, plus the polling this
- * request needs. Returns the payload with `timings_per_token` asked for, since llama.cpp only repeats its
- * timings in every chunk when asked.
+ * The outgoing request: begins tracking it and asks llama.cpp for the timings and progress the footer needs.
+ * Returns the payload with `timings_per_token` and `return_progress` set, since llama.cpp only reports them when asked.
  */
 export function startRequest(payload: Record<string, unknown>, ctx: ExtensionContext): Record<string, unknown> | undefined {
   if (!isInteractive(ctx)) return undefined;
-  const root = serverRoot(ctx.model as { baseUrl?: string } | undefined);
-  if (!root) return undefined;
+  const root = serverRoot(ctx.model?.baseUrl ?? "");
+  // A server that `/props` has said is not llama.cpp is never tracked: another provider's request never becomes
+  // one of ours.
+  if (!root || !isLlama(root)) return undefined;
   runtime.ctx = ctx;
   // A tool call that finished faster than the idle detection still belongs to the session totals.
   finishRequest();
-  const body = JSON.stringify(payload.messages ?? "");
   req = {
     root,
     instance: String(payload.model ?? ctx.model?.id ?? "?"),
-    chars: body.length + (Array.isArray(payload.tools) ? JSON.stringify(payload.tools).length : 0),
-    estPrompt: Math.round(body.length / charsPerToken),
     processed: 0,
     cached: 0,
     decoded: 0,
@@ -524,12 +438,7 @@ export function startRequest(payload: Record<string, unknown>, ctx: ExtensionCon
     base: ctx.getContextUsage()?.tokens ?? null,
     counted: false,
   };
-  // A new request opens at the speeds already measured on this server rather than at 0, and glides from there.
-  const key = keyOf(req);
-  req.shownPp = estimatePrefill(key, req.nCtx);
-  req.shownTg = estimateDecode(key);
   stopPolling();
-  if (!isLlama(root)) return undefined;
   void refreshMetrics(req); // learns whether this server has --metrics at all
   pollTimer = setInterval(() => void poll(), POLL_MS);
   // `return_progress` makes llama.cpp post its own prefill progress (`prompt_progress`) into the stream once per
@@ -553,13 +462,9 @@ export function observeStream(data: unknown): void {
     req.progress = { total: p.total, cache: p.cache ?? 0, done: Math.max(0, (p.processed ?? 0) - (p.cache ?? 0)) };
     debug(`progress total=${p.total} cache=${p.cache} processed=${p.processed}`);
   }
-  // llama.cpp sends its usage only when asked for, so the prompt size arrives from `usage` or from the progress
-  // chunks. Nearly the same body goes out next turn, so the ratio measured here is a good estimate of it then.
-  const exact = event.usage?.prompt_tokens ?? p?.total;
-  if (exact) {
-    req.estPrompt = exact;
-    charsPerToken = req.chars / exact;
-  }
+  // llama.cpp sends its usage only when asked for, so the prompt size can also arrive this way - the only one an old
+  // server without progress chunks has.
+  if (event.usage?.prompt_tokens) req.promptTotal = event.usage.prompt_tokens;
   paint();
 }
 

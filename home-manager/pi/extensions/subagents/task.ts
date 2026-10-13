@@ -18,7 +18,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
 import { applySubagentPrompt, subagentPromptText } from "./prompt.ts";
-import { keepSaidText, oneLine, RECENT_OUTPUT_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
+import { formatDuration, keepSaidText, oneLine, RECENT_OUTPUT_LIMIT, RECENT_TOOLS_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
 import type { LeaseStore } from "./store.ts";
 
 type TaskCallback = (record: TaskRecord) => void;
@@ -141,7 +141,14 @@ export class SubagentTask {
   releaseLeases(): void {
     const { store, leases } = this.options;
     if (!store || !leases) return;
-    for (const id of leases) store.release(id);
+    for (const id of leases) {
+      // Cleanup must not throw: a locked store is the lease TTL's problem, not a rejection in the task's tail.
+      try {
+        store.release(id);
+      } catch {
+        // The lease expires on its own.
+      }
+    }
   }
 
   private subscribe(): void {
@@ -193,7 +200,16 @@ export class SubagentTask {
       }
     } else if (event.type === "tool_execution_start") {
       const summary = summarizeArgs(event.toolName, event.args);
+      record.currentTool = { name: event.toolName, summary, startedAt: Date.now() };
       this.note(summary ? `${event.toolName}: ${summary}` : event.toolName);
+    } else if (event.type === "tool_execution_end") {
+      // The summary was kept at start; `tool_execution_end` carries no args of its own.
+      const summary = record.currentTool?.summary ?? "";
+      const call = { name: event.toolName, summary, durationMs: Math.round(event.durationMs ?? 0), isError: event.isError };
+      record.recentTools = [...(record.recentTools ?? []), call].slice(-RECENT_TOOLS_LIMIT);
+      record.currentTool = undefined;
+      const what = summary ? `${event.toolName}: ${summary}` : event.toolName;
+      this.note(`${event.isError ? "✗" : "✓"} ${what} (${formatDuration(call.durationMs)})`);
     } else if (event.type === "auto_retry_start") {
       record.retry = `${event.attempt}/${event.maxAttempts} after ${Math.ceil(event.delayMs / 1000)}s`;
       this.note(`retrying: ${oneLine(event.errorMessage, 120)}`);
@@ -259,6 +275,8 @@ export class SubagentTask {
     }
     record.finishedAt = Date.now();
     record.usage.streaming = 0;
+    // A settled task is not running a tool, whatever it was in the middle of when it stopped.
+    record.currentTool = undefined;
     record.output = assistant ? extractText(assistant) : (this.session?.getLastAssistantText() ?? "");
     record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
     // The last figure the task's model reported is the one worth showing next to its totals.

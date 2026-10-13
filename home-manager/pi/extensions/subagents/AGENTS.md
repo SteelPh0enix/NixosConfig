@@ -94,13 +94,11 @@ prompt in both modes; the user message is only the read-only transcript referenc
 
 ## Task session directory
 
-`session` is a short kebab-case name that decides the directory:
+`session` is required: a short kebab-case name that names the task and decides the directory
 `.pi/subagents/sessions/<session>-<YYYY-MM-DD>-<HHMMSS>/` under the main working directory (`-2`, `-3` on a clash
-within the same second). Both switches need it, and at least one of them must be set — a bare `session` asks for
-nothing, so it creates no directory.
+within the same second). Every task's transcript is persisted there with the SDK's `SessionManager.create(cwd, dir)`
+— standard format, openable in pi afterwards.
 
-- `save_session` — persist the task's transcript there with the SDK's `SessionManager.create(cwd, dir)`. Standard
-  format, openable in pi afterwards.
 - `workdir` — run the subagent with that directory as its working directory, so its tools resolve paths there.
 
 ## UI
@@ -117,6 +115,9 @@ nothing, so it creates no directory.
   new* rather than as missing.
 - A settled task reports no last activity — `DONE 12s — writing…` would read as still going. An aborted one keeps the
   line it stopped on, which is the case where it says something.
+- The activity line names the step, not just "writing": while a tool runs it carries the tool, its argument summary
+  and a live timer (`bash: sleep 60 (4.2s)`), and a finished call leaves its outcome and duration behind. The
+  expanded view adds the last few calls as `read 0.3s · ✗bash 4.2s`, bounded to `RECENT_TOOLS_LIMIT`.
 - Every report line ends with what the task's model is doing with its context: `… · out 1.2k · ctx 41.2k/262k (16%)`.
   `out` is the tokens its own model produced; while a turn is still decoding it is counted off the stream and shown as
   `out ~1.2k` — thinking counted, not only the answer text — replaced by the model's figure the moment the turn ends.
@@ -129,7 +130,7 @@ nothing, so it creates no directory.
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
   is waiting on it, and only once, not again when the report is read.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`,
-  `{ tasks: [{ id, name, model, state, elapsed, idle, turns, tokens, lastActivity, retry, error, recentOutput }] }`,
+  `{ tasks: [{ id, name, model, state, elapsed, idle, turns, tokens, lastActivity, tool, recentTools, retry, error, recentOutput }] }`,
   whenever their state changes. `../llama-dx` subscribes to it and paints a row of its own above the two llama.cpp
   lines, so nothing here is drawn from it. Emitting into a session pi has replaced throws, so the snapshot swallows
   that rather than outliving its session.
@@ -167,8 +168,10 @@ What it pins down, mostly with the bugs it was written against:
   `elapsed` measures startedAt to finishedAt and stops there; `details` carry a bounded output.
 - **kill** — a task that never settles is killed anyway, inside the deadline, with its group slots handed back; one
   that stops cleanly says so; killing a finished task is not a second kill; a task with no runner is killed rather than
-  left running; a task stopped between turns keeps what it had already said as its report, and the tail it keeps is as
-  bounded as any other.
+  left running; a kill that ran out of time queues the task so a wait can still deliver it; a task stopped between
+  turns keeps what it had already said as its report, and the tail it keeps is as bounded as any other.
+- **tools** — a running tool is kept with its start time and shows a live timer; finishing it records the duration and
+  the error flag, and the breadcrumb stays bounded; `formatDuration` reads `0.3s` / `4.2s` / `1m02s`.
 - **tokens** — a running task counts what it is still writing (thinking included) and marks it live, a finished one
   reports the model's own figure, and `out …/ctx …/%` formats as `out 1.2k · ctx 41.2k/262k (16%)`, or `ctx ?/262k`
   when pi cannot estimate; `oneLine` collapses, trims and cuts to its limit, and `formatTokens` reads `999`, `1.2k`,
@@ -204,9 +207,9 @@ What it pins down, mostly with the bugs it was written against:
   live wait shows the subagent's last lines and says it is still running, and a timed-out wait says so.
 - **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, the spawn tool's
   `name` carrying every configured subagent with its description, and every way into a spawn fails with a message
-  before a session could be created (unconfigured name, unknown model, `save_session`/`workdir` without a `session`,
-  a name that is not kebab-case, a group with no limit — and no lease taken for that one). Also the wait/kill messages
-  for ids that do not exist, the aborted wait, the `/subagents` subcommands, and `before_agent_start` adding the prompt
+  before a session could be created (unconfigured name, unknown model, a missing or non-kebab-case `session`, a group
+  with no limit — and no lease taken for that one). Also the wait/kill messages for ids that do not exist, the aborted
+  wait, the `/subagents` subcommands (including `leases drop <group>`), and `before_agent_start` adding the prompt
   section only when `subagent_spawn` is active. The fixture gives no subagent a resolvable model, so the run cannot
   reach a server.
 

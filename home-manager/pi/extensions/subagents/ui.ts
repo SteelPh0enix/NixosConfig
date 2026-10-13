@@ -12,7 +12,7 @@ import type {
   Theme,
   ThemeColor,
 } from "@earendil-works/pi-coding-agent";
-import { IDLE_AFTER_MS, oneLine, toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
+import { formatDuration, IDLE_AFTER_MS, oneLine, toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
 
 // ---- details shapes (matched by renderResult) -----------------------------
 
@@ -86,6 +86,18 @@ export function formatTokenStats(task: TaskSummary): string {
     );
   }
   return parts.join(" · ");
+}
+
+/** The running tool with its live timer, or whatever the task last did. */
+export function activityLine(task: TaskSummary): string {
+  if (!task.tool) return task.lastActivity;
+  const what = task.tool.summary ? `${task.tool.name}: ${task.tool.summary}` : task.tool.name;
+  return `${what} (${formatDuration(task.tool.elapsed)})`;
+}
+
+/** `read 0.3s · bash 4.2s`, newest last; a failed call carries a `✗`. */
+export function toolBreadcrumb(task: TaskSummary): string {
+  return task.recentTools.map((call) => `${call.isError ? "✗" : ""}${call.name} ${formatDuration(call.durationMs)}`).join(" · ");
 }
 
 function stateColor(state: TaskState): ThemeColor {
@@ -182,10 +194,13 @@ function taskBlock(task: TaskSummary, theme: Theme, options: { expanded?: boolea
   if (task.retry) lines.push(theme.fg("warning", `  retrying ${task.retry}`));
   // What it is doing goes on its own line; a settled task only shows its stats when the view is expanded.
   const stats = [`${task.turns} turn(s)`, formatTokenStats(task)].filter(Boolean).join(" · ");
-  const activity = [task.lastActivity && `▸ ${task.lastActivity}`, stats].filter(Boolean).join(" · ");
-  if (task.lastActivity || options.expanded) lines.push(theme.fg("muted", `  ${activity}`));
+  const doing = activityLine(task);
+  const activity = [doing && `▸ ${doing}`, stats].filter(Boolean).join(" · ");
+  if (doing || options.expanded) lines.push(theme.fg("muted", `  ${activity}`));
   if (task.preview) lines.push(...task.preview.split("\n").map((line) => theme.fg("dim", `  │ ${line}`)));
   if (options.expanded) {
+    const crumb = toolBreadcrumb(task);
+    if (crumb) lines.push(theme.fg("dim", `  ${crumb}`));
     const output = task.recentOutput.trim();
     if (output) lines.push("", theme.fg("dim", oneLine(output, 800)));
   }

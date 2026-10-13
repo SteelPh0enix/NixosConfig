@@ -54,10 +54,9 @@ export const keyOf = (r: { root: string; instance: string }): string => `${r.roo
  * the two extensions are installed side by side but never import each other, so a change to how that root is found
  * belongs in both.
  */
-export function serverRoot(m: { baseUrl?: string } | undefined): string | undefined {
-  if (!m?.baseUrl) return undefined;
+export function serverRoot(baseUrl: string): string | undefined {
   try {
-    const url = new URL(m.baseUrl);
+    const url = new URL(baseUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
     url.pathname = url.pathname.replace(/\/+$/, "").replace(/\/v1$/, "");
     url.search = "";
@@ -111,9 +110,9 @@ function configuredKeys(): Map<string, string> {
   try {
     const dir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
     const text = readFileSync(join(dir, "models.json"), "utf8").replace(/^\uFEFF/, "");
-    const providers = JSON.parse(text).providers as Record<string, { baseUrl?: string; apiKey?: string }> | undefined;
+    const providers = JSON.parse(text).providers as Record<string, { baseUrl?: string; apiKey?: string; models?: { baseUrl?: string }[] }> | undefined;
     for (const provider of Object.values(providers ?? {})) {
-      const root = serverRoot({ baseUrl: provider.baseUrl });
+      const root = serverRoot(provider.baseUrl ?? provider.models?.[0]?.baseUrl ?? "");
       const key = expandValue(provider.apiKey ?? "");
       if (root && key) keys.set(root, key);
     }

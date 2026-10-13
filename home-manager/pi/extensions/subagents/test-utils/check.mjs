@@ -31,7 +31,7 @@ const record = (id, over = {}) => ({
 
 // ---- the completion queue (state.ts) ----
 
-const { TaskRegistry, toSummary, killRecord, withTimeout, oneLine, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "state.ts");
+const { TaskRegistry, toSummary, killRecord, withTimeout, oneLine, formatDuration, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "state.ts");
 
 console.log("\nregistry");
 const reg = new TaskRegistry();
@@ -77,6 +77,12 @@ const killedAt = Date.now();
 const settled = await killRecord(hungRecord, 40);
 ok("a kill of a task that never settles returns anyway", settled === false && hungRecord.state === "killed" && Date.now() - killedAt < 1000);
 ok("and hands its group slots back", hungRecord.runner.freed === true);
+// A kill that times out is the one finish nobody else can report, so it has to queue the task itself.
+const queuedReg = new TaskRegistry();
+const queuedKill = record("task-queued", { runner: { abort: async () => {}, done: () => new Promise(() => {}), releaseLeases() {} } });
+queuedReg.add(queuedKill);
+ok("a timed-out kill is handed back to the registry", (await killRecord(queuedKill, 20, queuedReg)) === false);
+ok("and a wait can still deliver the killed task", queuedReg.claimFinished().map((r) => r.id).join() === "task-queued");
 const cleanRecord = record("task-clean", { output: "", lastText: "what it said before stopping", runner: { abort: async () => {}, done: async () => {}, releaseLeases() {} } });
 ok("a kill of a task that stops cleanly says so", (await killRecord(cleanRecord, 1000)) === true && cleanRecord.state === "killed");
 ok("a killed task that had said something keeps it as its report", cleanRecord.output === "what it said before stopping");
@@ -87,6 +93,11 @@ ok("killing a finished task is not a second kill", (await killRecord(record("tas
 // A record whose runner never attached has nothing to abort, and reporting it as still running would be a lie.
 const stranded = record("task-stranded");
 ok("a task with no runner is killed, not left running", (await killRecord(stranded, 10)) === true && stranded.state === "killed");
+const strandedReg = new TaskRegistry();
+const strandedQueued = record("task-stranded-q");
+strandedReg.add(strandedQueued);
+await killRecord(strandedQueued, 10, strandedReg);
+ok("a stranded task is queued as finished too", strandedReg.claimFinished().map((r) => r.id).join() === "task-stranded-q");
 ok("withTimeout reports a slow promise as timed out", (await withTimeout(new Promise(() => {}), 5)) === false);
 ok("withTimeout reports a rejected promise as settled", (await withTimeout(Promise.reject(new Error("boom")), 1000)) === true);
 
@@ -110,6 +121,9 @@ ok("a running task counts what it is still writing", counting.generated === 1280
 ok("a finished task reports the model's own figure", finishedTokens.generated === 1200 && finishedTokens.generatedLive === false);
 const withContext = toSummary(record("task-ctx", { context: { tokens: 41200, contextWindow: 262144, percent: 15.7 } }));
 ok("the summary carries its context window", withContext.contextTokens === 41200 && withContext.contextWindow === 262144 && withContext.contextPercent === 15.7);
+const toolNow = toSummary(record("task-tool-now", { currentTool: { name: "bash", summary: "ls", startedAt: Date.now() - 4200 } }));
+ok("the summary carries the running tool and its elapsed time", toolNow.tool?.name === "bash" && toolNow.tool.elapsed >= 4000 && toolNow.recentTools.length === 0);
+ok("tool durations read as 0.3s / 4.2s / 1m02s", formatDuration(300) === "0.3s" && formatDuration(4200) === "4.2s" && formatDuration(62000) === "1m02s");
 
 const timeoutReg = new TaskRegistry();
 timeoutReg.add(record("task-x"));
@@ -231,7 +245,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, formatElapsed, formatTokenStats, formatTokens, emitStatus, notifyCompletion, tailLines } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, formatElapsed, formatTokenStats, formatTokens, emitStatus, notifyCompletion, tailLines, activityLine, toolBreadcrumb } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -501,6 +515,12 @@ if (!nodeModules) {
   ok("expanded, it still shows what it cost", renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [settledSummary] } }, opts, theme).render(120).join("\n").includes("0 turn(s)"));
   const timedOut = renderWaitResult({ content: [{ type: "text", text: "subagent_wait: timed out — still running: task-9 (coder)" }], details: { count: 0, tasks: [toSummary(record("task-9"))] } }, opts, theme).render(120).join("\n");
   ok("a timed-out wait says so and keeps the pending task", timedOut.includes("timed out") && timedOut.includes("task-9"));
+  const toolView = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [toSummary(record("task-tv", { currentTool: { name: "bash", summary: "sleep 60", startedAt: Date.now() - 4200 } }))] } }, opts, theme).render(120).join("\n");
+  ok("a running tool shows with its live timer", toolView.includes("bash: sleep 60") && /4\.[0-9]s/.test(toolView));
+  const crumbSummary = toSummary(record("task-crumb", { recentTools: [{ name: "read", summary: "x", durationMs: 300, isError: false }, { name: "bash", summary: "y", durationMs: 4200, isError: true }] }));
+  const crumbView = renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [crumbSummary] } }, opts, theme).render(120).join("\n");
+  ok("the expanded view shows the tool breadcrumb, errors marked", crumbView.includes("read 0.3s") && crumbView.includes("✗bash 4.2s"));
+  ok("activityLine prefers the live tool over the last activity", activityLine(toSummary(record("task-al", { lastActivity: "stale", currentTool: { name: "bash", summary: "ls", startedAt: Date.now() } }))).startsWith("bash: ls"));
 
   const { SubagentTask } = await importFrom(ws, "task.ts");
   const live = record("task-l");
@@ -523,6 +543,14 @@ if (!nodeModules) {
   const thinking = new SubagentTask({ record: thinker, onStatus: () => {} });
   thinking.onEvent({ type: "message_update", assistantMessageEvent: { type: "thinking_delta" }, message: { role: "assistant", content: [{ type: "thinking", thinking: "a thought of some length" }] } });
   ok("what the model thinks counts towards what it is producing", (thinker.usage.streaming ?? 0) > 0);
+  const tooled = record("task-tool");
+  const toolTask = new SubagentTask({ record: tooled, onStatus: () => {} });
+  toolTask.onEvent({ type: "tool_execution_start", toolName: "bash", args: { command: "sleep 60" } });
+  ok("a tool call in flight is recorded to time it", tooled.currentTool?.name === "bash" && tooled.currentTool.summary === "sleep 60");
+  toolTask.onEvent({ type: "tool_execution_end", toolName: "bash", args: { command: "sleep 60" }, isError: false, durationMs: 4200 });
+  ok("finishing a tool leaves a breadcrumb with its duration", tooled.currentTool === undefined && toSummary(tooled).recentTools.map((c) => `${c.name} ${c.durationMs}`).join() === "bash 4200");
+  toolTask.onEvent({ type: "tool_execution_end", toolName: "read", args: { path: "src/x.ts" }, isError: true, durationMs: 300 });
+  ok("an errored tool is marked, and the breadcrumb stays bounded", toSummary(tooled).recentTools.at(-1).isError === true && toSummary(tooled).recentTools.length <= 4);
   streamer.onEvent({ type: "tool_execution_start", toolName: "bash", args: { command: "sleep 60" } });
   streamer.applyOutcome();
   ok("a finished task stops claiming an activity", streaming.state === "done" && streaming.lastActivity === "");
@@ -640,12 +668,11 @@ if (!nodeModules) {
   ok("result refuses an unknown id", await rejects("subagent_result", { id: "task-9" }, "no such subagent task"));
   ok("kill refuses an unknown id", await rejects("subagent_kill", { id: "task-9" }, "no such subagent task"));
   ok("spawn refuses an unconfigured name", await rejects("subagent_spawn", { name: "ghost", task: "t" }, "unknown subagent"));
-  ok("spawn refuses a model it cannot find", await rejects("subagent_spawn", { name: "worker", task: "t" }, 'unknown model "p/nope"'));
+  ok("spawn refuses a model it cannot find", await rejects("subagent_spawn", { name: "worker", task: "t", session: "task-a" }, 'unknown model "p/nope"'));
   ok("spawn refreshed that provider first", registryLog.slice(0, 2).join("|") === "refresh:p:force|find:nope");
-  ok("save_session needs a session name", await rejects("subagent_spawn", { name: "worker", task: "t", save_session: true }, "need a session name"));
-  ok("workdir needs a session name", await rejects("subagent_spawn", { name: "worker", task: "t", workdir: true }, "need a session name"));
+  ok("a missing session name is refused", await rejects("subagent_spawn", { name: "worker", task: "t" }, "session name is required"));
   ok("a session name must be kebab-case", await rejects("subagent_spawn", { name: "worker", task: "t", session: "Repo Scan" }, "invalid session name"));
-  ok("a group nobody limited refuses the spawn", await rejects("subagent_spawn", { name: "limited", task: "t" }, "no config gives a limit"));
+  ok("a group nobody limited refuses the spawn", await rejects("subagent_spawn", { name: "limited", task: "t", session: "task-b" }, "no config gives a limit"));
   ok("and does so before touching the lease store", !existsSync(join(entryAgent, "subagents", "leases.db")));
 
   ok("wait with nothing to wait for is not an error", (await call("subagent_wait", { timeout_s: 0 })).content[0].text.includes("no tasks to wait for"));
@@ -669,6 +696,8 @@ if (!nodeModules) {
   ok("listing re-emits the status snapshot", emitted.length > 0 && Array.isArray(emitted.at(-1).tasks));
   await command("leases", { ui: { notify: (m) => notices.push(m) } });
   ok("`/subagents leases` answers", String(notices.at(-1)).includes("no active leases"));
+  await command("leases drop gpu", { ui: { notify: (m) => notices.push(m) } });
+  ok("`/subagents leases drop <group>` reaches the group", String(notices.at(-1)).includes('dropped 0 lease(s) for group "gpu"'));
   await command("kill task-9", { ui: { notify: (m) => notices.push(m) } });
   ok("`/subagents kill` on a stray id reports it", String(notices.at(-1)).includes('no such task "task-9"'));
 

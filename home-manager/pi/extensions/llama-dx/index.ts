@@ -13,7 +13,7 @@ import { noteAgents } from "./agents.ts";
 import { syncFooter } from "./footer.ts";
 import { legend } from "./legend.ts";
 import { full, percent } from "./layout.ts";
-import { dropRequest, finishRequest, isInteractive, observeStream, onServerAnswer, paint, resetAll, runtime, sess, startRequest, stopPolling, trackModel, view } from "./state.ts";
+import { beginCompaction, dropRequest, endCompaction, finishRequest, isInteractive, observeStream, onServerAnswer, paint, resetAll, runtime, sess, startRequest, stopPolling, trackModel, view } from "./state.ts";
 
 export default function llamaDx(pi: ExtensionAPI) {
   // A server that turns out not to be llama.cpp gets pi's footer back.
@@ -57,8 +57,26 @@ export default function llamaDx(pi: ExtensionAPI) {
     paint(false);
   });
 
+  pi.on("session_before_compact", (event, ctx) => {
+    if (!isInteractive(ctx)) return;
+    beginCompaction({ reason: event.reason, tokensBefore: event.preparation.tokensBefore });
+  });
+
+  // A successful compaction rebuilds the context, so `endCompaction` drops the request that led to it; a failed or
+  // aborted one changed nothing and only has to stop the indicator.
+  pi.on("session_compact", (_event, ctx) => {
+    if (!isInteractive(ctx)) return;
+    endCompaction(true);
+  });
+
+  pi.on("session_compact_failed", (_event, ctx) => {
+    if (!isInteractive(ctx)) return;
+    endCompaction(false);
+  });
+
   pi.on("session_shutdown", (_event, ctx) => {
     if (!isInteractive(ctx)) return;
+    endCompaction(false);
     stopPolling();
     dropRequest();
     ctx.ui.setFooter(undefined);
@@ -84,7 +102,7 @@ export default function llamaDx(pi: ExtensionAPI) {
         ctx.ui.notify(
           v === undefined
             ? "llama-dx: not on a llama.cpp model, pi's footer is back"
-            : `llama-dx: ${sess.reqs} requests, ${v.facts.ppEstimated ? "~" : ""}${Math.round(v.facts.pp ?? 0)} pp, ${v.facts.tgEstimated ? "~" : ""}${Math.round(v.facts.tg ?? 0)} tg t/s, host ${v.facts.host}, bar ${percent(v.used ?? 0, v.total)} of ${full(v.total)}`,
+            : `llama-dx: ${sess.reqs} requests, ${Math.round(v.facts.pp ?? 0)} pp, ${Math.round(v.facts.tg ?? 0)} tg t/s, host ${v.facts.host}, bar ${percent(v.used ?? 0, v.total)} of ${full(v.total)}`,
           "info",
         );
       }

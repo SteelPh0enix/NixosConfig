@@ -4,6 +4,7 @@
 //   node test-utils/check.mjs [--port 39451] [--dump]
 // Asserts what must be visible in the footer; --dump prints it as plain text at every poll.
 import llamaDx from "../index.ts";
+import { agentsRow } from "../agents.ts";
 import { barCells, cols, metricGroups } from "../layout.ts";
 import { view } from "../state.ts";
 
@@ -113,29 +114,29 @@ for (step = 0; step < 16; step++) {
   bars.push(bar());
 }
 const all = seen.join("\n");
-const pfs = seen.map((s) => Number(/\bpf\s+~?([\d.]+)%/.exec(s)?.[1] ?? NaN));
+const pfs = seen.map((s) => Number(/\bpf\s+([\d.]+)%/.exec(s)?.[1] ?? NaN));
 
-expect("the live pp rate is marked as not the server's own", /pp ?~\s*[\d.]+/.test(all));
-expect("the server's own speeds replace it once timings arrive", /pp\s+713\b.*tg\s+58\b/.test(seen.at(-1) ?? ""));
+expect("speeds stay blank until llama.cpp reports its own", /pp\s+—/.test(seen[0] ?? ""));
+expect("and then keep the value llama.cpp gave", seen.slice(13).every((s) => /pp\s+713\b/.test(s)) && /tg\s+58\b/.test(seen.at(-1) ?? ""));
 expect("the server cells appear once /metrics answers", /\bq\b.*\bfl\b.*\bbd\b/.test(all));
 expect("prefill shows up in the evaluating layer", bars.some((b) => b.evaluating > 0 && b.generating === 0));
-expect("the prompt still to evaluate is shown before it is evaluated", bars[0].pending > 0 && bars[2].pending > 0);
+expect("the prompt still to evaluate is shown once llama.cpp reports the prompt size", bars[0].pending === 0 && bars[1].pending > 0 && bars[2].pending > 0);
 const known = bars.slice(1); // from the first progress chunk on, the prompt total is llama.cpp's own
 expect(
   "from the moment the prompt is known the forecast only shrinks, and to nothing",
   known.every((b, i) => i === 0 || known[i - 1].pending >= b.pending) && known.some((b, i) => i > 0 && b.pending < known[i - 1].pending) && known.at(-1).pending === 0,
 );
-expect("prefill progress is on the metrics line", /\bpf\b\s+~?\d/.test(all));
+expect("prefill progress is on the metrics line", /\bpf\b\s+\d/.test(all));
 expect("prefill progress never falls back while the request runs", pfs.every((p, i) => Number.isNaN(p) || i === 0 || Number.isNaN(pfs[i - 1]) || p >= pfs[i - 1]));
-expect("prefill progress is llama.cpp's own number from the first chunk on, so it carries no ~ then", !/\bpf\s+~/.test(seen.slice(1).join("\n")));
+expect("the metrics line carries no approximate marker", seen.every((s) => !/~/.test(s.split("\n")[0] ?? "")));
 const doneAt = pfs.findIndex((_, i) => script(i).processed >= TARGET);
 const fullAt = pfs.findIndex((p) => p >= 100);
-expect(`prefill progress reads 100% exactly when the prompt is evaluated (seen at ${fullAt}, done at ${doneAt})`, fullAt === doneAt && fullAt > 0 && pfs.every((p, i) => i < fullAt ? p < 100 : p >= 100));
+expect(`prefill progress reads 100% exactly when the prompt is evaluated (seen at ${fullAt}, done at ${doneAt})`, fullAt === doneAt && fullAt > 0 && pfs.every((p, i) => Number.isNaN(p) || (i < fullAt ? p < 100 : p >= 100)));
 expect("the whole prompt is known before prefill ends", /\bfp\s+10k\b/.test(seen[5] ?? ""));
 expect("generation shows up in its own layer", bars.some((b) => b.generating > 0));
 expect("the live layer lands on the held one, sharing a cell", bars.some((b) => b.frontier));
-expect("the prompt size is estimated first", /fp\s+~[\d.]+/.test(all));
-expect("and is replaced by llama.cpp's exact number", /fp\s+10k\b/.test(seen.at(-1) ?? ""));
+expect("the prompt size is blank until llama.cpp reports it", /\bfp\s+—/.test(seen[0] ?? "") && /\bfp\s+10k\b/.test(all));
+expect("and it is llama.cpp's own number once reported", /\bfp\s+10k\b/.test(seen.at(-1) ?? ""));
 expect("time to first token is measured", /\btt\b\s+\S/.test(all));
 expect("the footer stays mounted while it is llama.cpp", footer !== null);
 
@@ -168,6 +169,12 @@ const cramped = footer.render(40)[0];
 expect("and when tasks no longer fit, the count is what stays", cramped.startsWith("subagents 2") && !cramped.includes("task-2"));
 report([{ id: "task-3", name: "reviewer", state: "running", elapsed: 3_900_000, idle: 2_000, retry: "2/5 after 40s" }]);
 expect("a task being retried says so, and for how long it has been at it", inOrder(render120()[0], "task-3 reviewer", "1h05m", "retrying 2/5 after 40s"));
+report([{ id: "task-5", name: "coder", state: "running", elapsed: 8_000, idle: 1_000, tool: { name: "bash", summary: "nix build .#foo", elapsed: 4_200 }, generated: 1_240, generatedLive: true, contextTokens: 41_200, contextWindow: 262_144, contextPercent: 15.7 }]);
+const rich = footer.render(200)[0];
+expect("a running tool is named with its live timer", inOrder(rich, "task-5 coder", "bash: nix build .#foo", "(") && /\(\d/.test(rich));
+expect("and what its model produced and how full its context is ride along", inOrder(rich, "out ~1.2k", "ctx 41k/262k"));
+report([{ id: "task-6", name: "generalist", state: "running", elapsed: 2_000, generated: 9_000, contextTokens: 200_000, contextWindow: 262_144, contextPercent: 76.3 }]);
+expect("a task's own context past 70% is called out", (agentsRow(200) ?? []).some((s) => s.tone === "warn" && s.text.includes("200k/262k")));
 report([]);
 expect("the row goes away with the last task", render120().length === without.length && !render120().join("\n").includes("subagents "));
 
@@ -189,6 +196,19 @@ expect("a running request's partial timings do not become its whole prompt", /\b
 expect("a slot that has never been seen busy neither ends the request nor lends it the last one's counters", /#1\b/.test(lines()[0]));
 await fire("agent_end", {});
 expect("and it is counted once pi's turn ends", /#2\b/.test(lines()[0]));
+
+// Compaction runs its summarizer outside the request pipeline, so llama-dx hears about it only on pi's own events.
+await fire("session_before_compact", { preparation: { tokensBefore: 198_000 }, reason: "threshold", willRetry: false });
+const during = lines();
+expect("a compaction leads the metrics line while it runs", /compact\s+threshold\s+before\s+198k/.test(during[0] ?? ""));
+expect("and the bar holds at the context being rewritten", /198,000/.test(during[1] ?? ""));
+await fire("session_compact", { compactionEntry: {}, fromExtension: false, reason: "threshold", willRetry: false });
+const compacted = lines();
+expect("a finished compaction drops the stale request so the bar reads the new context", !/compact\s+threshold/.test(compacted[0] ?? "") && /9,200/.test(compacted[1] ?? "") && !/198,000/.test(compacted[1] ?? ""));
+await fire("session_before_compact", { preparation: { tokensBefore: 120_000 }, reason: "manual", willRetry: false });
+expect("an aborted compaction is shown while it is attempted", /compact\s+manual/.test(lines()[0] ?? ""));
+await fire("session_compact_failed", { reason: "manual", aborted: true, willRetry: false, fromExtension: false });
+expect("and failing only clears the indicator", !/compact\s+manual/.test(lines()[0] ?? ""));
 
 // pi loads extensions into every session it makes, including the in-memory ones another extension creates (a
 // subagent's). Those share this module, so they may not drive these cells nor be remembered as "the" context.
@@ -240,11 +260,11 @@ expect("a new session starts with no row of the tasks the session before it ran"
 await handlers.get("cmd:llama-dx")("info", ctx);
 const explained = new Set((notes.at(-1) ?? "").split("\n").map((l) => /^ {2}(\S+)\s{2}/.exec(l)?.[1]).filter(Boolean));
 const cells = new Set(
-  [true, false].flatMap((exact) => metricGroups({ ...view()?.facts, exactTimings: exact }).flatMap((g) => g.cells.flatMap((c) => c.filter((s) => s.tone === "label").map((s) => s.text.trim())))),
+  metricGroups({ ...view()?.facts }).flatMap((g) => g.cells.flatMap((c) => c.filter((s) => s.tone === "label").map((s) => s.text.trim()))),
 );
 const missing = [...cells].filter((c) => !explained.has(c));
 expect(`every indicator on the line is explained (${missing.join(" ") || "all"})`, cells.size >= 15 && missing.length === 0);
-expect("the ~ , — and bright markers are explained too", explained.has("~") && explained.has("—") && explained.has("bright"));
+expect("the — and bright markers are explained too", explained.has("—") && explained.has("bright"));
 
 await handlers.get("cmd:llama-dx")("reset", ctx);
 expect("reset zeroes the counter", notes.at(-1)?.includes("cleared"));
