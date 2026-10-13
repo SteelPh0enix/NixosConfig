@@ -28,9 +28,17 @@ to (e.g. `theme shell`); `--all` also handles the ASK list below.
 - The GUI stores floats as float32, so the state file carries artifacts such as
   `corner_radius_scale = 0.70000001043081284`. Declare the clean decimal (`0.7`); that leaf then
   stays in every `comm` output as an accepted leftover and its section may still be deleted.
+- **Cap anything that walks the config.** Recursion in a jq helper must descend `.value`, never the
+  `{key,value}` entry a `map()` hands it — descend that and the tree doubles every level. A runaway
+  does not die quietly either: this harness runs inside the Hyprland session cgroup
+  (`wayland-wm@hyprland.desktop.service`), so the OOM killer looks for victims *there* and takes the
+  desktop down (one bad `jq`: 28GB RSS, session killed, twice). Wrap it: `( ulimit -v 2000000; jq ... )`.
+  A 6KB config needs a few MB. Better still, hand-write the Nix from the state file: the edit tool
+  starts no process.
 - ASK list, migrate only with `--all` or explicit confirmation: `lockscreen_widgets`,
   `desktop_widgets` — editor-generated per-output geometry (`cx`, `cy`, `box_*`, `placement_*`,
-  `output`, `widget_order`) that is meaningless on other hardware.
+  `output`, `widget_order`) that is meaningless on other hardware. Both are declared here now, so
+  they resurface as drift only when someone drags a widget in the editor.
 - Ask before `nh os switch`; it restarts the shell session's bar and applies the *whole* working
   tree, so list the unrelated `git status` edits it would drag along (kernel params need a reboot).
   Never run it unattended.
@@ -43,12 +51,19 @@ REPO=$HOME/nixos-config
 MODULE=$REPO/home-manager/hyprland/noctalia.nix
 STATE=$HOME/.local/state/noctalia/settings.toml
 YQ="nix run nixpkgs#yq-go --"
-W=$(mktemp -d)
+export LC_ALL=C            # sort here and comm below must agree, or comm rejects its own input
+W=$(mktemp -d); echo "$W" > /tmp/noctalia-W
 # TOML file -> sorted "dotted.path = <json value>" lines
 # NOT paths(scalars): jq truthiness drops every `false`/`null` leaf, hiding real overrides
 # (`dock.reserve_space = false` and friends vanish from both diffs).
-leaves() { $YQ -ftoml -ojson . "$1" 2>/dev/null | jq -rS 'paths(type != "array" and type != "object") as $p | ($p|join(".")) + " = " + (getpath($p)|tojson)' | sort; }
+leaves() { $YQ -ftoml -ojson . "$1" 2>/dev/null | ( ulimit -v 2000000; jq -rS 'paths(type != "array" and type != "object") as $p | ($p|join(".")) + " = " + (getpath($p)|tojson)' | sort ); }
 ```
+
+`$W` is tmpfs and a reboot clears it mid-run: recover it from `/tmp/noctalia-W`, and remember the
+module edit is the only durable artifact — regenerate `$W/new.toml` from the module after a restart.
+Other traps: NixOS has no `/bin/bash` (script files need `#!/run/current-system/sw/bin/bash`), and jq
+treats a positional filter as a filename (`jq -c '.x' f.json | jq -r -f prog.jq`, never `jq -r -f
+prog.jq '.x' f.json` — it reports a missing file and the pipeline yields nothing at all).
 
 Prerequisites: the shell must be running for `noctalia config export` — use
 `systemctl --user is-active noctalia`; `pgrep -x noctalia` does NOT match it. `$STATE` may be absent,
@@ -81,7 +96,18 @@ reorder or reformat unrelated entries; keep the file's existing comment style an
 only where the value is non-obvious — and verify it before writing one: `noctalia` has no schema dump,
 so semantics come from upstream `example.toml`
 (<https://raw.githubusercontent.com/noctalia-dev/noctalia/main/example.toml>, has inline comments for
-most keys) and docs.noctalia.dev. Guessing a comment is worse than none.
+most keys) and docs.noctalia.dev. Guessing a comment is worse than none. The docs lag the shell, so
+they are not a filter either: `widget.media.show_progress` appears in no `example.toml` or docs table
+yet validates clean on 5.2.1 — drop a key only on a real `WARN unknown setting`.
+
+The editor sections are long but mechanical: a widget is keyed by its id, so an id with `@` needs
+quoting (`"lockscreen-login-box@DP-1" = { … };`), its `settings` is a nested attrset, and `widget_order`
+must keep its exact order (it is the z-order) while everything else may be alphabetical.
+
+Then lint the module: `nix run nixpkgs#nixfmt -- --check $MODULE` (this flake exports no formatter, so
+`nix fmt` errors out) plus `statix` and `deadnix`, which must stay at 0 warnings — a run of dotted keys
+in one attrset (`settings.stat = …; settings.stat2 = …;`) trips "Avoid repeated keys in attribute sets",
+so write `settings = { stat = …; stat2 = …; };`.
 
 ## 3. Validate before switching
 
@@ -102,7 +128,9 @@ any moment, so it is never a snapshot.
 
 ## 4. Apply
 
-Ask the user, then `sudo nh os switch "$REPO"`. Confirm the switch landed before touching state:
+Ask the user, then `sudo nh os switch "$REPO"`. Most users would rather run the sudo step themselves:
+if so, stop after step 3 and hand over that command, the check below and the step 5 commands, then
+finish 4–6 once they say it landed. Confirm the switch landed before touching state:
 
 ```bash
 diff "$(readlink -f ~/.config/noctalia/config.toml)" "$W/new.toml" && echo DECLARATIVE-LAYER-OK

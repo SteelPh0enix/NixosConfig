@@ -137,8 +137,17 @@
         start = [
           "launcher"
           "workspaces"
+          "cpu"
+          "ram"
+          "network_rx"
+          "network_tx"
+          "temp"
+          "weather"
         ];
-        center = [ "clock" ];
+        center = [
+          "clock"
+          "file-search"
+        ];
         # upstream's default lane minus battery (this is a desktop) and the wallpaper picker
         end = [
           "media"
@@ -149,8 +158,242 @@
           "bluetooth"
           "volume"
           "brightness"
+          "power_profile"
           "control-center"
           "session"
+        ];
+      };
+
+      widget.media = {
+        hide_when_no_media = true; # drop the widget while no MPRIS player is active
+        show_progress = true;
+        title_scroll = "always"; # none | always | on_hover
+      };
+
+      # A plugin widget has no built-in type name: the bar lane says "file-search", the plugin
+      # declares it as "<plugin id>:<widget id>" (see plugins.enabled).
+      widget.file-search.type = "nightwatch75/file-search:file-search";
+
+      # Widget-editor layouts (SUPER+comma -> Desktop / Lock screen). Geometry is absolute and
+      # per-output: cx/cy/box_* sit inside a placement_width x placement_height rect on a named
+      # connector, so this block describes THIS monitor setup (2560x1440 on DP-1) rather than a
+      # portable preference - moving the panels means redoing it in the editor, not on another host.
+      # schema_version is the editor's own stamp.
+      desktop_widgets = {
+        grid = {
+          cell_size = 16;
+          major_interval = 4;
+          visible = true;
+        };
+        schema_version = 2;
+        widget = {
+          # top-left clock
+          desktop-widget-0000000000000001 = {
+            box_height = 128.0;
+            box_width = 240.0;
+            cx = 176.0;
+            cy = 128.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            type = "clock";
+          };
+          # zero-size until the editor gives it one; calendar below the clock
+          desktop-widget-0000000000000002 = {
+            box_height = 0.0;
+            box_width = 0.0;
+            cx = 364.0;
+            cy = 413.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            type = "calendar";
+          };
+          desktop-widget-0000000000000003 = {
+            box_height = 144.0;
+            box_width = 608.0;
+            cx = 368.0;
+            cy = 712.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              bands = 32;
+              show_when_idle = true;
+            };
+            type = "audio_visualizer";
+          };
+          desktop-widget-0000000000000004 = {
+            box_height = 160.0;
+            box_width = 256.0;
+            cx = 2368.0;
+            cy = 160.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              stat = "cpu_usage";
+              stat2 = "cpu_temp";
+            };
+            type = "sysmon";
+          };
+          desktop-widget-0000000000000005 = {
+            box_height = 160.0;
+            box_width = 256.0;
+            cx = 2112.0;
+            cy = 160.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              stat = "gpu_usage";
+              stat2 = "gpu_temp";
+            };
+            type = "sysmon";
+          };
+          desktop-widget-0000000000000006 = {
+            box_height = 160.0;
+            box_width = 256.0;
+            cx = 2368.0;
+            cy = 336.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              display = "graph";
+              stat = "ram_pct";
+              stat2 = "swap_pct";
+            };
+            type = "sysmon";
+          };
+          # the wired link, hence the hardcoded interface name
+          desktop-widget-0000000000000007 = {
+            box_height = 160.0;
+            box_width = 256.0;
+            cx = 2112.0;
+            cy = 336.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              interface = "enp38s0";
+              stat = "net_rx";
+              stat2 = "net_tx";
+            };
+            type = "sysmon";
+          };
+          desktop-widget-0000000000000008 = {
+            box_height = 128.0;
+            box_width = 352.0;
+            cx = 496.0;
+            cy = 128.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            type = "volume";
+          };
+          desktop-widget-0000000000000009 = {
+            box_height = 112.0;
+            box_width = 512.0;
+            cx = 2240.0;
+            cy = 480.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            type = "weather";
+          };
+        };
+        widget_order = [
+          "desktop-widget-0000000000000001"
+          "desktop-widget-0000000000000002"
+          "desktop-widget-0000000000000003"
+          "desktop-widget-0000000000000004"
+          "desktop-widget-0000000000000005"
+          "desktop-widget-0000000000000006"
+          "desktop-widget-0000000000000007"
+          "desktop-widget-0000000000000008"
+          "desktop-widget-0000000000000009"
+        ];
+      };
+
+      # A login box on every connected panel. enabled = false keeps the editor layout parked:
+      # the lock screen itself is [lockscreen], driven by SUPER+L.
+      lockscreen_widgets = {
+        enabled = false;
+        grid = {
+          cell_size = 16;
+          major_interval = 4;
+          visible = true;
+        };
+        schema_version = 2;
+        widget = {
+          "lockscreen-login-box@DP-1" = {
+            box_height = 196.0;
+            box_width = 810.0;
+            cx = 1280.0;
+            cy = 1258.0;
+            output = "DP-1";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              background_color = "surface_variant";
+              background_opacity = 0.88;
+              background_radius = 12.0;
+              center_password_text = false;
+              input_opacity = 1.0;
+              input_radius = 6.0;
+              layout = "regular";
+              show_caps_lock = true;
+              show_keyboard_layout = true;
+              show_login_button = true;
+              show_media = true;
+              show_session_buttons = true;
+              show_unlock_hint = true;
+              show_weather = true;
+            };
+            type = "login_box";
+          };
+          "lockscreen-login-box@DP-2" = {
+            box_height = 196.0;
+            box_width = 810.0;
+            cx = 1280.0;
+            cy = 1258.0;
+            output = "DP-2";
+            placement_height = 1440.0;
+            placement_width = 2560.0;
+            rotation = 0.0;
+            settings = {
+              background_color = "surface_variant";
+              background_opacity = 0.88;
+              background_radius = 12.0;
+              center_password_text = false;
+              input_opacity = 1.0;
+              input_radius = 6.0;
+              layout = "regular";
+              show_caps_lock = true;
+              show_keyboard_layout = true;
+              show_login_button = true;
+              show_media = true;
+              show_session_buttons = true;
+              show_unlock_hint = true;
+              show_weather = true;
+            };
+            type = "login_box";
+          };
+        };
+        widget_order = [
+          "lockscreen-login-box@DP-2"
+          "lockscreen-login-box@DP-1"
         ];
       };
 
