@@ -16,9 +16,8 @@
 # Flags mirror /mnt/NVMe/LLMs/llm-router-rocm-docker-compose.yml, which is the manual
 # A/B path. Change one, change the other.
 #
-# Two locks keep llama-server-vulkan off: its module is not imported (nixos/services/default.nix)
-# and its unit is gated on settings.llamaBackend. To go back: uncomment that import and set
-# settings.llamaBackend = "vulkan".
+# Only one engine may hold the router port, so this unit is gated on settings.llamaBackend; the
+# Vulkan module in nixos/services/llama-server-vulkan is gated the same way.
 #
 # Do NOT disable a unit from another module with `wantedBy = lib.mkForce [ ]`. The unit still gets
 # linked, empty, and pid1 then logs "Service has no ExecStart=, ExecStop=, or SuccessAction.

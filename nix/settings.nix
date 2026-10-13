@@ -32,7 +32,8 @@ rec {
   llamaRouterPort = 51536;
   # Which engine owns the router port: "rocm" (the gfx1100 toolbox container) or
   # "vulkan" (the llama-cpp package). Both units stay configured; the other one is off.
-  llamaBackend = "rocm";
+  # ROCm is on hold - the gfx1100 toolbox container kept crashing the router.
+  llamaBackend = "vulkan";
   # Unit that owns the router port; the log viewer tails it.
   llamaRouterService = "llama-server-${llamaBackend}";
   llamaLogsPort = 51580;
