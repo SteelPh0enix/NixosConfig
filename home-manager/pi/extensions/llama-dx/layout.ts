@@ -48,19 +48,18 @@ const ZONE: Record<Load, { held: Tone; percent: Tone }> = {
 
 export const fmtMs = (ms: number): string => (ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`);
 
-type Style = { estimated?: boolean; live?: boolean; tone?: Tone };
+type Style = { live?: boolean; tone?: Tone };
 
 const lab = (t: string): Segment => ({ text: t, tone: "label" });
 
-const str = (t: string, s: Style = {}): Segment => ({ text: t, tone: s.estimated ? "warn" : s.live ? "live" : (s.tone ?? "value") });
+const str = (t: string, s: Style = {}): Segment => ({ text: t, tone: s.live ? "live" : (s.tone ?? "value") });
 
 /** Right-align, but keep an unknown value short: `—`, not five spaces and a dash. */
 const pad = (s: string, width: number): string => (s === "—" ? " —" : s.padStart(width));
 
 const num = (v: number | undefined, width: number, s: Style = {}): Segment => {
   const body = v === undefined || !Number.isFinite(v) ? "—" : short(v);
-  if (body === "—") return str(" —", s); // nothing to mark as estimated
-  return str(s.estimated ? `~${body}`.padStart(width) : pad(body, width), s);
+  return str(body === "—" ? " —" : pad(body, width), s);
 };
 
 /** How much of one cell each band covers, 0 to 1. A band that covers none of it is 0 and never claims the cell. */
@@ -126,13 +125,12 @@ export function contextBar(s: BarState, l: Load = "normal"): Segment[] {
 
 /** Everything the metrics line can show; absent fields render as `—`, absent groups are left out. */
 export type Facts = {
-  live?: "prefill" | "decode" | "idle" | "done";
+  live?: "prefill" | "decode" | "idle" | "done" | "compact";
+  /** Set while pi is compacting: the reason, the context being rewritten, and how long it has been at it. */
+  compacting?: { reason: string; tokensBefore: number; elapsed: number };
   pp?: number;
-  ppEstimated?: boolean;
   tg?: number;
-  tgEstimated?: boolean;
   prompt?: number;
-  promptEstimated?: boolean;
   eval?: number;
   /** Prefill progress: of the tokens this request has to evaluate, how many are evaluated already. */
   pfDone?: number;
@@ -155,8 +153,6 @@ export type Facts = {
   host?: string;
   slotId?: number;
   nTokensMax?: number;
-  charsPerToken?: number;
-  exactTimings?: boolean;
 };
 
 const rate = (accepted?: number, drafted?: number): string => (drafted ? `${Math.round(((accepted ?? 0) / drafted) * 100)}%` : "—");
@@ -164,9 +160,9 @@ const pair = (a?: number, b?: number): string => (a === undefined || b === undef
 const quiet = (s: string): Segment => str(s, { tone: "dim" });
 
 /** Prefill progress in the same three significant digits as the percent of the context bar; `—` when nothing has to be evaluated. */
-const progress = (done: number | undefined, target: number, estimated?: boolean): Segment => {
+const progress = (done: number | undefined, target: number): Segment => {
   if (done === undefined || !(target > 0)) return str(pad("—", 7));
-  return str((estimated ? `~${percent(done, target)}` : percent(done, target)).padStart(7), { estimated });
+  return str(percent(done, target).padStart(7));
 };
 
 /**
@@ -177,14 +173,14 @@ export function metricGroups(f: Facts): Group[] {
   const groups: Group[] = [
     {
       name: "throughput",
-      cells: [[lab("pp"), num(f.pp, 5, { estimated: f.ppEstimated, live: f.live === "prefill" }), lab(" tg"), num(f.tg, 4, { estimated: f.tgEstimated, live: f.live === "decode" }), lab(" t/s")]],
+      cells: [[lab("pp"), num(f.pp, 5, { live: f.live === "prefill" }), lab(" tg"), num(f.tg, 4, { live: f.live === "decode" }), lab(" t/s")]],
     },
     {
       name: "this request",
       cells: [
-        [lab("fp"), num(f.prompt, 6, { estimated: f.promptEstimated })],
+        [lab("fp"), num(f.prompt, 6)],
         [lab("ev"), num(f.eval, 6, { live: f.live === "prefill" })],
-        [lab("pf"), progress(f.pfDone, f.pfTarget ?? 0, f.pfDone !== undefined && f.promptEstimated)],
+        [lab("pf"), progress(f.pfDone, f.pfTarget ?? 0)],
         [lab("re"), num(f.reuse, 6)],
         [lab("out"), num(f.out, 5, { live: f.live === "decode" })],
       ],
@@ -223,11 +219,16 @@ export function metricGroups(f: Facts): Group[] {
         [lab("@"), quiet(f.host ?? "—")],
         [lab("#"), quiet(pad(pair(f.slotId, f.slots), 4))],
         [lab("max"), num(f.nTokensMax, 6)],
-        [quiet(`${(f.charsPerToken ?? 0).toFixed(1)}c/t`)],
-        [lab(f.exactTimings ? "exact" : "fitted")],
       ],
     });
   }
+  // A compaction has no timings of its own - its summarizer bypasses the request pipeline - so it leads the line
+  // with the only progress there is: the reason, the context being rewritten, and the elapsed time.
+  if (f.compacting)
+    groups.unshift({
+      name: "compaction",
+      cells: [[{ text: "compact", tone: "warn" }, { text: ` ${f.compacting.reason}`, tone: "dim" }, { text: " before ", tone: "label" }, { text: short(f.compacting.tokensBefore), tone: "value" }, { text: `  ${fmtMs(f.compacting.elapsed)}`, tone: "live" }]],
+    });
   return groups.filter((g) => g.cells.length > 0);
 }
 

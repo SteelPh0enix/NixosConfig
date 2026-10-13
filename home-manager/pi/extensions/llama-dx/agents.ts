@@ -4,7 +4,7 @@
 // whenever one of them starts, moves or finishes. This keeps the last snapshot and composes the row out of it. Like
 // layout.ts it imports nothing at runtime, so test-utils/preview.mjs can render it without pi.
 
-import { cut, metricsLine, type Cell, type Group, type Segment } from "./layout.ts";
+import { cut, fmtMs, load, metricsLine, short, type Cell, type Group, type Load, type Segment, type Tone } from "./layout.ts";
 
 /** What `subagents:status` reports for one task — only the fields this row shows. */
 export type Agent = {
@@ -21,12 +21,24 @@ export type Agent = {
   retry?: string;
   error?: string;
   slot?: { index: number; total: number };
+  /** The tool it is on right now, and how long it had been on it when the snapshot was taken. */
+  tool?: { name: string; summary: string; elapsed: number };
+  /** Tokens its model produced; `generatedLive` while the turn is still decoding and the figure is an estimate. */
+  generated?: number;
+  generatedLive?: boolean;
+  /** pi's estimate of what the task's model holds, its window, and the percentage. */
+  contextTokens?: number | null;
+  contextWindow?: number;
+  contextPercent?: number | null;
 };
 
 /** Silence this long gets a colour of its own: the model of that task has stopped answering. */
 const IDLE_MS = 15_000;
 /** What a task is doing is told in this many columns; the row never spends more on it than that. */
 const ACTIVITY_COLS = 34;
+
+/** The context cell's colour, the same thresholds the llama.cpp bar holds to. */
+const CTX_TONE: Record<Load, Tone> = { normal: "dim", warn: "warn", error: "error" };
 
 let snapshot: { tasks: Agent[]; at: number } | undefined;
 
@@ -50,7 +62,33 @@ const age = (ms: number): string => {
   return m < 60 ? `${m}m${String(s % 60).padStart(2, "0")}s` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}m`;
 };
 
-/** One task: who it is, how long it has run, and what it is busy with. */
+/** What the task is on: the tool it runs right now with a live timer, else what it last did, else its state. */
+const nowCell = (task: Agent, since: number): Cell => {
+  if (task.state !== "running") return [{ text: task.state.toLowerCase(), tone: "dim" }];
+  if (task.error) return [{ text: cut(task.error, ACTIVITY_COLS), tone: "error" }];
+  if (task.retry) return [{ text: `retrying ${task.retry}`, tone: "warn" }];
+  if (task.tool) {
+    const what = task.tool.summary ? `${task.tool.name}: ${task.tool.summary}` : task.tool.name;
+    return [{ text: cut(what, ACTIVITY_COLS), tone: "dim" }, { text: ` (${fmtMs(task.tool.elapsed + since)})`, tone: "live" }];
+  }
+  return task.lastActivity ? [{ text: cut(task.lastActivity, ACTIVITY_COLS), tone: "dim" }] : [];
+};
+
+/** What its model produced, with `~` while that figure is the in-flight estimate rather than the model's own. */
+const outCell = (task: Agent): Cell =>
+  task.generated
+    ? [{ text: "out", tone: "label" }, { text: `${task.generatedLive ? " ~" : " "}${short(task.generated)}`, tone: task.generatedLive ? "live" : "value" }]
+    : [];
+
+/** How full the task's own context is: `ctx 41k/262k`, `ctx ?/262k` before pi can estimate it. */
+const ctxCell = (task: Agent): Cell => {
+  if (!task.contextWindow) return [];
+  const used = task.contextTokens;
+  const known = used !== null && used !== undefined;
+  return [{ text: "ctx", tone: "label" }, { text: ` ${known ? `${short(used)}/${short(task.contextWindow)}` : `?/${short(task.contextWindow)}`}`, tone: known ? CTX_TONE[load(used, task.contextWindow)] : "dim" }];
+};
+
+/** One task: who it is, how long it has run, what it is busy with, and what its model has done with its context. */
 const agentCells = (task: Agent, since: number): Cell[] => {
   const idle = task.idle === undefined ? undefined : task.idle + since;
   const who: Cell = [{ text: task.id, tone: "ident" }, { text: ` ${task.name}`, tone: "value" }];
@@ -58,16 +96,7 @@ const agentCells = (task: Agent, since: number): Cell[] => {
   const running = task.state === "running";
   const timing: Cell = [{ text: age(task.elapsed + since), tone: running ? "live" : "dim" }];
   if (idle !== undefined && idle >= IDLE_MS) timing.push({ text: ` idle ${age(idle)}`, tone: "warn" });
-  const now: Cell = !running
-    ? [{ text: task.state.toLowerCase(), tone: "dim" }]
-    : task.error
-      ? [{ text: cut(task.error, ACTIVITY_COLS), tone: "error" }]
-      : task.retry
-        ? [{ text: `retrying ${task.retry}`, tone: "warn" }]
-        : task.lastActivity
-          ? [{ text: cut(task.lastActivity, ACTIVITY_COLS), tone: "dim" }]
-          : [];
-  return [who, timing, now].filter((cell) => cell.length > 0);
+  return [who, timing, nowCell(task, since), outCell(task), ctxCell(task)].filter((cell) => cell.length > 0);
 };
 
 /**

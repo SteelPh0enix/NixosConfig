@@ -4,6 +4,15 @@
 
 export type TaskState = "running" | "done" | "failed" | "killed";
 
+/** One finished tool call, for the `read 0.3s · edit 1.1s` breadcrumb. */
+export interface ToolCall {
+  name: string;
+  /** One-line argument summary (the path, the command); empty when there is nothing worth quoting. */
+  summary: string;
+  durationMs: number;
+  isError: boolean;
+}
+
 export interface TaskRecord {
   id: string;
   name: string;
@@ -16,6 +25,10 @@ export interface TaskRecord {
   /** Last thing the subagent did, for the status bar and `/subagents <id>`. */
   lastActivity: string;
   lastActivityAt: number;
+  /** The tool call running right now, if any, with when it started so its timer can climb. */
+  currentTool?: { name: string; summary: string; startedAt: number };
+  /** The last few finished tool calls, newest last, for the breadcrumb. */
+  recentTools?: ToolCall[];
   /** Assistant turns finished so far: 0 with a long elapsed time means it never got an answer. */
   turns: number;
   /** Set while pi is retrying a failed model call, e.g. "2/5 after 40s". */
@@ -84,6 +97,10 @@ export interface TaskSummary {
   contextWindow?: number;
   contextPercent?: number | null;
   lastActivity: string;
+  /** The tool running right now, with how long it has been running; only while one is. */
+  tool?: { name: string; summary: string; elapsed: number };
+  /** The last few finished tool calls, newest last. */
+  recentTools: ToolCall[];
   retry?: string;
   error?: string;
   /** Tail of the output, for the `/subagents <id>` detail view and result blocks. */
@@ -104,10 +121,23 @@ export const RECENT_OUTPUT_LIMIT = 2000;
 /** Idle a running task may sit silent for before the status line says so. */
 export const IDLE_AFTER_MS = 15_000;
 
+/** How many finished tool calls the breadcrumb keeps. */
+export const RECENT_TOOLS_LIMIT = 4;
+
 /** Collapse to one line and cut to `limit`, for activity text, errors and rendered output. */
 export function oneLine(value: string, limit: number): string {
   const text = value.replace(/\s+/g, " ").trim();
   return text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text;
+}
+
+/**
+ * A tool's own duration, as `0.3s` / `4.2s` / `1m02s`. `formatElapsed` floors to whole seconds, which loses every
+ * sub-second tool call.
+ */
+export function formatDuration(ms: number): string {
+  const seconds = Math.max(0, ms) / 1000;
+  if (seconds < 60) return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
+  return `${Math.floor(seconds / 60)}m${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
 }
 
 /** Tokens of the turn being decoded right now, counted off the stream; 0 once the turn has ended. */
@@ -133,19 +163,27 @@ export function withTimeout(pending: Promise<unknown>, ms: number): Promise<bool
  * the main agent must not end up waiting for it. A task that does not settle is marked killed anyway and hands its
  * group slots back, so the abandoned runner cannot hold a group while it finishes on its own. A record with no
  * runner is marked killed the same way: a task nothing drives any more is not a running task.
+ *
+ * A task that settles is queued by its own runner; one that does not has nobody else to do it, so the kill queues it
+ * through `registry` (when one is given). Otherwise a timed-out kill leaves a task that `subagent_wait` can never
+ * deliver — exactly the case the timeout exists for.
  */
-export async function killRecord(record: TaskRecord, timeoutMs: number): Promise<boolean> {
+export async function killRecord(record: TaskRecord, timeoutMs: number, registry?: TaskRegistry): Promise<boolean> {
   if (record.state !== "running") return true;
   const runner = record.runner;
   if (!runner) {
     markKilled(record);
+    registry?.markFinished(record.id);
     return true;
   }
   // A failed abort is not worth an error of its own: the timeout still ends the kill and the lease TTL frees the group.
   void runner.abort().catch(() => {});
   const settled = await withTimeout(runner.done(), timeoutMs);
   markKilled(record);
-  if (!settled) runner.releaseLeases();
+  if (!settled) {
+    runner.releaseLeases();
+    registry?.markFinished(record.id);
+  }
   return settled;
 }
 
@@ -180,6 +218,10 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
     contextWindow: record.context?.contextWindow,
     contextPercent: record.context?.percent,
     lastActivity: record.lastActivity,
+    tool: record.currentTool
+      ? { name: record.currentTool.name, summary: record.currentTool.summary, elapsed: Math.max(0, now - record.currentTool.startedAt) }
+      : undefined,
+    recentTools: record.recentTools ?? [],
     retry: record.retry,
     error: record.error,
     recentOutput: record.recentOutput.slice(-SUMMARY_OUTPUT_LIMIT),

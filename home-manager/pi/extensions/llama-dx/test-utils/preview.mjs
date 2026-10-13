@@ -47,12 +47,13 @@ const MODEL = "qwen3-coder-27b";
 const TOTAL = 262144;
 
 const SCENARIOS = [
-  { name: "idle", facts: { live: "idle", pp: 658, tg: 59, prompt: 8400, eval: 1800, pfDone: 1800, pfTarget: 1800, reuse: 6600, out: 21, reqs: 2, sessionIn: 10200, sessionOut: 80, cacheRead: 3500, queue: 0, processing: 0, slots: 1, busy: 1, specAccepted: 13, specDrafted: 21, specLifeAccepted: 1240, specLifeDrafted: 1430, ttft: 10100, host: "fwpc:33333", slotId: 0, nTokensMax: 12300, charsPerToken: 3.9, exactTimings: true }, used: 8400, evaluating: 0, pending: 0, generating: 0 },
-  { name: "prefilling", facts: { live: "prefill", pp: 712, ppEstimated: true, tg: 58, tgEstimated: true, prompt: 15200, promptEstimated: true, eval: 3300, pfDone: 3300, pfTarget: 6600, reuse: 8600, out: 0, reqs: 3, sessionIn: 25400, sessionOut: 260, cacheRead: 12800, queue: 0, processing: 1, slots: 1, busy: 1, specAccepted: 22, specDrafted: 35, specLifeAccepted: 1262, specLifeDrafted: 1465, host: "fwpc:33333", slotId: 0, nTokensMax: 12300, charsPerToken: 3.9, exactTimings: false }, used: 8400, evaluating: 3300, pending: 3300, generating: 0 },
-  { name: "decoding", facts: { live: "decode", pp: 640, tg: 57.8, prompt: 15200, eval: 6600, pfDone: 6600, pfTarget: 6600, reuse: 8600, out: 340, reqs: 3, sessionIn: 25400, sessionOut: 600, cacheRead: 12800, queue: 1, processing: 2, slots: 2, busy: 1.6, specAccepted: 190, specDrafted: 340, specLifeAccepted: 1452, specLifeDrafted: 1805, ttft: 8100, host: "fwpc:33333", slotId: 1, nTokensMax: 15900, charsPerToken: 3.9, exactTimings: true }, used: 8400, evaluating: 6600, pending: 0, generating: 340 },
-  { name: "near full", facts: { live: "decode", pp: 412, tg: 41, prompt: 240000, eval: 12000, pfDone: 12000, pfTarget: 12000, reuse: 228000, out: 6200, reqs: 41, sessionIn: 1200000, sessionOut: 41000, cacheRead: 998000, queue: 3, processing: 2, slots: 2, busy: 2, specAccepted: 900, specDrafted: 3100, specLifeAccepted: 9000, specLifeDrafted: 12000, ttft: 412000, host: "pc:51536", slotId: 1, nTokensMax: 262000, charsPerToken: 4.1, exactTimings: true }, used: 238000, evaluating: 12000, pending: 0, generating: 6200 },
-  { name: "just compacted", facts: { live: "prefill", pp: 588, ppEstimated: true, tg: 60, tgEstimated: true, prompt: 42000, promptEstimated: true, eval: 34000, pfDone: 34000, pfTarget: 42000, reuse: 0, out: 0, reqs: 42, sessionIn: 1240000, sessionOut: 47000, cacheRead: 1010000, queue: 0, processing: 1, slots: 1, busy: 1, specAccepted: 4, specDrafted: 9, specLifeAccepted: 9004, specLifeDrafted: 12009, host: "pc:51536", slotId: 0, nTokensMax: 262000, charsPerToken: 4.1, exactTimings: false }, used: null, evaluating: 34000, pending: 8000, generating: 0 },
-  { name: "no --metrics", facts: { live: "decode", pp: 658, tg: 59, prompt: 8400, eval: 1800, pfDone: 1800, pfTarget: 1800, reuse: 6600, out: 96, reqs: 4, sessionIn: 34000, sessionOut: 900, cacheRead: 21000, processing: 1, slots: 1, busy: 1, ttft: 900, host: "fwpc:33333", slotId: 0, nTokensMax: 9600, charsPerToken: 3.9, exactTimings: true }, used: 8400, evaluating: 0, pending: 0, generating: 96 },
+  { name: "idle", facts: { live: "idle", pp: 658, tg: 59, prompt: 8400, eval: 1800, pfDone: 1800, pfTarget: 1800, reuse: 6600, out: 21, reqs: 2, sessionIn: 10200, sessionOut: 80, cacheRead: 3500, queue: 0, processing: 0, slots: 1, busy: 1, specAccepted: 13, specDrafted: 21, specLifeAccepted: 1240, specLifeDrafted: 1430, ttft: 10100, host: "fwpc:33333", slotId: 0, nTokensMax: 12300 }, used: 8400, evaluating: 0, pending: 0, generating: 0 },
+  { name: "prefilling", facts: { live: "prefill", pp: 712, tg: 58, prompt: 15200, eval: 3300, pfDone: 3300, pfTarget: 6600, reuse: 8600, out: 0, reqs: 3, sessionIn: 25400, sessionOut: 260, cacheRead: 12800, queue: 0, processing: 1, slots: 1, busy: 1, specAccepted: 22, specDrafted: 35, specLifeAccepted: 1262, specLifeDrafted: 1465, host: "fwpc:33333", slotId: 0, nTokensMax: 12300 }, used: 8400, evaluating: 3300, pending: 3300, generating: 0 },
+  { name: "decoding", facts: { live: "decode", pp: 640, tg: 57.8, prompt: 15200, eval: 6600, pfDone: 6600, pfTarget: 6600, reuse: 8600, out: 340, reqs: 3, sessionIn: 25400, sessionOut: 600, cacheRead: 12800, queue: 1, processing: 2, slots: 2, busy: 1.6, specAccepted: 190, specDrafted: 340, specLifeAccepted: 1452, specLifeDrafted: 1805, ttft: 8100, host: "fwpc:33333", slotId: 1, nTokensMax: 15900 }, used: 8400, evaluating: 6600, pending: 0, generating: 340 },
+  { name: "near full", facts: { live: "decode", pp: 412, tg: 41, prompt: 240000, eval: 12000, pfDone: 12000, pfTarget: 12000, reuse: 228000, out: 6200, reqs: 41, sessionIn: 1200000, sessionOut: 41000, cacheRead: 998000, queue: 3, processing: 2, slots: 2, busy: 2, specAccepted: 900, specDrafted: 3100, specLifeAccepted: 9000, specLifeDrafted: 12000, ttft: 412000, host: "pc:51536", slotId: 1, nTokensMax: 262000 }, used: 238000, evaluating: 12000, pending: 0, generating: 6200 },
+  { name: "just compacted", facts: { live: "prefill", pp: 588, tg: 60, prompt: 42000, eval: 34000, pfDone: 34000, pfTarget: 42000, reuse: 0, out: 0, reqs: 42, sessionIn: 1240000, sessionOut: 47000, cacheRead: 1010000, queue: 0, processing: 1, slots: 1, busy: 1, specAccepted: 4, specDrafted: 9, specLifeAccepted: 9004, specLifeDrafted: 12009, host: "pc:51536", slotId: 0, nTokensMax: 262000 }, used: null, evaluating: 34000, pending: 8000, generating: 0 },
+  { name: "no --metrics", facts: { live: "decode", pp: 658, tg: 59, prompt: 8400, eval: 1800, pfDone: 1800, pfTarget: 1800, reuse: 6600, out: 96, reqs: 4, sessionIn: 34000, sessionOut: 900, cacheRead: 21000, processing: 1, slots: 1, busy: 1, ttft: 900, host: "fwpc:33333", slotId: 0, nTokensMax: 9600 }, used: 8400, evaluating: 0, pending: 0, generating: 96 },
+  { name: "compacting", facts: { live: "compact", compacting: { reason: "threshold", tokensBefore: 198000, elapsed: 12400 }, reqs: 7, sessionIn: 1200000, sessionOut: 41000, cacheRead: 998000, host: "pc:51536", nTokensMax: 262000 }, used: 198000, evaluating: 0, pending: 0, generating: 0 },
 ];
 
 const argv = process.argv.slice(2);
@@ -169,15 +170,14 @@ if (argv.includes("--demo")) {
     console.log(fill(lineOf(s, width), width));
   }
 
-  if (!plain) console.log(`\n${KEY}   ~ = not llama.cpp's own number`);
   process.exit(0);
 }
 
 if (argv.includes("--agents"))
   noteAgents({
     tasks: [
-      { id: "task-1", name: "researcher", state: "running", elapsed: 12_000, idle: 1_000, lastActivity: "bash: nix flake check" },
-      { id: "task-2", name: "coder", state: "running", elapsed: 192_000, idle: 90_000, lastActivity: "edit home-manager/pi/subagents/ui.ts", slot: { index: 2, total: 2 } },
+      { id: "task-1", name: "researcher", state: "running", elapsed: 12_000, idle: 1_000, tool: { name: "bash", summary: "nix flake check", elapsed: 4_200 }, generated: 1_240, generatedLive: true, contextTokens: 41_200, contextWindow: 262_144, contextPercent: 15.7 },
+      { id: "task-2", name: "coder", state: "running", elapsed: 192_000, idle: 90_000, lastActivity: "edit home-manager/pi/subagents/ui.ts", slot: { index: 2, total: 2 }, generated: 18_400, contextTokens: 190_000, contextWindow: 262_144, contextPercent: 72.5 },
       { id: "task-3", name: "reviewer", state: "running", elapsed: 41_000, idle: 2_000, retry: "2/5 after 40s" },
     ],
   });
@@ -191,4 +191,3 @@ for (const width of widths) {
     console.log(`${"".padEnd(15)}${fill(lineOf(s, width), width)}`);
   }
 }
-if (!plain) console.log(`\n${KEY}   ~ = not llama.cpp's own number`);

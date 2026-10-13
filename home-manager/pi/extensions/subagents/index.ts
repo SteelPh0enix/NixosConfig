@@ -26,6 +26,7 @@ import { IDLE_AFTER_MS, killRecord, TaskRegistry, toSummary, type TaskRecord } f
 import { SubagentTask } from "./task.ts";
 import { LeaseStore, type LeaseRequest, type AcquireResult } from "./store.ts";
 import {
+  activityLine,
   emitStatus,
   formatElapsed,
   formatTokenStats,
@@ -41,6 +42,7 @@ import {
   renderKillCall,
   renderKillResult,
   tailLines,
+  toolBreadcrumb,
   type SpawnDetails,
   type StatusDetails,
   type WaitDetails,
@@ -75,8 +77,7 @@ function isPidAlive(pid: number): boolean {
 interface SpawnParams {
   name: string;
   task: string;
-  session?: string;
-  save_session?: boolean;
+  session: string;
   workdir?: boolean;
 }
 
@@ -138,7 +139,8 @@ export default function subagents(pi: ExtensionAPI): void {
     const summary = toSummary(record);
     const idle = summary.idle !== undefined && summary.idle >= IDLE_AFTER_MS ? ` (idle ${formatElapsed(summary.idle)})` : "";
     const slot = summary.slot && summary.slot.total > 1 ? ` (slot ${summary.slot.index}/${summary.slot.total})` : "";
-    const activity = summary.lastActivity ? ` — ${summary.lastActivity}${slot}${idle}` : "";
+    const doing = activityLine(summary);
+    const activity = doing ? ` — ${doing}${slot}${idle}` : "";
     const err = summary.error ? ` — ${summary.error}` : "";
     return `${record.id} · ${record.name} (${record.model}) · ${summary.state} · ${formatElapsed(summary.elapsed)}${activity}${err}`;
   }
@@ -149,11 +151,11 @@ export default function subagents(pi: ExtensionAPI): void {
     const stats = [`${summary.turns} turn(s)`, `${summary.tokens} tokens`, formatTokenStats(summary), summary.retry ? `retry ${summary.retry}` : ""]
       .filter(Boolean)
       .join(" · ");
+    const crumb = toolBreadcrumb(summary);
+    const head = `${formatStatusLine(record)}\n${stats}${crumb ? `\n${crumb}` : ""}`;
     const text = (record.lastText || record.output || "").trim();
     const preview = text.length > 500 ? `${text.slice(0, 499).trimEnd()}…` : text;
-    return preview
-      ? `${formatStatusLine(record)}\n${stats}\n\n${preview}`
-      : `${formatStatusLine(record)}\n${stats}`;
+    return preview ? `${head}\n\n${preview}` : head;
   }
 
   /** The status line plus what the task's model cost and how full its context window is. */
@@ -165,7 +167,7 @@ export default function subagents(pi: ExtensionAPI): void {
 
   /** Abort a task without ever waiting on it longer than `timeoutS` (see `killRecord`). */
   function killTask(record: TaskRecord, timeoutS = DEFAULT_KILL_TIMEOUT_S): Promise<boolean> {
-    return killRecord(record, timeoutS * 1000);
+    return killRecord(record, timeoutS * 1000, registry);
   }
 
   /**
@@ -225,8 +227,8 @@ export default function subagents(pi: ExtensionAPI): void {
       return;
     }
 
-    if (sub.startsWith("drop ")) {
-      const group = sub.slice("drop ".length).trim();
+    if (sub === "drop") {
+      const group = args.slice(1).join(" ").trim();
       if (!group) {
         ctx.ui.notify("subagents: usage: /subagents leases drop <group>", "error");
         return;
@@ -246,16 +248,9 @@ export default function subagents(pi: ExtensionAPI): void {
     task: Type.String({
       description: "The task to delegate. Be specific about the goal, constraints, and expected output.",
     }),
-    session: Type.Optional(
-      Type.String({
-        description: "Assign a persistent session (kebab-case id, e.g. 'repo-scan'). Use with save_session or workdir to keep the transcript and files under .pi/subagents/sessions/.",
-      }),
-    ),
-    save_session: Type.Optional(
-      Type.Boolean({
-        description: "Save the subagent session transcript under .pi/subagents/sessions/ so it can be inspected later.",
-      }),
-    ),
+    session: Type.String({
+      description: "Required name for this task's session (kebab-case, e.g. 'repo-scan'). Its transcript is always saved under .pi/subagents/sessions/ and can be reopened in pi.",
+    }),
     workdir: Type.Optional(
       Type.Boolean({
         description: "Run the subagent with its session directory as the working directory (isolated scratchpad).",
@@ -284,11 +279,11 @@ export default function subagents(pi: ExtensionAPI): void {
       if (!config) {
         throw new Error(`unknown subagent "${params.name}". Configured: ${names.join(", ") || "(none)"}`);
       }
-      if (params.session && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.session)) {
-        throw new Error(`invalid session name "${params.session}" (use kebab-case, e.g. repo-scan)`);
+      if (!params.session) {
+        throw new Error("a session name is required (kebab-case, e.g. repo-scan)");
       }
-      if ((params.save_session || params.workdir) && !params.session) {
-        throw new Error("save_session and workdir need a session name to put their directory under");
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.session)) {
+        throw new Error(`invalid session name "${params.session}" (use kebab-case, e.g. repo-scan)`);
       }
 
       // llama-compat fills a llama.cpp model's context size from the server, and --fit can answer differently from
@@ -333,64 +328,65 @@ export default function subagents(pi: ExtensionAPI): void {
         };
       }
 
-      // Only now is it safe to lay down a session directory: a blocked spawn creates nothing, and neither does a
-      // bare session name, which asks for no transcript and no scratchpad.
-      const sessionDir =
-        params.session && (params.save_session || params.workdir) ? makeSessionDir(ctx.cwd, params.session) : undefined;
-      const effectiveCwd = params.workdir && sessionDir ? sessionDir : ctx.cwd;
-      const sessionManager =
-        params.save_session && sessionDir
-          ? SessionManager.create(effectiveCwd, sessionDir)
-          : SessionManager.inMemory(effectiveCwd);
-      // A subagent without an exact allowlist inherits what the main agent has right now.
-      const resolvedTools: ResolvedTools = resolveTools(config, pi.getActiveTools());
+      // Only now is it safe to lay down the session directory: a blocked spawn creates nothing. Anything below can
+      // still fail, and a failure has to hand its group slot back instead of holding it until the process exits.
+      try {
+        const sessionDir = makeSessionDir(ctx.cwd, params.session);
+        const effectiveCwd = params.workdir ? sessionDir : ctx.cwd;
+        const sessionManager = SessionManager.create(effectiveCwd, sessionDir);
+        // A subagent without an exact allowlist inherits what the main agent has right now.
+        const resolvedTools: ResolvedTools = resolveTools(config, pi.getActiveTools());
 
-      const id = registry.nextId();
-      const record: TaskRecord = {
-        id,
-        name: params.name,
-        provider: config.provider,
-        model: config.model,
-        taskText: params.task,
-        state: "running",
-        startedAt: Date.now(),
-        lastActivity: "starting…",
-        lastActivityAt: Date.now(),
-        turns: 0,
-        lastText: "",
-        output: "",
-        recentOutput: "",
-        usage: { tokens: 0, cost: 0, generated: 0 },
-        groups: config.groups ?? [],
-        slot: lease.slot,
-      };
-      registry.add(record);
+        const id = registry.nextId();
+        const record: TaskRecord = {
+          id,
+          name: params.name,
+          provider: config.provider,
+          model: config.model,
+          taskText: params.task,
+          state: "running",
+          startedAt: Date.now(),
+          lastActivity: "starting…",
+          lastActivityAt: Date.now(),
+          turns: 0,
+          lastText: "",
+          output: "",
+          recentOutput: "",
+          usage: { tokens: 0, cost: 0, generated: 0 },
+          groups: config.groups ?? [],
+          slot: lease.slot,
+        };
+        registry.add(record);
 
-      const runner = new SubagentTask({
-        record,
-        config,
-        resolvedTools,
-        cwd: effectiveCwd,
-        agentDir: getAgentDir(),
-        model,
-        sessionManager,
-        registry,
-        leases: lease.ids,
-        store: leaseStore,
-        mainSessionPath: ctx.sessionManager.getSessionFile(),
-        onStatus: () => emitStatus(pi, registry),
-        onFinish: (finished) => {
-          notifyCompletion(ctx, finished);
-          emitStatus(pi, registry);
-        },
-      });
-      void runner.start();
-      emitStatus(pi, registry);
+        const runner = new SubagentTask({
+          record,
+          config,
+          resolvedTools,
+          cwd: effectiveCwd,
+          agentDir: getAgentDir(),
+          model,
+          sessionManager,
+          registry,
+          leases: lease.ids,
+          store: leaseStore,
+          mainSessionPath: ctx.sessionManager.getSessionFile(),
+          onStatus: () => emitStatus(pi, registry),
+          onFinish: (finished) => {
+            notifyCompletion(ctx, finished);
+            emitStatus(pi, registry);
+          },
+        });
+        void runner.start().catch(() => {});
+        emitStatus(pi, registry);
 
-      return {
-        content: [{ type: "text", text: `spawned ${record.name} as ${id}` }],
-        details: { id, name: params.name, model: config.model, slot: record.slot },
-      };
+        return {
+          content: [{ type: "text", text: `spawned ${record.name} as ${id}` }],
+          details: { id, name: params.name, model: config.model, slot: record.slot },
+        };
+      } catch (err) {
+        for (const leaseId of lease.ids) leaseStore?.release(leaseId);
+        throw err;
+      }
     },
     renderCall: (args, theme) => renderSpawnCall(args, theme),
     renderResult: (result, opts, theme) => renderSpawnResult(result, opts, theme),
@@ -456,7 +452,7 @@ export default function subagents(pi: ExtensionAPI): void {
             const stats = formatTokenStats(summary);
             return {
               summary: { ...summary, preview: tailLines(r.lastText) },
-              line: `${r.id}: ${r.lastActivity} (${formatElapsed(summary.elapsed)})${stats ? ` ${stats}` : ""}`,
+              line: `${r.id}: ${activityLine(summary) || "running"} (${formatElapsed(summary.elapsed)})${stats ? ` ${stats}` : ""}`,
             };
           });
           onUpdate?.({
@@ -658,7 +654,7 @@ export default function subagents(pi: ExtensionAPI): void {
     for (const record of registry.all()) {
       // Fire-and-forget by necessity (pi does not wait for us), and nothing may reject unhandled here. The kill is
       // given no time at all: on the way out we free the record and let the shared lease TTL clear the group.
-      void killRecord(record, 0).catch(() => {});
+      void killRecord(record, 0, registry).catch(() => {});
     }
     // This instance's slots are freed right away instead of expiring after the TTL.
     store?.close();

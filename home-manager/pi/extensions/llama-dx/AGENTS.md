@@ -10,8 +10,8 @@ Two lines can sit above the two llama.cpp ones, in this order: pi's own status t
 and the row of running subagents.
 
 **What is dropped is decided by width alone, never by the state of the request**: groups disappear from the right as
-the terminal narrows, throughput → this request → session → server → speculation → latency → detail. Cells keep their
-columns, so nothing dances when a number changes.
+the terminal narrows, compaction → throughput → this request → session → server → speculation → latency → detail.
+Cells keep their columns, so nothing dances when a number changes.
 
 Identity gives way before the bar does — the thinking level, then the ends of both names, then the percent, then the
 model, and last the path, the one field whose length says nothing. From ~16 columns up the line is always exactly the
@@ -26,16 +26,15 @@ something the context holds. Over capacity held gives way and the moving bands k
 
 Two sources, because neither is enough alone: the response stream, which the extension asks llama.cpp to fill with
 `timings_per_token` and `return_progress`, and `GET /slots?model=X`, polled once a second while the request runs for
-what only it knows — `n_ctx`, whether the slot is busy, and a live rate for the counters.
+what only it knows — `n_ctx`, whether the slot is busy, and the counters that move the bar.
 
 `pf` and the pending band are llama.cpp's own arithmetic, not a guess: `prompt_progress` names `total`, `cache` and
-`processed`, and the progress is `(processed - cache) / (total - cache)`, exactly as its README defines it. The two
-other ways the prompt size is learned are worse, and both are in the code because old servers lack the progress
-chunks: the `timings` of a *finished* task (`prompt_n + cache_n` — while a task runs they are repeated after every
-token and count only what has been evaluated *so far*, so taking them for the whole prompt is what made `pf` hit 100%
-halfway through prefill), and the size of the outgoing body recalibrated against the last exact prompt (`c/t`).
-`/slots` cannot help: its `n_prompt_tokens` is the size of the slot's whole KV — cached prefix, what it has batched
-and what it has generated — not the size of this prompt.
+`processed`, and the progress is `(processed - cache) / (total - cache)`, exactly as its README defines it. An old
+server without progress chunks leaves both blank until it reports the prompt size in a stream `usage` or in the
+`timings` of the *finished* task (`prompt_n + cache_n` — while a task runs they are repeated after every token and
+count only what has been evaluated *so far*, so taking them for the whole prompt is what made `pf` hit 100% halfway
+through prefill). `/slots` cannot help: its `n_prompt_tokens` is the size of the slot's whole KV — cached prefix,
+what it has batched and what it has generated — not the size of this prompt.
 
 The used zone is pi's own context figure, taken the moment the request went out; what is arriving since then belongs
 to the moving bands.
@@ -48,10 +47,19 @@ machine the footer is watching. The bands do not miss it: they move on the strea
 on a router a plain read would load the instance. Its two throughput gauges are deliberately not read, since every
 scrape resets the buckets behind them; a scrape that times out keeps the last one that answered.
 
-The `~` cells: the live rate from `/slots` (held while its counter stalls, since prefill advances in whole batch
-steps), or the mean of the last ten measurements for this server and model — `pp` fitted against context, since it
-declines as the context grows. A new request opens at the speeds already measured on that server and glides from
-there, and a new request keeps the previous one's counters until it knows its own prompt, when it drops them.
+Compaction is not a request of ours: pi summarizes with a direct model call (`compact()` hands `agent.streamFunction`
+to the summarizer), and `compact-delegate` calls the model registry the same way, so neither goes through
+`before_provider_request` or the stream hooks and there are no timings to show. `session_before_compact` puts the
+line into a `compact` phase that holds the bar at `preparation.tokensBefore` and counts up a second at a time;
+`session_compact` drops the request that led to it, so the bar reads pi's rebuilt context instead of adding the
+summary to the context that was replaced; `session_compact_failed` only clears the phase. This is the one cell that
+shows elapsed time rather than a rate, because the pipeline never sees the work.
+
+Speeds are only llama.cpp's own: `pp` appears once 200 prompt tokens have been evaluated, `tg` once 16 have been
+generated, and in the gap before either — and between requests — the last value it reported stands. Nothing is
+fitted, smoothed or borrowed from another server or model, so a new request opens on the previous one's `pp`/`tg`
+rather than on an estimate. It keeps that request's token counters too until it knows its own prompt, when it drops
+them.
 
 A `/props` that gets no reply is not an answer: the footer stays and the question is asked again up to five times, so
 a stalled lookup or a router still loading costs the moving cells rather than the whole line. Nothing is polled or
@@ -60,17 +68,20 @@ scraped until that check has said yes.
 ## The row of subagents
 
 ```
-subagents 2  │  task-1 researcher  12s  bash: nix flake check  │  task-2 coder 2/2  3m12s idle 1m30s  edit home-manager/pi/subagents/ui…
+subagents 3  │  task-1 researcher  12s  bash: nix flake check (4.2s)  out ~1.2k  ctx 41k/262k  │  task-2 coder 2/2  3m12s idle 1m30s  edit home-manager/pi/subagents/ui…  out 18k  ctx 190k/262k
 ```
 
 The subagents extension reports its running tasks on pi's event bus (`subagents:status`) and this extension turns
 them into this row — the only thing that reads that channel. A task names itself, its slot when its model has more
-than one, how long it has run, and what it is busy with in at most 34 columns; the count in front never leaves, since
-tasks drop from the right as the terminal narrows and what has been dropped must not look like the whole set.
-Silence of 15 s and a retried model call go to `warning`, an error to `error`. A snapshot arrives only when something
-moved, so the ages keep counting from the moment it was taken, and the row goes away with the last task. Switching
-pi's model keeps it — those tasks run on their own models — but a new session starts without the row of the tasks the
-session before it ran. `preview.mjs --agents` shows it, `check.mjs` asserts it.
+than one, how long it has run, and what it is busy with: while a tool runs that is the tool, its argument summary and
+a live timer, cut to 34 columns, otherwise the task's last activity. What its own model produced (`out`, `~` while the
+turn is still decoding) and how full its own context is (`ctx 41k/262k`, `warning` past 70%, `error` past 90%, the
+same thresholds as the bar below) follow. The count in front never leaves, since tasks drop from the right as the
+terminal narrows and what has been dropped must not look like the whole set. Silence of 15 s and a retried model call
+go to `warning`, an error to `error`. A snapshot arrives only when something moved, so the ages keep counting from the
+moment it was taken, and the row goes away with the last task. Switching pi's model keeps it — those tasks run on
+their own models — but a new session starts without the row of the tasks the session before it ran. `preview.mjs
+--agents` shows it, `check.mjs` asserts it.
 
 ## Colours
 
@@ -99,7 +110,7 @@ would shrink by exactly those tokens until the next request re-measured the cont
 | `layout.ts` | both lines as coloured segments of measured width; imports nothing at runtime |
 | `agents.ts` | the row of running subagents, out of the snapshot the subagents extension broadcasts |
 | `server.ts` | the llama.cpp endpoints: `/props`, `/slots`, `/metrics` |
-| `state.ts` | the polled request, the measured speeds, and the numbers the footer shows |
+| `state.ts` | the polled request, the last speeds llama.cpp reported, the compaction phase, and the numbers the footer shows |
 | `footer.ts` | the component pi renders, and taking pi's footer back when the server is not llama.cpp |
 | `debug.ts` | `LLAMA_DX_DEBUG=1`: one stderr line per poll, per scrape and per finished request |
 | `legend.ts` | what each indicator of the metrics line means, which `/llama-dx info` prints |

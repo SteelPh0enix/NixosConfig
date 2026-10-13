@@ -9,10 +9,17 @@ type Row = { cell: string; meaning: string };
 /** In the order the groups sit on the line, which is the order they drop from it as the terminal narrows. */
 const SECTIONS: { name: string; rows: Row[] }[] = [
   {
+    name: "compaction, while it runs",
+    rows: [
+      { cell: "compact", meaning: "pi is compacting the context, with what triggered it" },
+      { cell: "before", meaning: "the context tokens being rewritten; the elapsed time sits beside them" },
+    ],
+  },
+  {
     name: "throughput",
     rows: [
-      { cell: "pp", meaning: "prompt processing: prompt tokens evaluated per second" },
-      { cell: "tg", meaning: "generation: tokens produced per second" },
+      { cell: "pp", meaning: "prompt processing: prompt tokens evaluated per second, as llama.cpp last reported it" },
+      { cell: "tg", meaning: "generation: tokens produced per second, as llama.cpp last reported it" },
       { cell: "t/s", meaning: "the unit of both" },
     ],
   },
@@ -60,9 +67,6 @@ const SECTIONS: { name: string; rows: Row[] }[] = [
       { cell: "@", meaning: "the machine serving this model, host:port" },
       { cell: "#", meaning: "the watched slot, over the number of slots" },
       { cell: "max", meaning: "n_tokens_max, the largest context the instance has held" },
-      { cell: "c/t", meaning: "characters per token, from the last exact prompt size" },
-      { cell: "exact", meaning: "these speeds are llama.cpp's own timings" },
-      { cell: "fitted", meaning: "these speeds are ours: a live rate from the slot, or the mean of recent ones" },
     ],
   },
   {
@@ -79,7 +83,6 @@ const SECTIONS: { name: string; rows: Row[] }[] = [
   {
     name: "markers",
     rows: [
-      { cell: "~", meaning: "not llama.cpp's own number: the live rate, or the estimate from history" },
       { cell: "—", meaning: "nothing to show and nothing to hold, never a zero" },
       { cell: "bright", meaning: "the phase running right now: pp in prefill, tg in generation" },
     ],

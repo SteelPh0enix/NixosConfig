@@ -76,27 +76,31 @@ in between.
 What it asserts, in order:
 
 - the footer is taken on a llama.cpp model, and stays taken while the request runs
-- the row of subagents appears above the two lines when the bus reports tasks — naming who runs, for how long and what
-  it is busy with, which one is silent and which is retried — stays inside the width it is given, keeps the count when
-  the tasks no longer fit, and goes away with the last one — while switching pi's model keeps it and a new session
-  starts without the row of the tasks the session before it ran (the check emits on the bus as the subagents extension does)
-- the live `pp` rate from `/slots` carries the `~`, and the server's own `pp`/`tg` (713 and 58 here) replace it once
-  `timings` arrive
+- the row of subagents appears above the two lines when the bus reports tasks — naming who runs, for how long, what it
+  is busy with (a running tool with its live timer), what its model produced and how full its own context is, which one
+  is silent and which is retried — stays inside the width it is given, keeps the count when the tasks no longer fit,
+  and goes away with the last one — while switching pi's model keeps it and a new session starts without the row of
+  the tasks the session before it ran (the check emits on the bus as the subagents extension does)
+- speeds are blank until llama.cpp reports its own, and then hold the server's `pp`/`tg` (713 and 58 here)
 - the `q`/`fl`/`bd` cells appear once `/metrics` has answered
 - prefill shows up in the evaluating band, generation in the generating one, and the two are separate; while the
   request runs the moving band lands on the held one in a shared cell (read from `barCells()`, not from the glyphs)
-- the prompt still to evaluate is on the bar before it is evaluated and, from the first progress chunk on, only
-  shrinks — to nothing; `pf` reads 100% exactly when the tokens have run out, never earlier, and never falls back
-  while the request runs; those two are the shape of the bug this footer had, where `pf` leapt to 100% mid-prefill
+- the prompt still to evaluate is on the bar once llama.cpp reports the prompt size, and from the first progress
+  chunk on only shrinks — to nothing; `pf` reads 100% exactly when the tokens have run out, never earlier, and never
+  falls back while the request runs; those two are the shape of the bug this footer had, where `pf` leapt to 100%
+  mid-prefill
 - a `timings` chunk of a *running* request counts only what llama.cpp has evaluated so far, so it must not be taken
   for the whole prompt: a second request is fed one and must still show `fp 10k` and `pf 26.7%`
 - a slot that has never been seen busy — a queue, a loading model, the previous task's counters still in `/slots` —
   ends nothing and lends nothing
 - once the request ends, what it evaluated and produced joins the held band, so the bar keeps the committed tokens
-- the prompt size is `~`-estimated first and becomes llama.cpp's exact 10k
+- the prompt size is blank until llama.cpp reports it in a progress chunk, then reads its exact 10k
+- a compaction leads the metrics line and holds the bar at the context being rewritten, a failed one only clears the
+  indicator, and a finished one drops the stale request so the bar reads the new context (the check emits the
+  compaction events by hand, since pi runs the summarizer outside the request pipeline)
 - `tt` gets a value
-- every indicator the metrics line can hold is explained by `/llama-dx info`, and so are the `~`, `—` and bright
-  markers; the cells come from `metricGroups(view().facts)`, so a cell the legend does not know turns this red
+- every indicator the metrics line can hold is explained by `/llama-dx info`, and so are the `—` and bright markers;
+  the cells come from `metricGroups(view().facts)`, so a cell the legend does not know turns this red
 - the request is counted, `/llama-dx reset` reports clearing, and a model whose server is not llama.cpp hands the
   footer back and is never polled or scraped — not while its `/props` probe is still on its way either, which is
   what `/nope3` (a deliberately slow `/props`) is there for
@@ -126,10 +130,10 @@ which is correct rather than broken.
 
 A warm `qwen-27B`, four polls of one request, the middle of the bar elided so the lines fit here. `fp 2.2k` is
 exact from the first render, because `prompt_progress` arrives before prefill has evaluated anything; `re 42` is the
-cached prefix, so `pf` divides by 2183 and not by 2225. `pp` stays `—` until the window over `/slots` is long enough
-to be a rate rather than one batch step, then takes llama.cpp's own from the chunks; the green `█` is the evaluating
-band growing, the `▒` at its left edge is where it lands on the held band, the faint green in front of it is what is
-left of the prompt to come, and the second `▒` from 4.2 is the first generated tokens landing on the evaluating band;
+cached prefix, so `pf` divides by 2183 and not by 2225. `pp` stays `—` until llama.cpp reports its own timings, and
+holds from there; the green `█` is the evaluating band growing, the `▒` at its left edge is where it lands on the held
+band, the faint green in front of it is what is left of the prompt to come, and the second `▒` from 4.2 is the first
+generated tokens landing on the evaluating band;
 `tt` appears with the first content token:
 
 ```
@@ -188,5 +192,4 @@ same store path into `~/.pi/agent/extensions`.
 the colours as the terminal shows them (`preview.mjs --demo` paints the noctalia palette by hand; the assertions
 only map theme tokens, never compare them against a theme file), the used zone under compaction or
 branching in a real session, `--parallel > 1` (the fake answers with one slot, and the real instance is usually
-idle at 1/1), and the fitted `pp` estimate, which only replaces the plain mean once a server has five measured
-requests to fit against.
+idle at 1/1).
