@@ -37,6 +37,9 @@ in
   };
 
   systemd.services.llama-server-vulkan = {
+    # Kept configured, but only one backend may own the router port. Pick it with
+    # settings.llamaBackend; see nixos/services/llama-server-rocm.
+    enable = settings.llamaBackend == "vulkan";
     description = "llama.cpp router server, Vulkan (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
     wantedBy = [ "multi-user.target" ];

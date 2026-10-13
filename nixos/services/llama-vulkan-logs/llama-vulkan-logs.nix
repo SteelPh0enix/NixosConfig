@@ -1,4 +1,4 @@
-# Journal tail of llama-server-vulkan over HTTP. server.py + index.html live next to this file
+# Journal tail of the router unit (settings.llamaRouterService) over HTTP. server.py + index.html live next to this file
 # and are packaged into the Nix store so the unprivileged llama-logs user can reach them
 # (the working checkout is mode 0700 and not world-traversable).
 {
@@ -25,19 +25,19 @@ in
   };
 
   systemd.services.llama-vulkan-logs = {
-    description = "Web interface for llama-server-vulkan logs (${toString settings.llamaLogsPort})";
+    description = "Web interface for ${settings.llamaRouterService} logs (${toString settings.llamaLogsPort})";
     wantedBy = [ "multi-user.target" ];
     after = [
-      "llama-server-vulkan.service"
+      "${settings.llamaRouterService}.service"
       "network-online.target"
     ];
     wants = [
-      "llama-server-vulkan.service"
+      "${settings.llamaRouterService}.service"
       "network-online.target"
     ];
 
     serviceConfig = {
-      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service llama-server-vulkan --port ${toString settings.llamaLogsPort}";
+      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service ${settings.llamaRouterService} --port ${toString settings.llamaLogsPort}";
       User = "llama-logs";
       Group = "llama-logs";
       Restart = "on-failure";

@@ -6,6 +6,9 @@
   users.users.${settings.userName} = {
     home = "/home/${settings.userName}";
     isNormalUser = true;
+    # llama-server-rocm is a system unit driving the rootless Docker socket, so the user
+    # manager has to be running without an open session.
+    linger = true;
     extraGroups = [
       "audio"
       "docker"
