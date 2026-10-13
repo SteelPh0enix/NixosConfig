@@ -122,6 +122,17 @@
       bindings.content = ./bindings.lua;
       rules.content = ./rules.lua;
     };
+
+    # Noctalia's hyprland template renders ~/.config/hypr/noctalia.lua (its own file, writable) and
+    # then appends `require("noctalia").apply_theme()` to hyprland.lua to hook it up. That file is
+    # store-owned here, so the append failed with EACCES on every palette change - and the colours
+    # never reached the compositor. Declaring the include here is what the hook itself checks for
+    # (`grep -qF 'require("noctalia")'`), so it stops trying to write. The pcall is for the first
+    # session after install: noctalia.lua does not exist until a theme is applied once.
+    extraConfig = ''
+      local ok, noctalia = pcall(function() return require("noctalia") end)
+      if ok then noctalia.apply_theme() end
+    '';
   };
 
   # `package = null` also skips HM's generated hypr/.luarc.json; point the Lua LSP at the stubs

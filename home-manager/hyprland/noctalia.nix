@@ -28,6 +28,8 @@
           "qt"
           "wezterm"
         ]; # opt-in; list ids with `noctalia theme --list-templates`
+        # No lazygit: its hook merges the palette into ~/.config/lazygit/config.yml, which Home
+        # Manager writes from programs.lazygit.settings - a store symlink the hook cannot edit.
         templates.community_ids = [
           "pi-agent"
           "discord"
@@ -40,7 +42,6 @@
           "fastfetch"
           "obs"
           "fzf"
-          "lazygit"
         ]; # opt-in; ids come from api.noctalia.dev/templates, cached in the state dir
       };
 
@@ -171,7 +172,10 @@
       };
 
       # A plugin widget has no built-in type name: the bar lane says "file-search", the plugin
-      # declares it as "<plugin id>:<widget id>" (see plugins.enabled).
+      # declares it as "<plugin id>:<widget id>" (see plugins.enabled). checkConfig therefore logs
+      # `unrecognized widget type` while building - the plugin registry is cloned into the state dir
+      # at runtime and the sandbox has none of it. Same command with HOME set reports no warning, and
+      # validate exits 0 on warnings, so this is noise, not a rejected key.
       widget.file-search.type = "nightwatch75/file-search:file-search";
 
       # Widget-editor layouts (SUPER+comma -> Desktop / Lock screen). Geometry is absolute and
