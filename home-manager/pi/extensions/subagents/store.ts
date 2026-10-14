@@ -123,14 +123,12 @@ export class LeaseStore {
         reap.run(group, now);
         const holding = (others.all(group, key, now) as Array<{ res_key: string }>).map((r) => r.res_key);
         if (holding.length >= limit) {
-          this.db.exec("ROLLBACK");
           return { ok: false, reason: "resident", group, at: holding.join(", "), limit };
         }
       }
       // Capacity, per model across all groups, counted as distinct spawns (not rows) plus the one about to be taken.
       const held = (countThis.get(key, now) as { c: number }).c;
       if (held + 1 > capacity) {
-        this.db.exec("ROLLBACK");
         return { ok: false, reason: "full", at: key, capacity };
       }
       // Everything admitted: write one row per group, all carrying this spawn's claim. The slot label counts other

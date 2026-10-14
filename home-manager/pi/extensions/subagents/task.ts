@@ -18,7 +18,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
 import { applySubagentPrompt, subagentPromptText } from "./prompt.ts";
-import { formatDuration, keepSaidText, oneLine, RECENT_OUTPUT_LIMIT, RECENT_TOOLS_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
+import { formatDuration, oneLine } from "./format.ts";
+import { keepSaidText, RECENT_OUTPUT_LIMIT, RECENT_TOOLS_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
 import type { LeaseStore } from "./store.ts";
 
 type TaskCallback = (record: TaskRecord) => void;
