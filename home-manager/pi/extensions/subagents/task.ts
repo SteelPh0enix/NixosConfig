@@ -149,9 +149,8 @@ export class SubagentTask {
     try {
       this.applyOutcome(caughtError);
     } catch (err) {
-      record.error ??= err instanceof Error ? err.message : String(err);
-      settle(record, "failed", { error: record.error });
-      record.finishedAt ??= Date.now();
+      // settle writes finishedAt before anything that can throw, so it needs no backstop here.
+      settle(record, "failed", { error: record.error ?? (err instanceof Error ? err.message : String(err)) });
     }
     this.unsubscribe?.();
     try {

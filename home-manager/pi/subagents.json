@@ -3,7 +3,7 @@
     "coder": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Implement or fix code in the working tree: reads, edits, runs builds and tests. The strongest coder here, and abliterated, so it takes the jobs others refuse - say what to change and how to verify it. cyber-tiel-coder, 2 slots.",
+      "description": "Implement or fix code in the working tree: reads, edits, runs builds and tests. Abliterated, so it takes the jobs others refuse - say what to change and how to verify it; coder-smart is the one with better judgement. cyber-tiel-coder, 2 slots.",
       "prompt": "subagents/coder.md",
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
@@ -11,7 +11,7 @@
     "reviewer": {
       "provider": "llama-pc",
       "model": "cyber-tiel-coder",
-      "description": "Review a diff or audit files and report findings; no edit/write, but it can read upstream docs on the web. Quick with a wide context - the usual review, reviewer-dense when judgement beats speed. cyber-tiel-coder, 2 slots.",
+      "description": "Review a diff or audit files and report findings; no edit/write, but it can read upstream docs on the web. Quick with a wide context - the usual review, reviewer-dense or reviewer-smart when judgement beats speed. cyber-tiel-coder, 2 slots.",
       "prompt": "subagents/reviewer.md",
       "tools": ["read", "bash", "web_search", "web_fetch", "codemode"],
       "groups": ["pc"]
@@ -47,12 +47,35 @@
       "tools": ["read", "bash", "web_search", "web_fetch", "web_interact", "codemode"],
       "groups": ["pc"]
     },
-    "assistant-smart": {
+    "assistant-dense": {
       "provider": "llama-pc",
       "model": "qwen-27B",
-      "description": "Generic helper with the main agent's whole tool set, for when you really need it to reason a lot. The slowest prefill here. qwen-27B, 1 slot.",
+      "description": "Generic helper with the main agent's whole tool set, for when you really need it to reason a lot. Reads well; assistant-smart reads better. qwen-27B, 1 slot.",
       "prompt": "subagents/assistant.md",
       "groups": ["pc"]
+    },
+    "coder-smart": {
+      "provider": "llama-main",
+      "model": "Qwen 3.8 Flash Next",
+      "description": "Implement or fix code with pi's own model behind it: noticeably more capable than coder, and the slowest thing here, so keep it for changes that need real judgement. It works beside the session that spawned it, on that session's own model. qwen-next, 1 slot - the other slot is the main agent's.",
+      "prompt": "subagents/coder.md",
+      "tools": ["read", "bash", "edit", "write", "codemode"],
+      "groups": ["framework"]
+    },
+    "reviewer-smart": {
+      "provider": "llama-main",
+      "model": "Qwen 3.8 Flash Next",
+      "description": "Review a diff or audit files with pi's own model behind it: noticeably sharper than reviewer and reviewer-dense, and the slowest here. No edit/write, but it can read upstream docs on the web. qwen-next, 1 slot - the other slot is the main agent's.",
+      "prompt": "subagents/reviewer.md",
+      "tools": ["read", "bash", "web_search", "web_fetch", "codemode"],
+      "groups": ["framework"]
+    },
+    "assistant-smart": {
+      "provider": "llama-main",
+      "model": "Qwen 3.8 Flash Next",
+      "description": "Generic helper with the main agent's whole tool set, on pi's own model: noticeably the most capable here and the slowest, for when no narrower subagent fits and the answer matters. qwen-next, 1 slot - the other slot is the main agent's.",
+      "prompt": "subagents/assistant.md",
+      "groups": ["framework"]
     },
     "generalist": {
       "provider": "llama-pc",
@@ -62,19 +85,10 @@
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
-    "Power": {
-      "provider": "llama-pc",
-      "model": "lfm",
-      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs, simple research. Fastest thing here and not clever - spell out every step and say when to stop. Its own system prompt, so it never sees the repo's AGENTS.md: name the commands to run. lfm, 4 slots.",
-      "prompt": "subagents/worker.md",
-      "replace_system_prompt": true,
-      "tools": ["read", "bash", "edit", "write", "codemode"],
-      "groups": ["pc"]
-    },
     "Denji": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Mechanical work on a change that is already fully specified, a bit smarter than Power and with the longest context on the box - still 4B, so write a detailed spec and check what comes back. Its own system prompt, so it never sees the repo's AGENTS.md: name the commands to run. sharp-spark, 4 slots.",
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs. Longest context here but still 4B - spell out every step and say when to stop, then verify its report against the tree, because a little model reports steps it never ran. Its own system prompt, so it never sees the repo's AGENTS.md: name the commands to run. sharp-spark, 4 slots.",
       "prompt": "subagents/worker.md",
       "replace_system_prompt": true,
       "tools": ["read", "bash", "edit", "write", "codemode"],
@@ -91,11 +105,12 @@
     }
   },
   "groups": {
-    "pc": 1
+    "pc": 1,
+    "framework": 1
   },
   "slots": {
+    "llama-main/Qwen 3.8 Flash Next": 1,
     "llama-pc/cyber-tiel-coder": 2,
-    "llama-pc/lfm": 4,
     "llama-pc/occult-nail": 1,
     "llama-pc/qwen-27B": 1,
     "llama-pc/sharp-spark": 4

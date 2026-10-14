@@ -35,15 +35,13 @@ export class TaskRegistry {
     return [...this.tasks.values()];
   }
 
-  /** Mark a task finished (whatever the outcome) and wake any waiters. */
+  /**
+   * Queue a task as finished (whatever the outcome) and wake any waiters. It writes no state of its own: whoever
+   * queues a task settled it first, so `settle` stays the one writer of the terminal fields. A record queued while
+   * still running is a caller that forgot to settle, and it stays visible as one rather than being quietly renamed
+   * "done".
+   */
   markFinished(id: string): void {
-    // The safety net for a runner that never settled: a record still marked running is queued as done. It never
-    // overwrites a terminal state, so a task killed before its runner noticed stays killed.
-    const record = this.tasks.get(id);
-    if (record && record.state === "running") {
-      record.state = "done";
-      record.finishedAt = Date.now();
-    }
     if (!this.finished.includes(id)) this.finished.push(id);
     this.notify();
   }

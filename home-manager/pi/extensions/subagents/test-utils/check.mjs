@@ -118,6 +118,13 @@ const forceKilled = record("task-r", { state: "killed", finishedAt: Date.now() }
 resurrectReg.add(forceKilled);
 resurrectReg.markFinished("task-r");
 ok("a task killed before its runner settled stays killed", forceKilled.state === "killed");
+// The invariant behind both: queuing is not an outcome, settle owns it.
+const queueOnlyReg = new TaskRegistry();
+const queueOnly = record("task-queue-only");
+queueOnlyReg.add(queueOnly);
+queueOnlyReg.markFinished("task-queue-only");
+ok("markFinished queues without writing a terminal state of its own", queueOnly.state === "running" && queueOnly.finishedAt === undefined);
+ok("and the queued record is still delivered", queueOnlyReg.claimFinished().map((r) => r.id).join() === "task-queue-only");
 
 console.log("\nsettle");
 // settle is the one writer of terminal fields; every assertion here pins an invariant the three old writers shared.

@@ -194,7 +194,7 @@ What it pins down, mostly with the bugs it was written against:
 - **settle** — the one terminal writer: a second settle is a no-op (so a kill that outruns its runner cannot
   resurrect a task), a finished task loses its activity line while a killed one keeps the line it stopped on, and an
   error is only added, never cleared.
-- **registry** — a claim filtered by `ids` leaves the other finished tasks claimable instead of throwing them away;
+- **registry** — queuing writes no terminal state, `settle` owns the outcome; a claim filtered by `ids` leaves the other finished tasks claimable instead of throwing them away;
   every task is delivered exactly once; a wait for `task-b` survives `task-a` finishing and is still woken when
   `task-b` does (a waiter dropped by an unasked-for finish used to sit out the whole timeout); abort ends the wait;
   `elapsed` measures startedAt to finishedAt and stops there; `details` carry a bounded output.
