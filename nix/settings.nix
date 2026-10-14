@@ -27,7 +27,20 @@ rec {
   llamaRouterPort = 51536;
   llamaLogsPort = 51580;
 
-  # The ROCm router stack in ~/LLMs/llm-router-docker-compose.yml (rootless Docker). The LAN uses
-  # this port, the internet gets https://clanker.steelph0enix.dev/ through the Cloudflare Tunnel.
+  # Gufo engine (nixos/services/gufo.nix) on the port the retired rootless-Docker llama.cpp router
+  # used. The LAN uses this port, the internet gets https://clanker.steelph0enix.dev/ through the
+  # Cloudflare Tunnel, and the API key is the one external clients already hold.
   llamaStrixPort = 33333;
+
+  # The Qwen3.8-Flash-Next target and the shared MTP sidecar it speculates with. Both stay under
+  # llamaModelsPath so the service user can read them (see the note above). UD-Q4_K_XL is gufo's
+  # qualified target; the AtomicChat AP-Q4_K_XL was rejected by the loader (IQ4_NL tensors it does
+  # not implement), so it cannot be used here.
+  gufoModelPath = "${llamaModelsPath}/models/qwen/3.8-Flash-Next/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf";
+  gufoMtpPath = "${llamaModelsPath}/models/qwen/3.8-Flash-Next/UD-Q4_K_XL/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf";
+  gufoServedModelName = "Qwen 3.8 Flash Next";
+  gufoContext = 262144;
+  gufoSessions = 1;
+  # Same key the Docker router served; external clients must not have to change it.
+  gufoApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
 }

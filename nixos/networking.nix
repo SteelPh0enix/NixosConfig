@@ -19,7 +19,7 @@
 
       settings.llamaRouterPort # llama.cpp router (Vulkan)
       settings.llamaLogsPort # its log web interface
-      settings.llamaStrixPort # llama.cpp router (ROCm, rootless Docker); LAN only, the tunnel dials it out
+      settings.llamaStrixPort # Gufo engine (Qwen3.8-Flash-Next); LAN only, the tunnel dials it out
 
       # Few generic ports for one-shot/test stuff
       11111

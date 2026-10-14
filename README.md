@@ -56,7 +56,7 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 | SearXNG | 7777 | LAN, and `search.steelph0enix.dev` through the tunnel |
 | llama.cpp server (Vulkan) | 51536 | LAN |
 | its log viewer | 51580 | LAN |
-| llama.cpp server (ROCm, rootless Docker) | 33333 | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
+| Gufo engine (Qwen3.8-Flash-Next) | 33333 | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
 | nginx vhosts | 6970 coverage reports, 6971 docs | LAN |
 | Samba + wsdd | 137–139, 445 | LAN only (`hosts allow`) |
 | XRDP | 3389 | LAN |
@@ -65,16 +65,17 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 
 ## The LLM stack
 
-Two OpenAI-compatible llama.cpp servers answer on this box.
+One Vulkan llama.cpp server and one native Gufo engine answer on this box, both OpenAI-compatible.
 
-- **51536** — the Vulkan server. Its presets are listed in `llama-server.ini`: one loads on the first
-  request that names it, and up to four stay resident.
-- **33333** — a ROCm server run by rootless Docker Compose out of `~/LLMs/`, which is also what
-  `clanker.steelph0enix.dev` reaches.
+- **51536** — the Vulkan llama.cpp server. Its presets are listed in `llama-server.ini`: one loads on
+  the first request that names it, and up to four stay resident.
+- **33333** — Gufo serving Qwen3.8-Flash-Next with its shared MTP sidecar (`nixos/services/gufo.nix`),
+  which is also what `clanker.steelph0enix.dev` reaches, behind the same API key as before. Gufo is
+  built from its flake, so a version bump is a local build.
 
-Weights and the preset sit under `/home/LLMs`, outside the repo. Editing a preset is an edit plus a
-service restart, never a rebuild; `AGENTS.md` has the details. SearXNG on 7777 is the instance pi's
-web search talks to.
+Vulkan weights and its preset sit under `/home/LLMs`, outside the repo; editing a preset is an edit
+plus a service restart, never a rebuild; `AGENTS.md` has the details. SearXNG on 7777 is the instance
+pi's web search talks to.
 
 ## pi
 
@@ -116,7 +117,7 @@ them. Each is read by path, as a boot-time credential or an env file.
 | `cloudflare-search-credentials.json` | cloudflared, the `search` tunnel |
 | `tailscale-authkey` | tailscaled, re-applied on every boot |
 | `searxng.env` | SearXNG (`SEARXNG_SECRET`, optional Brave/Kagi keys) |
-| `llama-strix-api-key` | the ROCm server, through `~/LLMs/.env`, and pi's `models.json` through an `apiKey: "!command"` |
+| `llama-strix-api-key` | the Gufo engine (`LoadCredential` in `nixos/services/gufo.nix`) and pi's `models.json` through an `apiKey: "!command"` |
 
 ## Notes
 

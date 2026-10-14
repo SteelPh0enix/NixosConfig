@@ -48,6 +48,11 @@
     # `nix flake update pi` means a few minutes of local building.
     pi.url = "github:earendil-works/pi/stable";
 
+    # Gufo engine for Strix Halo, built from its flake. It ships only packages, so nix/overlays.nix
+    # maps `release` onto pkgs.gufo for nixos/services/gufo.nix. No binary cache: a bump is a long
+    # local build. `nix flake update gufo` tracks the latest release.
+    gufo.url = "github:gufo-org/gufo";
+
     # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
     # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
     berkeleyMono = {

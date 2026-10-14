@@ -58,9 +58,11 @@ Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `l
 traverse a 0700 home. The checkout keeps a **symlink** to `llama-server.ini`, so editing presets is an
 edit plus a restart of the unit, and no rebuild.
 
-The one on **33333** is not a NixOS unit at all: rootless Docker Compose from
-`~/LLMs/llm-router-docker-compose.yml`, key in `~/LLMs/.env` (`STRIX_API_KEY`). Nothing in this repo
-rebuilds it, and `nix` changes never touch it.
+The one on **33333** is a NixOS unit: Gufo (`nixos/services/gufo.nix`) built from the `gufo` flake
+input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It replaced the rootless-Docker
+llama.cpp router, whose Compose/INI in `~/LLMs/` is kept only as manual rollback. Gufo has no binary
+cache, so a `gufo` bump is a long local build. The API key is `secrets/llama-strix-api-key` (the
+retired `.env` kept it as `STRIX_API_KEY`).
 
 ## Restarting by hand instead of rebuilding
 

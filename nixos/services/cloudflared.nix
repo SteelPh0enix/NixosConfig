@@ -1,4 +1,4 @@
-# Cloudflare Tunnel: https://clanker.steelph0enix.dev/ -> the ROCm llama router on :33333.
+# Cloudflare Tunnel: https://clanker.steelph0enix.dev/ -> the Gufo engine on :33333.
 # A second tunnel ("search") proxies the SearXNG metasearch engine to https://search.steelph0enix.dev/.
 #
 # Both tunnels are locally managed (routing declared below, not in the dashboard) and dial out to
@@ -11,11 +11,10 @@
 # public side is the standard 443 with no cert to issue or renew, and the hop to the container is
 # plain HTTP on loopback. The LAN keeps using :33333 directly (networking.nix).
 #
-# Authentication is llama-server's own `--api-key` (see LLMs/llm-router-docker-compose.yml): one
-# `Authorization: Bearer <key>` guards the tunnel and the LAN port alike, and every OpenAI-compatible
-# client already sends it. Cloudflare Access with a service token would be the heavier alternative,
-# which has one advantage worth knowing about: it guards only the public hostname, so LAN clients
-# could stay keyless.
+# Authentication is Gufo's own `--api-key` (nixos/services/gufo.nix): one `Authorization: Bearer
+# <key>` guards the tunnel and the LAN port alike, and every OpenAI-compatible client already sends
+# it. Cloudflare Access with a service token would be the heavier alternative, which has one advantage
+# worth knowing about: it guards only the public hostname, so LAN clients could stay keyless.
 #
 # Routing is declared below rather than in the dashboard, so it survives a rebuild - that needs the
 # tunnel to stay *locally managed*. Adding a public hostname route to this tunnel in the Zero Trust
@@ -33,8 +32,7 @@
   ...
 }:
 let
-  # The router is served by rootless Docker, whose port handler binds IPv4; `localhost` would be a
-  # coin toss against ::1.
+  # Gufo binds IPv4 explicitly (`--host`); `localhost` would be a coin toss against ::1.
   router = "http://127.0.0.1:${toString settings.llamaStrixPort}";
 
   # Before dialing out, cloudflared looks up the edge (SRV at region1.v2.argotunnel.com) exactly
