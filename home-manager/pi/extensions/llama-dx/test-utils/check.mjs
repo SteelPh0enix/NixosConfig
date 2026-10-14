@@ -135,6 +135,10 @@ expect(`prefill progress reads 100% exactly when the prompt is evaluated (seen a
 expect("the whole prompt is known before prefill ends", /\bfp\s+10k\b/.test(seen[5] ?? ""));
 expect("generation shows up in its own layer", bars.some((b) => b.generating > 0));
 expect("the live layer lands on the held one, sharing a cell", bars.some((b) => b.frontier));
+expect(
+  "the held band is llama.cpp's reused prefix, so the prompt is not counted again on top of it",
+  seen.slice(1).every((s) => /4,000/.test(s.split("\n")[1] ?? "")),
+);
 expect("the prompt size is blank until llama.cpp reports it", /\bfp\s+—/.test(seen[0] ?? "") && /\bfp\s+10k\b/.test(all));
 expect("and it is llama.cpp's own number once reported", /\bfp\s+10k\b/.test(seen.at(-1) ?? ""));
 expect("time to first token is measured", /\btt\b\s+\S/.test(all));
@@ -181,7 +185,7 @@ expect("the row goes away with the last task", render120().length === without.le
 await fire("agent_end", {});
 const done = lines()[0];
 expect("the request is counted", /#1/.test(done));
-expect("what a finished request committed joins the held layer", /15,320/.test(lines()[1] ?? ""));
+expect("what a finished request committed joins the held layer", /10,120/.test(lines()[1] ?? ""));
 
 // The spent script leaves the fake answering idle with the finished task's counters, which is what a queued request
 // or a loading model looks like: nothing of this request has happened yet, so nothing about it may be counted.

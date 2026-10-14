@@ -30,6 +30,8 @@ type Req = {
   processing: boolean;
   /** Whether the watched slot has been seen busy: a task that has not started cannot have ended. */
   busy: boolean;
+  /** Whether llama.cpp has reported this request's reused prefix: until it has, the held band falls back. */
+  cacheKnown: boolean;
   /** llama.cpp's own prefill progress: the whole prompt, its cached prefix, and how much of it is evaluated. */
   progress?: { total: number; cache: number; done: number };
   /** The prompt size llama.cpp reported in a stream `usage`, for a server without progress chunks. */
@@ -37,7 +39,7 @@ type Req = {
   /** The slot's counters as they were last poll; a smaller one means the slot moved to another task. */
   raw?: { processed: number; decoded: number };
   started: number;
-  /** What pi called the context when this request went out: the bar's used zone, without what is landing now. */
+  /** What pi called the context when this request went out; the held band falls back to it until llama.cpp reports a prefix. */
   base: number | null;
   firstToken?: number;
   ended?: number;
@@ -267,6 +269,7 @@ async function pollOnce(): Promise<void> {
     r.processed = Math.max(r.processed, processed);
     r.decoded = Math.max(r.decoded, decoded);
     r.cached = Math.max(r.cached, slot.n_prompt_tokens_cache ?? 0);
+    r.cacheKnown = true;
   }
   r.busy ||= r.processing;
   if (metricsSupport.get(keyOf(r)) !== false && t - (r.metricsAt ?? 0) >= METRICS_EVERY_MS) {
@@ -310,7 +313,7 @@ const phaseOf = (): "idle" | "prefill" | "decode" | "done" | "compact" => {
   return r.decoded > 0 || (r.timings?.predicted_n ?? 0) > 0 ? "decode" : "prefill";
 };
 
-type Totals = { input: number; output: number; cacheRead: number; context: { tokens: number | null; contextWindow: number } | undefined };
+type Totals = { input: number; output: number; cacheRead: number; hasUsage: boolean; context: { tokens: number | null; contextWindow: number } | undefined };
 
 let totalsCache: { key: string; value: Totals } | undefined;
 
@@ -326,12 +329,13 @@ function sessionState(): Totals {
   const ctx = ctxSafe();
   const key = `${ctx?.sessionManager.getSessionId()}/${ctx?.sessionManager.getLeafId()}/${ctx?.model?.id}`;
   if (totalsCache?.key === key) return totalsCache.value;
-  const totals = { input: 0, output: 0, cacheRead: 0 };
+  const totals = { input: 0, output: 0, cacheRead: 0, hasUsage: false };
   const add = (u: { input: number; output: number; cacheRead: number } | undefined): void => {
     if (!u) return;
     totals.input += u.input;
     totals.output += u.output;
     totals.cacheRead += u.cacheRead;
+    totals.hasUsage = true;
   };
   for (const entry of ctx?.sessionManager.getEntries() ?? []) {
     if (entry.type === "usage") add(entry.usage);
@@ -342,6 +346,17 @@ function sessionState(): Totals {
   const value: Totals = { ...totals, context: usage ? { tokens: usage.tokens, contextWindow: usage.contextWindow } : undefined };
   totalsCache = { key, value };
   return value;
+}
+
+/**
+ * What the context already holds while this request runs: the reused prefix of its prompt, once llama.cpp has said
+ * what it is. `re` is the same number, and held + evaluating + pending is then the whole prompt. Until it is known
+ * the caller falls back to pi's own figure; after the request the exact timings carry it.
+ */
+function heldOf(r: Req | undefined): number | undefined {
+  if (!r) return undefined;
+  if (r.ended !== undefined) return r.timings?.cache_n ?? r.progress?.cache ?? (r.cacheKnown ? r.cached : undefined);
+  return r.progress?.cache ?? (r.cacheKnown ? r.cached : undefined);
 }
 
 /** What a number is: the running request's own numbers, with the previous request's holding the holes. */
@@ -356,12 +371,20 @@ export function view(): { facts: Facts; used: number | null; evaluating: number;
   const m = r ? (r.metrics ?? metricsShown.get(keyOf(r))) : undefined;
   const hasMetrics = r ? metricsSupport.get(keyOf(r)) === true : false;
 
-  // The held layer is pi's own context number: the one at the moment this request went out, since everything
-  // arriving now belongs to the live layers. Once the request has ended what it added is committed context, and
-  // joining it back in is what keeps the bar from shrinking by those very tokens until the next request starts.
+  // The held band is what the context already holds: llama.cpp's reused prefix of this request, so held +
+  // evaluating + pending is exactly the whole prompt. Before the server has reported one, pi's own figure stands
+  // in — except on the first request of a session, where pi can only estimate the whole prompt and would count it
+  // a second time on top of the moving bands; there the held band stays empty instead.
   const committed = req !== undefined && req.ended !== undefined ? (n.evalToks ?? 0) + (n.out ?? 0) : 0;
+  const held = req ? (heldOf(req) ?? (session.hasUsage ? req.base ?? undefined : 0)) : undefined;
   // While compaction runs the bar holds at the context it is rewriting, not at a request's committed tokens.
-  const base = compacting ? compacting.tokensBefore : req ? (req.base === null ? null : req.base + committed) : (session.context?.tokens ?? last?.base ?? null);
+  const base = compacting
+    ? compacting.tokensBefore
+    : req
+      ? held === undefined
+        ? null
+        : held + committed
+      : (session.context?.tokens ?? last?.base ?? null);
   const facts: Facts = {
     live: phase,
     compacting: compacting ? { reason: compacting.reason, tokensBefore: compacting.tokensBefore, elapsed: Date.now() - compacting.started } : undefined,
@@ -434,6 +457,7 @@ export function startRequest(payload: Record<string, unknown>, ctx: ExtensionCon
     slots: 0,
     processing: false,
     busy: false,
+    cacheKnown: false,
     started: Date.now(),
     base: ctx.getContextUsage()?.tokens ?? null,
     counted: false,
@@ -460,6 +484,7 @@ export function observeStream(data: unknown): void {
   const p = event.prompt_progress;
   if (p?.total) {
     req.progress = { total: p.total, cache: p.cache ?? 0, done: Math.max(0, (p.processed ?? 0) - (p.cache ?? 0)) };
+    req.cacheKnown = true;
     debug(`progress total=${p.total} cache=${p.cache} processed=${p.processed}`);
   }
   // llama.cpp sends its usage only when asked for, so the prompt size can also arrive this way - the only one an old
