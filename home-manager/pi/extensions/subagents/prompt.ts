@@ -82,11 +82,26 @@ export function subagentPromptSection(
   slots: Map<string, number>,
 ): string {
   if (configs.size === 0) return "";
+  // Which models stand in each group, so a reader can tell at a glance what cannot run beside what. Roomiest first,
+  // matching the order of the model list below.
+  const shortName = (key: string) => key.slice(key.lastIndexOf("/") + 1);
+  const members = new Map<string, string[]>();
+  for (const cfg of configs.values()) {
+    for (const group of cfg.groups ?? []) {
+      members.set(group, [...new Set([...(members.get(group) ?? []), `${cfg.provider}/${cfg.model}`])]);
+    }
+  }
+  for (const [group, keys] of members) {
+    keys.sort((a, b) => (slots.get(b) ?? 1) - (slots.get(a) ?? 1) || shortName(a).localeCompare(shortName(b)));
+  }
   const groupLines =
     groups.size === 0
       ? "No groups are configured, so only the slot counts below apply."
       : [...groups]
-          .map(([name, limit]) => `  - \`${name}\`: ${modelsWord(limit)} at a time`)
+          .map(([name, limit]) => {
+            const who = members.get(name);
+            return `  - \`${name}\`: ${modelsWord(limit)} at a time${who ? ` (${who.map(shortName).join(", ")})` : ""}`;
+          })
           .join("\n");
 
   return [
@@ -102,14 +117,19 @@ export function subagentPromptSection(
     "",
     "Capacity, and why a spawn gets refused:",
     "",
-    "A **group** is a named bucket of models, and its limit counts *distinct models* holding it at once:",
+    "A **group** is models sharing one card, and its limit counts *distinct models* holding it at once. A task on one",
+    "model of a group blocks every *other* model in that group, so switching models is what gets refused, not sharing",
+    "one out. Only two things run together: more tasks on the model already holding the group, or a task in another",
+    "group. Leases are shared across every pi session, so a task in another window holds the group too.",
     groupLines,
     "",
     "A **slot** is one running task on one model, so a model's slot count is how many of it may run together:",
     modelLines(configs, slots),
     "",
-    "- A spawn that cannot take a slot is refused on the spot rather than queued; the refusal names the group and the model in the way. Retry only once the tasks it lists have finished.",
-    "- So a batch that mixes models gets most of its spawns refused — send several tasks to the subagents sharing the roomiest model instead.",
+    "- Pick ONE model for a batch and send all its tasks to the subagents running on it; the widest parallelism here is",
+    "  one model per group.",
+    "- A spawn that cannot take capacity is refused on the spot rather than queued; the refusal names the group and the",
+    "  model in the way. Retry only once the tasks it lists have finished, and do not try a third model to dodge it.",
     "- Models are local, so a parallel task costs nothing you would miss. Delegate anything that can run while you work.",
     "- Spawn a batch in one turn, then get on with your own work instead of sitting in a wait: check back with `subagent_status`, or `subagent_wait` with a short `timeout_s`.",
     "- This session's model is the slowest here and the one that reads best, so spend it on deciding and delegating, and let the subagents do the reading.",

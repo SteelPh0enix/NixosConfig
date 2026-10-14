@@ -493,18 +493,27 @@ if (!nodeModules) {
   console.log("\nsystem prompt");
   const { subagentPromptSection } = await importFrom(ws, "prompt.ts");
   const cfg = new Map([
-    ["coder", { provider: "llama-pc", model: "cyber-tiel-coder" }],
-    ["reviewer", { provider: "llama-pc", model: "cyber-tiel-coder" }],
-    ["summarizer", { provider: "llama-pc", model: "sharp-spark" }],
+    ["coder", { provider: "llama-pc", model: "cyber-tiel-coder", groups: ["pc"] }],
+    ["reviewer", { provider: "llama-pc", model: "cyber-tiel-coder", groups: ["pc"] }],
+    ["summarizer", { provider: "llama-pc", model: "sharp-spark", groups: ["pc"] }],
+    ["coder-smart", { provider: "llama-main", model: "Qwen 3.8 Flash Next", groups: ["framework"] }],
   ]);
   const promptText = subagentPromptSection(
     cfg,
-    new Map([["pc", 1]]),
+    new Map([["pc", 1], ["framework", 1]]),
     new Map([["llama-pc/sharp-spark", 4], ["llama-pc/cyber-tiel-coder", 2]]),
   );
   const FIVE = ["subagent_spawn", "subagent_status", "subagent_wait", "subagent_result", "subagent_kill"];
   ok("every tool the model has to call is named", FIVE.every((t) => promptText.includes(t)));
   ok("a group limit is stated from the config", promptText.includes("`pc`: 1 model at a time"));
+  ok(
+    "a group names the models contending in it",
+    /`pc`: 1 model at a time \(sharp-spark, cyber-tiel-coder\)/.test(promptText),
+  );
+  ok(
+    "a model outside the group is not listed in it",
+    /`framework`: 1 model at a time \(Qwen 3\.8 Flash Next\)/.test(promptText),
+  );
   ok("a model's capacity is stated from the slots map", promptText.includes("sharp-spark: 4 slots") && promptText.includes("cyber-tiel-coder: 2 slots"));
   ok("subagents are listed under the model they run on", /sharp-spark: 4 slots — summarizer/.test(promptText) && /cyber-tiel-coder: 2 slots — coder, reviewer/.test(promptText));
   ok("the roomiest model is the first one offered", promptText.indexOf("sharp-spark") < promptText.indexOf("cyber-tiel-coder"));
