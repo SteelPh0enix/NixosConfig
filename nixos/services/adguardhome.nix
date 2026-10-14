@@ -69,9 +69,9 @@ in
     enable = true;
     # Only opens the control panel port; port 53 stays in nixos/networking.nix.
     openFirewall = true;
-    port = 8123;
 
     settings = {
+      http.address = "0.0.0.0:8123";
       dns = {
         bind_hosts = [
           lanIp

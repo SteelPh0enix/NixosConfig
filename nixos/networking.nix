@@ -10,6 +10,7 @@
     allowedTCPPorts = [
       53 # AdGuard Home DNS (its openFirewall covers the UI port only)
       443 # HTTPS
+      8123 # AdGuard
 
       6969 # Forgejo (HTTP)
       6970 # Coverage report viewer (nginx, /srv/coverage)
