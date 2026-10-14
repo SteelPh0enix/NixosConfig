@@ -31,7 +31,8 @@ const record = (id, over = {}) => ({
 
 // ---- the completion queue (state.ts) ----
 
-const { TaskRegistry, toSummary, killRecord, withTimeout, oneLine, formatDuration, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "state.ts");
+const { TaskRegistry, toSummary, killRecord, withTimeout, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "state.ts");
+const { oneLine, formatDuration, formatElapsed, formatTokenStats, formatTokens, tailLines, activityLine, toolBreadcrumb } = await importFrom(SRC, "format.ts");
 
 console.log("\nregistry");
 const reg = new TaskRegistry();
@@ -245,7 +246,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, formatElapsed, formatTokenStats, formatTokens, emitStatus, notifyCompletion, tailLines, activityLine, toolBreadcrumb } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, emitStatus, notifyCompletion } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -589,6 +590,34 @@ if (!nodeModules) {
   ok("a status line shows the slot when a model has more than one", slotStatus.includes("slot 1/4"));
   ok("a single-slot model shows no slot label", !renderStatusResult({ content: [{ type: "text", text: "x" }], details: { count: 1, tasks: [toSummary(record("task-one"))] } }, opts, theme).render(120).join("\n").includes("slot "));
   ok("elapsed formats as 41s / 3m12s / 1h05m", formatElapsed(41000) === "41s" && formatElapsed(192000) === "3m12s" && formatElapsed(3900000) === "1h05m");
+
+  console.log("\nspawn plan");
+  // planSpawn is pure: it decides what a spawn would do without a store, a session or a server.
+  const { planSpawn } = await importFrom(ws, "spawn.ts");
+  const planDeps = (over = {}) => ({
+    configs: new Map([["c", { provider: "p", model: "m" }]]),
+    names: ["c"],
+    groups: new Map(),
+    slots: new Map(),
+    ...over,
+  });
+  const planThrows = (fn, needle) => {
+    try {
+      fn();
+      return false;
+    } catch (err) {
+      return String(err.message).includes(needle);
+    }
+  };
+  const plainPlan = planSpawn(planDeps(), { name: "c", task: "t", session: "task-a" });
+  ok("a spawn plan carries the provider/model and one slot by default", plainPlan.providerModel === "p/m" && plainPlan.capacity === 1 && plainPlan.requests.length === 0);
+  ok("a stated slot count reaches the plan", planSpawn(planDeps({ slots: new Map([["p/m", 3]]) }), { name: "c", task: "t", session: "task-a" }).capacity === 3);
+  const grouped = planSpawn(planDeps({ configs: new Map([["c", { provider: "p", model: "m", groups: ["gpu"] }]]), groups: new Map([["gpu", 2]]) }), { name: "c", task: "t", session: "task-a" });
+  ok("a group becomes a lease request with that group's limit", grouped.requests.length === 1 && grouped.requests[0].group === "gpu" && grouped.requests[0].limit === 2);
+  ok("planning refuses an unconfigured name", planThrows(() => planSpawn(planDeps(), { name: "ghost", task: "t", session: "task-a" }), "unknown subagent"));
+  ok("planning refuses a missing session name", planThrows(() => planSpawn(planDeps(), { name: "c", task: "t" }), "session name is required"));
+  ok("planning refuses a session name that is not kebab-case", planThrows(() => planSpawn(planDeps(), { name: "c", task: "t", session: "Repo Scan" }), "invalid session name"));
+  ok("planning refuses a group nobody limited", planThrows(() => planSpawn(planDeps({ configs: new Map([["c", { provider: "p", model: "m", groups: ["nope"] }]]) }), { name: "c", task: "t", session: "task-a" }), "no config gives a limit"));
 
   console.log("\nentry point");
   // The entry reads its config at load, so it gets a workspace of its own: a temp agent dir, a temp cwd, and no

@@ -124,22 +124,6 @@ export const IDLE_AFTER_MS = 15_000;
 /** How many finished tool calls the breadcrumb keeps. */
 export const RECENT_TOOLS_LIMIT = 4;
 
-/** Collapse to one line and cut to `limit`, for activity text, errors and rendered output. */
-export function oneLine(value: string, limit: number): string {
-  const text = value.replace(/\s+/g, " ").trim();
-  return text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text;
-}
-
-/**
- * A tool's own duration, as `0.3s` / `4.2s` / `1m02s`. `formatElapsed` floors to whole seconds, which loses every
- * sub-second tool call.
- */
-export function formatDuration(ms: number): string {
-  const seconds = Math.max(0, ms) / 1000;
-  if (seconds < 60) return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}s`;
-  return `${Math.floor(seconds / 60)}m${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
-}
-
 /** Tokens of the turn being decoded right now, counted off the stream; 0 once the turn has ended. */
 function liveGenerated(record: TaskRecord): number {
   return record.state === "running" ? (record.usage.streaming ?? 0) : 0;

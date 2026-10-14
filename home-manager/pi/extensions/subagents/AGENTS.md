@@ -139,7 +139,16 @@ within the same second). Every task's transcript is persisted there with the SDK
 
 ```
 subagents/
-  index.ts            # config load, five tools, /subagents, system prompt section, lifecycle
+  index.ts            # config load, tool/command registration, system prompt section, lifecycle; builds SubagentContext
+  context.ts          # the shared config/registry/lease-store every handler receives
+  spawn.ts            # subagent_spawn: validation, model resolve, group/slot leases, session dir, task start
+  wait.ts             # subagent_wait: blocking loop, live progress, delivery-once
+  status.ts           # subagent_status: one task or all, as plain-text report lines
+  result.ts           # subagent_result: report, temp-file overflow, cost
+  kill.ts             # subagent_kill + the shared kill helper the command uses
+  command.ts          # /subagents: list/detail/kill and the lease subcommands
+  format.ts           # theme-free formatting: time, tokens, tool activity, plain-text task lines
+  usage.ts            # a finished task's tokens/cost as a `Usage`
   config.ts           # subagents.json schema, merging, prompt files and tool resolution
   prompt.ts           # the section a spawning session is given, and how a subagent's own prompt is applied
   task.ts             # SubagentTask: createAgentSession, the prompt extension, progress events, outcome, lease release
@@ -155,7 +164,7 @@ subagents/
 node test-utils/check.mjs        # ~1 s, no pi running, no model called; exits non-zero on failure
 ```
 
-`state.ts` and `store.ts` import nothing outside node, so their assertions run directly. `config.ts` (`typebox`) and
+`state.ts`, `store.ts` and `format.ts` import nothing outside node, so their assertions run directly. `config.ts` (`typebox`) and
 `ui.ts` (`pi-tui`) need pi's `node_modules`: the script locates it through the `pi` on `PATH`, or takes
 `PI_NODE_MODULES=/nix/store/<hash>-pi/lib/pi/node_modules`. If neither works the two sections are reported as SKIP and
 the run still fails, so a missing dependency is never mistaken for a passing suite.
@@ -183,6 +192,9 @@ What it pins down, mostly with the bugs it was written against:
   refuses further claims.
 - **slots** — a configured `slots` map loads and refuses a non-integer or a limit below 1; an unlisted model is one
   slot. Nothing is probed at spawn.
+- **spawn plan** — `planSpawn` is pure: it carries the provider/model, defaults an unlisted model to one slot, turns a
+  group into a lease request with that group's limit, and refuses an unconfigured name, a missing or non-kebab-case
+  `session` and a group nobody limited before any store or session exists.
 - **config** — `enable` with `disable`, a non-list `enable`, a misspelled tool key, a key an entry should not have and
   a missing provider/model are all refused with a message naming the entry; a file that cannot be parsed throws; a
   group named twice is collapsed and reported; project overrides user; one bad group limit skips the map; no list
