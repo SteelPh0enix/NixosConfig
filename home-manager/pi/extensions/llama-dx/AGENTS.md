@@ -36,8 +36,10 @@ count only what has been evaluated *so far*, so taking them for the whole prompt
 through prefill). `/slots` cannot help: its `n_prompt_tokens` is the size of the slot's whole KV — cached prefix,
 what it has batched and what it has generated — not the size of this prompt.
 
-The used zone is pi's own context figure, taken the moment the request went out; what is arriving since then belongs
-to the moving bands.
+The held band is llama.cpp's reused prefix of this prompt (`re`), so held + evaluating + pending is the whole
+prompt; what prefill and generation are adding are the moving bands. Until the server has reported a prefix, pi's own
+context figure stands in — except on the first request of a session, where pi can only estimate the whole prompt and
+would otherwise count it as held as well as processed, so the band stays empty.
 
 `/slots` is polled slowly on purpose: it posts a task to the server queue and answers with the whole prompt and
 answer detokenized, which at a 57k context costs about 2 ms and 1.8 MB per answer, so a fast poll is load on the
@@ -100,7 +102,8 @@ and a subagent's context is thrown away long before the footer stops rendering.
 
 Nothing is written to the session: pi records token counts only, never `timings`, so these numbers exist while the
 request runs and, dimmed, after it. The committed tokens join the held band at the end for a reason: otherwise the bar
-would shrink by exactly those tokens until the next request re-measured the context.
+would shrink by exactly those tokens until the next request re-measured the context — the held band is the reused
+prefix plus what this request evaluated and produced.
 
 ## Files
 
