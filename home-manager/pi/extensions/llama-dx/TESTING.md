@@ -66,7 +66,8 @@ prompt, and the first answer of a request still carries the task before it — d
 processing. What the check feeds `provider_stream_event` mirrors the same `step`: `prompt_progress` with
 `total = 10000, cache = 4000, processed = 4000 + evaluated`, so the two sources always describe the same moment.
 `/props` answers like a router everywhere except under `/nope`, where it answers like something that is not
-llama.cpp. `/metrics` returns a fixed scrape (deferred, processing, `n_busy_slots_per_decode`, the
+llama.cpp, and under `/gufo`, where it answers like gufo (400 `missing_model`, with `/v1/models` saying
+`owned_by: gufo`). `/metrics` returns a fixed scrape (deferred, processing, `n_busy_slots_per_decode`, the
 speculative-decode counters, `n_tokens_max`). At step thirteen one chunk carries `timings` with enough measured
 tokens for llama.cpp's own speeds to be trusted, plus the exact `usage.prompt_tokens`.
 
@@ -104,6 +105,8 @@ What it asserts, in order:
 - the request is counted, `/llama-dx reset` reports clearing, and a model whose server is not llama.cpp hands the
   footer back and is never polled or scraped — not while its `/props` probe is still on its way either, which is
   what `/nope3` (a deliberately slow `/props`) is there for
+- gufo, whose `/props` is a stub, keeps the footer through the `/v1/models` fallback and is polled and scraped like
+  llama.cpp
 
 `--dump` prints the footer as plain text at every poll after the results, which is how you tell whether the bar is
 really moving rather than merely non-empty.

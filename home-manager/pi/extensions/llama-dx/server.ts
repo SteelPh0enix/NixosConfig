@@ -127,9 +127,32 @@ function authFor(url: string): Record<string, string> | undefined {
   return found ? { authorization: `Bearer ${found[1]}` } : undefined;
 }
 
-/** Settled "is this a llama.cpp server" answers; unknown roots are treated as one. */
+/** Settled "is this a llama.cpp-compatible server" answers; unknown roots are treated as one. */
 const llamaRoots = new Map<string, boolean>();
 const probing = new Set<string>();
+
+type PropsShape = { role?: string; model_alias?: string; chat_template_caps?: unknown };
+
+const looksLikeLlama = (props: PropsShape): boolean =>
+  props.role === "router" || typeof props.model_alias === "string" || props.chat_template_caps !== undefined;
+
+/**
+ * gufo is not llama.cpp, but it serves llama.cpp's `/slots`, `/metrics` and `prompt_progress`/`timings`, so the
+ * footer works against it. Its `/props` is a stub that demands a `?model=` and carries none of the fields above,
+ * so it names itself in `/v1/models` instead (`owned_by: "gufo"`) — the one place the probe looks when `/props`
+ * did not answer. `undefined` means the model list did not answer, which is not an answer about the server.
+ */
+async function looksLikeGufo(root: string): Promise<boolean | undefined> {
+  try {
+    const url = `${root}/v1/models`;
+    const response = await fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+    if (!response.ok) return false;
+    const body = (await response.json()) as { data?: { owned_by?: string }[] };
+    return body.data?.some((model) => model.owned_by === "gufo") ?? false;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * One /props per server, off the request path: it decides polling, timings injection and whether to take the footer
@@ -144,10 +167,16 @@ export function probeRoot(root: string, onAnswer: (answer: boolean) => void): vo
     probing.add(root);
     const url = `${root}/props`;
     fetch(url, { headers: authFor(url), signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
-      .then(async (response) => {
-        if (!response.ok) return false;
-        const props = (await response.json()) as { role?: string; model_alias?: string; chat_template_caps?: unknown };
-        return props.role === "router" || typeof props.model_alias === "string" || props.chat_template_caps !== undefined;
+      .then(async (response): Promise<boolean> => {
+        if (response.ok) {
+          const props = (await response.json()) as PropsShape;
+          return looksLikeLlama(props);
+        }
+        // gufo answers /props without a ?model= with 400 missing_model and is compatible; a server that answered
+        // with a body and no llama.cpp field is something else, and is not asked again.
+        const gufo = await looksLikeGufo(root);
+        if (gufo === undefined) throw new Error("/v1/models did not answer");
+        return gufo;
       })
       .then((answer) => {
         probing.delete(root);
