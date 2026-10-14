@@ -59,6 +59,9 @@ measured on another machine survives.
   and an unauthenticated probe would read as "not llama.cpp" rather than as no answer.
 - A model that is not served by llama.cpp hands the footer back to pi and is never polled or scraped again — a
   request to some third-party API never goes out looking for slots and metrics.
+- Gufo is treated as llama.cpp compatible, recognised through `/v1/models` (its `/props` is a stub). It serves
+  `/slots` and `/metrics` and answers `return_progress` with live `prompt_progress`, but sends `timings` only on the
+  terminal chunk, so prefill moves while `pp`/`tg` land when the request ends.
 - Bar granularity is `--batch-size`, so a 2048-batched instance has few real steps per cell.
 - `LLAMA_DX_DEBUG=1` writes one stderr line per poll, per scrape and per finished request.
 

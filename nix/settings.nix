@@ -40,7 +40,8 @@ rec {
   gufoMtpPath = "${llamaModelsPath}/models/qwen/3.8-Flash-Next/UD-Q4_K_XL/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf";
   gufoServedModelName = "Qwen 3.8 Flash Next";
   gufoContext = 262144;
-  gufoSessions = 1;
+  # ~6.3 GB of KV/recurrent/indexer/MTP state per session at this context (gufo's measured figure).
+  gufoSessions = 2;
   # Same key the Docker router served; external clients must not have to change it.
   gufoApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
 }

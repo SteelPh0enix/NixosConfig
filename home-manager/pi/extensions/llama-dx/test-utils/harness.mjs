@@ -94,7 +94,7 @@ const stop = async () => {
   clearInterval(agentsTimer);
   clearTimeout(limit);
   usedTokens = Math.min(nCtx, usedTokens + 3000); // pi would have recorded the answer by now
-  await fire("agent_end", {});
+  await fire("agent_end", {}, ctx);
   tick();
   process.exit(0);
 };
@@ -140,7 +140,7 @@ for await (const bytes of response.body) {
     finish ??= chunk.choices?.[0]?.finish_reason ?? null;
     if (chunk.timings) timings = chunk.timings; // the last one is the complete set
     if (chunk.usage) usage = chunk.usage;
-    await fire("provider_stream_event", { data: chunk });
+    await fire("provider_stream_event", { data: chunk }, ctx);
   }
 }
 console.log(`streamed ${chars} chars finish=${finish}`);

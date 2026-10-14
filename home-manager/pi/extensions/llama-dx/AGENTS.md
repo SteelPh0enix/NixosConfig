@@ -65,7 +65,9 @@ them.
 
 A `/props` that gets no reply is not an answer: the footer stays and the question is asked again up to five times, so
 a stalled lookup or a router still loading costs the moving cells rather than the whole line. Nothing is polled or
-scraped until that check has said yes.
+scraped until that check has said yes. gufo is not llama.cpp but serves the same `/slots`, `/metrics` and
+`prompt_progress`; its `/props` is a stub that demands a `?model=`, so when `/props` does not answer the probe falls
+back to `/v1/models` and accepts it when a model there is `owned_by: gufo`.
 
 ## The row of subagents
 
@@ -112,7 +114,7 @@ prefix plus what this request evaluated and produced.
 | `index.ts` | wiring to pi's events, and `/llama-dx` |
 | `layout.ts` | both lines as coloured segments of measured width; imports nothing at runtime |
 | `agents.ts` | the row of running subagents, out of the snapshot the subagents extension broadcasts |
-| `server.ts` | the llama.cpp endpoints: `/props`, `/slots`, `/metrics` |
+| `server.ts` | the server's endpoints: `/props`, `/slots`, `/metrics`, and `/v1/models` for gufo |
 | `state.ts` | the polled request, the last speeds llama.cpp reported, the compaction phase, and the numbers the footer shows |
 | `footer.ts` | the component pi renders, and taking pi's footer back when the server is not llama.cpp |
 | `debug.ts` | `LLAMA_DX_DEBUG=1`: one stderr line per poll, per scrape and per finished request |

@@ -26,20 +26,31 @@ const CACHE = 4000;
 const TARGET = PROMPT - CACHE;
 let step = 0;
 let askedElsewhere = 0;
+let askedGufo = 0;
 const script = (n) => ({ processed: Math.max(0, Math.min(TARGET, (n - 1) * 800)), decoded: n > 11 ? Math.min(120, (n - 11) * 40) : 0 });
 const server = (await import("node:http")).createServer((req, res) => {
   const send = (body, type = "application/json") => (res.writeHead(200, { "content-type": type }), res.end(body));
   // Anything under /nope answers like a server that is not llama.cpp, which is how the footer hand-back is checked.
   const nope = req.url.startsWith("/nope");
-  // Nothing is asked of such a server beyond the one /props that says what it is.
-  if (nope && /\/(slots|metrics)(\?|$)/.test(req.url)) askedElsewhere += 1;
+  // /gufo answers /props like the real gufo (400 missing_model) and names itself in /v1/models, the fallback the
+  // probe uses when /props does not say llama.cpp.
+  const gufo = req.url.startsWith("/gufo");
+  const url = gufo ? req.url.slice("/gufo".length) : req.url;
+  // Nothing is asked of a non-llama.cpp server beyond the one /props (and gufo's one /v1/models) that says what it is.
+  if (nope && /\/(slots|metrics)(\?|$)/.test(url)) askedElsewhere += 1;
+  if (gufo && /\/(slots|metrics)(\?|$)/.test(url)) askedGufo += 1;
   // /nope3 answers /props late, so a request made just after switching to it is still running with the server's
   // identity unknown — which is the moment nothing may be asked of it.
-  if (req.url.endsWith("/props")) {
-    if (req.url.startsWith("/nope3")) return setTimeout(() => send("{}"), 400);
+  if (url.endsWith("/props")) {
+    if (url.startsWith("/nope3")) return setTimeout(() => send("{}"), 400);
+    if (gufo) {
+      res.writeHead(400, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ error: { message: "'model' query parameter is required", type: "invalid_request_error", code: "missing_model" } }));
+    }
     return send(JSON.stringify(nope ? {} : { role: "router", model_alias: "qwen", chat_template_caps: {} }));
   }
-  if (req.url.startsWith("/slots")) {
+  if (url.startsWith("/v1/models")) return send(JSON.stringify({ object: "list", data: [{ id: "qwen", object: "model", owned_by: "gufo" }] }));
+  if (url.startsWith("/slots")) {
     const s = step > 0 ? script(step) : { processed: 2000, decoded: 80 };
     const cache = step > 0 ? CACHE : 1800;
     return send(JSON.stringify([{ id: 0, n_ctx: 262144, is_processing: step > 0 && step < 16, n_prompt_tokens: cache + s.processed + s.decoded, n_prompt_tokens_processed: s.processed, n_prompt_tokens_cache: cache, next_token: [{ n_decoded: s.decoded }] }]));
@@ -291,6 +302,18 @@ void fire("model_select", {}, ctx);
 await fire("before_provider_request", { payload: { model: "somewhere-else", messages: [] } }, ctx);
 await new Promise((r) => setTimeout(r, 2400));
 expect("and nothing is ever scraped from it, nor before /props has said what it is", askedElsewhere === 0);
+
+// gufo is not llama.cpp, but it serves the same /slots, /metrics and prompt_progress; /props wants a ?model=, so the
+// probe learns it from /v1/models and the footer stays and is fed like any other llama.cpp-compatible server.
+const gufoBefore = askedGufo;
+const origin = new URL(ctx.model.baseUrl).origin;
+ctx.model = { ...ctx.model, baseUrl: `${origin}/gufo/v1` };
+await fire("model_select", {}, ctx);
+await new Promise((r) => setTimeout(r, 300)); // the /props probe and its /v1/models fallback answer asynchronously
+expect("gufo keeps the footer", footer !== null);
+await fire("before_provider_request", { payload: { model: "qwen", messages: [] } }, ctx);
+await new Promise((r) => setTimeout(r, 700));
+expect("gufo is polled and scraped like llama.cpp", askedGufo > gufoBefore);
 await fire("session_shutdown", {});
 server.close();
 
