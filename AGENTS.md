@@ -74,18 +74,50 @@ module of this flake, which exports no `homeConfigurations`.
 
 ## Couplings that break quietly
 
-- **Ports.** Services bind `0.0.0.0` and the firewall decides. `nix/settings.nix` holds the numbers,
-  `nixos/networking.nix` opens them, and AdGuard's 53 is opened there rather than by the service.
-  Change one side and the other drifts.
-- **DNS ordering.** Most services wait on `dns-ready.target`, whose probe asks AdGuard on loopback and
-  insists on a real answer, because AdGuard serves its startup rewrites even with dead upstreams. Do
-  not bypass the target to make a service start sooner.
-- **cloudflared.** Ingress is declared in Nix precisely so it survives a rebuild. A public-hostname
-  route added in the Zero Trust dashboard makes cloudflared fetch remote config and silently ignore
-  the ingress in this repo.
-- **Samba** comes from `nixpkgs-previous` because current nixpkgs samba does not build.
-- **AdGuard config** is authoritative from Nix: a `preStart` merges the generated yaml into
-  `/var/lib/AdGuardHome`, so UI-only changes survive and upstreams, filters and rewrites do not.
+- **The `hosts` entries in `nixos/services.nix`** are what keep `steelph0enix.framework`,
+  `search.framework` and `steelph0enix.pc` resolvable. `models.json` and `SEARXNG_URL` name those
+  hosts, so moving or renaming a box breaks pi on both — and it breaks *only* the things that resolve,
+  because DNS for everything else is AdGuard on `192.168.0.185`. When that box is down, this one loses
+  its default provider and every lookup that isn't in `hosts`. The `resolvconf` options there
+  (`timeout:2 attempts:3 single-request-reopen`) are a mitigation for AdGuard dropping about one UDP
+  reply in twenty, and at glibc's defaults a lost reply costs five seconds; don't remove them as noise.
+- **Ports.** `nix/settings.nix` holds `llamaRouterPort` and `llamaLogsPort`, and `nixos/services.nix`
+  opens them; there is no separate firewall file to remember. The opened 51580 is currently pointless
+  because the log viewer binds `127.0.0.1` — if you open something, check what it actually binds
+  (`ss -tulpn`).
+- **The preset is `/mnt/NVMe/LLMs/llama-server.ini`, untracked.** A rebuild never deploys edits to it,
+  and a change to the disk layout takes the server with it. `nixos/hardware-configuration.nix` is
+  where those `/mnt` mounts come from.
+- **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
+  and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
+  disables and the kernel parameter repeats.
+- **`nix/nixpkgs-config.nix` here is only `allowUnfree` and `rocmSupport`.** There is no `badpkgs`
+  list and no download-verification overrides, unlike the other branch — a package that needs an
+  override over there may build plainly here, and backporting an override that references `badpkgs`
+  fails to evaluate here.
+
+## The subagent fleet lives here
+
+Most subagents run on this box's server (provider `llama-pc`), through the `pc` group, which allows one
+model at a time. So a live test of an extension, or a big model swap, is felt on the other machine too,
+and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
+`assistant-smart`) is the exception: it runs on the framework box's gufo server, the model the main
+session itself uses (provider `llama-main`), through the `framework` group, also one model at a time.
+That server has 2 slots of 262k and the main agent permanently holds one, so `subagents.json` gives the
+subagents 1 slot: one `-smart` task at a time, and it is the slowest and the most capable thing here.
+
+`models.json` pins `Qwen 3.8 Flash Next` at `contextWindow: 262144`, the one hand-written window in the
+catalog: gufo reports no `n_ctx` in `/models` and no launch args, so `llama-compat` has nothing to read
+for it and would otherwise fall back to pi's 128K default.
+
+Before testing:
+
+- name an explicit instance instead of the default (`llama-main` is the framework box's ROCm router and
+  pi's default provider — that's the session someone is working in), e.g.
+  `--provider llama-pc --model qwen-27B`;
+- check what's resident and what's queued before loading anything:
+  `curl -s http://steelph0enix.pc:51536/slots`;
+- expect a reload of several GB when the model you want isn't the one loaded — `--models-max 1`.
 
 ## pi extensions
 

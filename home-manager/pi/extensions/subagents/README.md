@@ -54,7 +54,7 @@ the project entry wins.
     }
   },
   "groups": { "gpu": 1 },
-  "slots": { "llama-pc/lfm": 4, "llama-pc/cyber-tiel-coder": 2 }
+  "slots": { "llama-pc/sharp-spark": 4, "llama-pc/cyber-tiel-coder": 2 }
 }
 ```
 
