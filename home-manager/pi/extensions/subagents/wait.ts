@@ -4,7 +4,7 @@
 import type { AgentToolResult, AgentToolUpdateCallback } from "@earendil-works/pi-coding-agent";
 import type { SubagentContext } from "./context.ts";
 import { activityLine, formatElapsed, formatReportLine, formatTokenStats, tailLines } from "./format.ts";
-import { toSummary, type TaskRecord } from "./state.ts";
+import { toSummary, type TaskRecord } from "./task-record.ts";
 import { usageFrom } from "./usage.ts";
 import type { WaitDetails } from "./ui.ts";
 

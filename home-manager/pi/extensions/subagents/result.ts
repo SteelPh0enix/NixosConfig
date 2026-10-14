@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import type { AgentToolResult, ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import type { SubagentContext } from "./context.ts";
 import { formatTokenStats } from "./format.ts";
-import { toSummary } from "./state.ts";
+import { toSummary } from "./task-record.ts";
 import { usageFrom } from "./usage.ts";
 import { notifyCompletion, type ResultDetails } from "./ui.ts";
 

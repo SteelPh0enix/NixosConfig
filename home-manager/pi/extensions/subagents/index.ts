@@ -17,7 +17,8 @@ import { executeResult } from "./result.ts";
 import { executeSpawn } from "./spawn.ts";
 import { executeStatus } from "./status.ts";
 import { executeWait, DEFAULT_WAIT_TIMEOUT_S } from "./wait.ts";
-import { TaskRegistry, killRecord } from "./state.ts";
+import { TaskRegistry } from "./task-registry.ts";
+import { killRecord } from "./task-outcome.ts";
 import { LeaseStore } from "./store.ts";
 import {
   emitStatus,

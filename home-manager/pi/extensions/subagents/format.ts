@@ -1,8 +1,8 @@
 // Theme-free formatting: time, tokens, tool activity and the plain-text task lines that the tools' `content`
 // and the `/subagents` command speak in. Rendering to themed `Text` stays in ui.ts; nothing here touches pi or
-// pi-tui, so state.ts (which imports none of them) can lean on `oneLine`/`formatDuration` without a cycle.
+// pi-tui, so it stays alongside the node-only task model.
 
-import { IDLE_AFTER_MS, toSummary, type TaskRecord, type TaskSummary } from "./state.ts";
+import { IDLE_AFTER_MS, toSummary, type TaskRecord, type TaskSummary } from "./task-record.ts";
 
 /** Collapse to one line and cut to `limit`, for activity text, errors and rendered output. */
 export function oneLine(value: string, limit: number): string {
