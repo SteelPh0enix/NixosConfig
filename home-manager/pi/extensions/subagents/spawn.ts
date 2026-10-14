@@ -15,6 +15,7 @@ import { resolveTools, type ResolvedTools, type SubagentConfig } from "./config.
 import type { SubagentContext } from "./context.ts";
 import type { TaskRecord } from "./task-record.ts";
 import { SubagentTask } from "./task.ts";
+import { llamaShared, rebalanceShared, runningOn, sharedWindow } from "./shared-context.ts";
 import type { AcquireResult, LeaseRequest } from "./store.ts";
 import { emitStatus, notifyCompletion, type SpawnDetails } from "./ui.ts";
 
@@ -88,14 +89,22 @@ export async function executeSpawn(
   const { registry, getStore, pi } = deps;
   const { config, providerModel, capacity, requests } = planSpawn(deps, params);
 
-  // llama-compat fills a llama.cpp model's context size from the server, and --fit can answer differently from one
-  // load to the next, so ask the provider for its live figures before resolving. A server that is not answering is
-  // not the subagent's problem: pi keeps the catalog it already has and the spawn goes ahead.
-  await toolCtx.modelRegistry.refresh({ providers: [config.provider], force: true }).catch(() => {});
-  const model = toolCtx.modelRegistry.find(config.provider, config.model);
+  const modelRegistry = toolCtx.modelRegistry;
+  // PI_OFFLINE (pi's own update/telemetry switch) turns a plain refresh into a no-op, and the local server is the
+  // only source of a served window; force the probe. A cold preset cannot report the context `--fit` will serve it,
+  // so the same call runs again after the first response tells us it loaded.
+  const resolveModel = async () => {
+    await modelRegistry.refresh({ providers: [config.provider], force: true, allowNetwork: true }).catch(() => {});
+    return modelRegistry.find(config.provider, config.model);
+  };
+  const model = await resolveModel();
   if (!model) {
     throw new Error(`unknown model "${config.provider}/${config.model}"`);
   }
+
+  // A unified pool is split across the peers actually running on this model, so one task gets the whole window.
+  const shared = llamaShared(model);
+  const taskWindow = sharedWindow(shared, runningOn(registry.all(), config.provider, config.model).length + 1);
 
   // A group's limit counts distinct models; within a model the capacity is that model's own slot count. Every group
   // this spawn takes shares one claim, so it counts once toward capacity. An untracked subagent never opens the store.
@@ -143,8 +152,11 @@ export async function executeSpawn(
       usage: { tokens: 0, cost: 0, generated: 0 },
       groups: config.groups ?? [],
       slot: lease.slot,
+      shared,
     };
     registry.add(record);
+    // Resize the peers already running for the arrival of this one; the new task starts at the window it was promised.
+    rebalanceShared(registry.all(), config.provider, config.model, shared);
 
     const runner = new SubagentTask({
       record,
@@ -153,6 +165,8 @@ export async function executeSpawn(
       cwd: effectiveCwd,
       agentDir: getAgentDir(),
       model,
+      resolveModel,
+      sharedWindow: taskWindow,
       sessionManager,
       registry,
       leases: lease.ids,

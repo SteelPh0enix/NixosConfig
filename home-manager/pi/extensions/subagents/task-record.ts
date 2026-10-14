@@ -61,15 +61,25 @@ export interface TaskRecord {
   usageReported?: boolean;
   /** Whether the completion toast has already fired. */
   notified?: boolean;
+  /** Set when this task's model draws its slots from one shared KV pool (llama-compat metadata). */
+  shared?: LlamaShared;
   /** Live only: the runner driving this task (its SubagentTask). */
   runner?: TaskRunner;
 }
 
-/** What a task's runner offers to whoever wants it stopped. */
+/** A unified llama.cpp pool: the token budget every slot draws from, and how many slots there are. */
+export interface LlamaShared {
+  pool: number;
+  slots: number;
+}
+
+/** What a task's runner offers to whoever wants it stopped, or treated to a different slice of a shared pool. */
 interface TaskRunner {
   abort(): Promise<void>;
   done(): Promise<void>;
   releaseLeases(): void;
+  /** Adopt `window` as this task's context window, growing or shrinking it as its peers come and go. */
+  setContextWindow(window: number | undefined): Promise<void>;
 }
 
 /**
@@ -79,6 +89,7 @@ interface TaskRunner {
 export interface TaskSummary {
   id: string;
   name: string;
+  provider: string;
   model: string;
   state: TaskState;
   /** Milliseconds the task ran (or has been running, measured at call time). */
@@ -139,6 +150,7 @@ export function toSummary(record: TaskRecord, now = Date.now()): TaskSummary {
   return {
     id: record.id,
     name: record.name,
+    provider: record.provider,
     model: record.model,
     state: record.state,
     elapsed: Math.max(0, (record.finishedAt ?? now) - record.startedAt),

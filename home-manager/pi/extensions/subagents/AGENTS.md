@@ -35,6 +35,18 @@ Validation happens at load, keys included, through a TypeBox schema: `enable` to
 `enable`, a misspelled tool key, a key an entry should not have and a missing provider/model are all refused with a
 message naming the entry. A group named twice is a mistake, so it is reported and collapsed to one.
 
+## Shared KV pool
+
+A `--kv-unified` llama.cpp preset serves every slot from one pool, and `llama-compat` registers the safe window
+`pool / slots` so no session can overrun the pool. The subagents extension knows which peers are actually running, so
+it hands each one `pool / active` instead: one task gets the whole pool, two split it, and the division is redone from
+the registry whenever a task starts or finishes, or a cold model finally reports its pool. The pool is the
+`llamaShared` metadata `llama-compat` attaches to the model; `--no-kv-unified` models carry none and keep their fixed
+window. A task whose new slice is smaller than what it already holds compacts on its next request. The slice is
+applied *after* `createAgentSession`: binding the session's own extensions re-registers the provider and resets the
+model to the catalog one, so the model passed at creation is not the one the session ends up with. The registry is per
+instance, so the split counts this pi's tasks only: two pi instances on one model each still see a single task.
+
 ## Isolation
 
 - A subagent cannot spawn or manage subagents: all five tools are excluded whatever `tools` says.
@@ -122,7 +134,11 @@ within the same second). Every task's transcript is persisted there with the SDK
   `out` is the tokens its own model produced; while a turn is still decoding it is counted off the stream and shown as
   `out ~1.2k` — thinking counted, not only the answer text — replaced by the model's figure the moment the turn ends.
   `ctx` is pi's context estimate for the subagent's session against its window, refreshed with every status emit, so
-  the blocked `subagent_wait` widget shows it climbing while the task works.
+  the blocked `subagent_wait` widget shows it climbing while the task works. The window is the provider's last word: a
+  `--fit` llama.cpp preset can only report its served context once it is loaded, so the task re-reads the model after
+  its first response and adopts that window instead of the cold catalog guess it spawned with. Both re-reads pass
+  `allowNetwork: true`: a plain `modelRegistry.refresh` is a no-op while `PI_OFFLINE` is set (pi's own update and
+  telemetry switch), and the local server is the only source of a served window.
 - A task's tokens and cost reach the main session's totals **once**, from whichever tool collects it first — `pi`
   adds up the `usage` of every tool result it is handed, so reporting twice would count the same calls twice. The
   `Usage` those two tools report is synthetic: what the task's model produced comes back as `output` and the rest of
@@ -130,7 +146,7 @@ within the same second). Every task's transcript is persisted there with the SDK
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
   is waiting on it, and only once, not again when the report is read.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`,
-  `{ tasks: [{ id, name, model, state, elapsed, idle, turns, tokens, lastActivity, tool, recentTools, retry, error, recentOutput }] }`,
+  `{ tasks: [{ id, name, provider, model, state, elapsed, idle, turns, tokens, lastActivity, tool, recentTools, retry, error, recentOutput }] }`,
   whenever their state changes. `../llama-dx` subscribes to it and paints a row of its own above the two llama.cpp
   lines, so nothing here is drawn from it. Emitting into a session pi has replaced throws, so the snapshot swallows
   that rather than outliving its session.
@@ -155,6 +171,7 @@ subagents/
   task-record.ts      # TaskRecord/TaskSummary, the derived fields (toSummary), RECENT_*/IDLE constants
   task-registry.ts    # TaskRegistry: the task map and the completion queue `subagent_wait` drains
   task-outcome.ts     # settle (the one terminal-state writer) and killRecord with its deadline
+  shared-context.ts   # how a `--kv-unified` pool is split across the tasks actually running on one model
   store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
   ui.ts               # event emission, renderCall/renderResult, completion toast
   test-utils/check.mjs
@@ -166,7 +183,7 @@ subagents/
 node test-utils/check.mjs        # ~1 s, no pi running, no model called; exits non-zero on failure
 ```
 
-`task-record.ts`, `task-registry.ts`, `task-outcome.ts`, `store.ts` and `format.ts` import nothing outside node, so
+`task-record.ts`, `task-registry.ts`, `task-outcome.ts`, `shared-context.ts`, `store.ts` and `format.ts` import nothing outside node, so
 their assertions run directly. `config.ts` (`typebox`) and
 `ui.ts` (`pi-tui`) need pi's `node_modules`: the script locates it through the `pi` on `PATH`, or takes
 `PI_NODE_MODULES=/nix/store/<hash>-pi/lib/pi/node_modules`. If neither works the two sections are reported as SKIP and

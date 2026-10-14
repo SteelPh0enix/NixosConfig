@@ -35,6 +35,7 @@ const { TaskRegistry } = await importFrom(SRC, "task-registry.ts");
 const { toSummary, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "task-record.ts");
 const { killRecord, withTimeout, settle } = await importFrom(SRC, "task-outcome.ts");
 const { oneLine, formatDuration, formatElapsed, formatTokenStats, formatTokens, tailLines, activityLine, toolBreadcrumb } = await importFrom(SRC, "format.ts");
+const { llamaShared, sharedWindow, rebalanceShared } = await importFrom(SRC, "shared-context.ts");
 
 console.log("\nregistry");
 const reg = new TaskRegistry();
@@ -170,6 +171,33 @@ ok("a finished task is never idle", toSummary(record("task-f", { state: "done", 
 ok("details carry a bounded output", done.recentOutput.length === 1000);
 ok("oneLine collapses and trims, and leaves a short string alone", oneLine("  hello   world  ", 100) === "hello world" && oneLine("short", 100) === "short");
 ok("oneLine cuts a long string to limit with a trailing …", oneLine("abcdefghij".repeat(5), 10) === "abcdefghi…");
+
+// ---- shared KV pool (shared-context.ts) ----
+
+console.log("\nshared context");
+ok("a model without llama-compat metadata never shares", llamaShared({ id: "m" }) === undefined);
+ok("junk metadata is ignored", llamaShared({ llamaShared: { pool: 0, slots: 4 } }) === undefined && llamaShared({ llamaShared: { pool: 800, slots: 1 } }) === undefined);
+ok("a unified model's pool and slots are read back", JSON.stringify(llamaShared({ llamaShared: { pool: 800, slots: 4 } })) === JSON.stringify({ pool: 800, slots: 4 }));
+ok("one task takes the whole pool", sharedWindow({ pool: 800, slots: 4 }, 1) === 800);
+ok("two tasks split it evenly", sharedWindow({ pool: 800, slots: 4 }, 2) === 400);
+ok("three tasks floor the remainder", sharedWindow({ pool: 800, slots: 4 }, 3) === 266);
+ok("no pool, no slice", sharedWindow(undefined, 2) === undefined);
+
+const calls = [];
+const peer = (id, state = "running") =>
+  record(id, {
+    provider: "llama-pc", model: "big", state, shared: { pool: 800, slots: 4 },
+    runner: { abort: async () => {}, done: async () => {}, releaseLeases() {}, setContextWindow: async (w) => calls.push(`${id}:${w}`) },
+  });
+const peers = [peer("task-1"), peer("task-2"), peer("task-3", "done")];
+rebalanceShared(peers, "llama-pc", "big", { pool: 800, slots: 4 });
+ok("rebalance splits the pool across running peers only", [...calls].sort().join() === "task-1:400,task-2:400");
+ok("and records the pool on every running peer", peers[0].shared.pool === 800 && peers[1].shared.pool === 800);
+calls.length = 0;
+peers[1].state = "done";
+rebalanceShared(peers, "llama-pc", "big");
+ok("a finished peer leaves the survivor the whole pool", calls.join() === "task-1:800");
+ok("a model with no pool known never rebalances", (() => { calls.length = 0; rebalanceShared([record("task-x", { provider: "llama-pc", model: "cold" })], "llama-pc", "cold"); return calls.length === 0; })());
 
 // ---- group leases (store.ts) ----
 

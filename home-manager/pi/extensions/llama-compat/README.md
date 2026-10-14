@@ -6,7 +6,10 @@ A `models.json` entry for a llama.cpp router is hand-written, so it drifts: `con
 `reasoning` and `thinkingFormat` when a preset's chat template changes, `input` when a vision projector appears or
 goes away. At startup this extension asks the servers behind your configured providers what they actually serve, and
 re-registers them with the server's own answers: context window, vision, whether the model reasons, which thinking
-format and which effort levels pi should send.
+format and which effort levels pi should send. A `--kv-unified` preset gives all its slots one shared KV pool, so the
+window is divided by the slot count - otherwise two parallel requests would each claim the whole pool and overrun it.
+The pool itself is recorded on the model (`llamaShared`), so an extension that knows how many tasks actually run can
+re-divide it by that count instead.
 
 ## What it adds
 

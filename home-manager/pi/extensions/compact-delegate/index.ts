@@ -19,7 +19,7 @@ import {
   getLatestCompactionEntry,
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
-import { loadConfig } from "./config.ts";
+import { conflictingModel, loadConfig } from "./config.ts";
 import {
   buildSummaryRequest,
   carryFileOps,
@@ -34,6 +34,17 @@ const k = (chars: number) => `${Math.round(chars / 4000)}k`;
 
 export default function (pi: ExtensionAPI) {
   const { config, errors } = loadConfig(process.cwd(), getAgentDir());
+
+  // What the subagents extension says is running: a llama.cpp server keeps one preset resident, so summarizing on a
+  // different model of the same provider would swap a running task's model out from under it.
+  let busy: Array<{ provider: string; model: string }> = [];
+  pi.events.on("subagents:status", (data) => {
+    const tasks = (data as { tasks?: Array<{ provider?: string; model?: string }> })?.tasks;
+    if (!Array.isArray(tasks)) return;
+    busy = tasks
+      .filter((task): task is { provider: string; model: string } => typeof task.provider === "string" && typeof task.model === "string")
+      .map((task) => ({ provider: task.provider, model: task.model }));
+  });
 
   pi.on("session_start", async (_event, ctx) => {
     for (const error of errors) ctx.ui.notify(`compact-delegate: ${error}`, "warning");
@@ -61,6 +72,12 @@ export default function (pi: ExtensionAPI) {
     const { preparation, customInstructions, signal } = event;
     const messages = [...preparation.messagesToSummarize, ...preparation.turnPrefixMessages];
     if (messages.length === 0) return;
+
+    const held = conflictingModel(busy, config.provider, config.model);
+    if (held) {
+      ctx.ui.notify(`compact-delegate: ${config.provider} is busy with ${held}, using pi's compaction`, "info");
+      return;
+    }
 
     const model = ctx.modelRegistry.find(config.provider, config.model);
     if (!model) {

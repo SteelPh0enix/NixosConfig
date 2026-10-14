@@ -17,7 +17,7 @@ const ok = (label, cond) => {
 
 const { serializeConversation, fitConversation, charBudget, buildSummaryRequest, carryFileOps, fileLists, formatFileLists } =
   await import(new URL("../summarize.ts", import.meta.url).href);
-const { loadConfig } = await import(new URL("../config.ts", import.meta.url).href);
+const { loadConfig, conflictingModel } = await import(new URL("../config.ts", import.meta.url).href);
 
 const user = (text) => ({ role: "user", content: [{ type: "text", text }], timestamp: 0 });
 const assistant = (blocks) => ({ role: "assistant", content: blocks, timestamp: 0 });
@@ -133,6 +133,16 @@ try {
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
+
+console.log("\nresident conflict");
+const busy = [
+  { provider: "llama-pc", model: "cyber-tiel-coder" },
+  { provider: "llama-main", model: "qwen-next" },
+];
+ok("another model on the summarizer's provider blocks delegation", conflictingModel(busy, "llama-pc", "sharp-spark") === "cyber-tiel-coder");
+ok("a task on the summarizer's own model does not", conflictingModel([{ provider: "llama-pc", model: "sharp-spark" }], "llama-pc", "sharp-spark") === undefined);
+ok("a task on another provider does not", conflictingModel(busy, "openrouter", "sharp-spark") === undefined);
+ok("nothing running means delegate", conflictingModel([], "llama-pc", "sharp-spark") === undefined);
 
 console.log(failed === 0 ? "\nall good" : `\n${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

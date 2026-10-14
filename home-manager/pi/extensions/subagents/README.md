@@ -60,8 +60,10 @@ the project entry wins.
 
 - `provider`, `model` — **required**. The subagent is hard-bound to that model of that provider. The provider is
   refreshed and the pair resolved when the task spawns, so a wrong one is a spawn error naming it, a llama.cpp model
-  whose context was re-fit since pi started is handed its live window, and a server that is not answering just leaves
-  the catalog pi already has.
+  whose context was re-fit since pi started is handed its live window (a preset still cold at spawn is re-read once
+  it loads, so `--fit` cannot leave the task on a guessed window), and a server that is not answering just leaves the
+  catalog pi already has. A `--kv-unified` llama.cpp preset is shared: each task takes an equal slice of the model's
+  KV pool for however many tasks are actually running on it, so one task uses the whole window and two split it.
 - `description` — optional, listed as one `name: description` line on the `name` parameter of `subagent_spawn`, which
   is the only place the main agent reads it. Worth naming what the subagent is for and how many slots its model has,
   since a spawn for a model another task already holds is refused.
@@ -121,6 +123,8 @@ supplied by the task, and `tool_search` and MCP tools are not loaded whatever yo
   `/subagents leases purge` recovers at once.
 - Nothing here knows which model the main session is on. If the main agent shares the card, its own requests can swap
   away the model a subagent holds — only subagents are accounted for.
+- A shared `--kv-unified` pool is split across this pi's subagents, not across pi instances: two processes each
+  running one task on the same model would each take the whole pool.
 - A subagent shares the main working directory, and `edit`/`write` are reachable unless the config's `tools` says
   otherwise; a subagent with `bash` can reach everything the main agent can. Use an allowlist for a strict setup. A
   subagent cannot spawn or manage subagents.

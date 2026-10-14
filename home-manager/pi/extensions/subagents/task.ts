@@ -20,6 +20,7 @@ import type { SubagentConfig, ResolvedTools } from "./config.ts";
 import { applySubagentPrompt, subagentPromptText } from "./prompt.ts";
 import { formatDuration, oneLine } from "./format.ts";
 import { RECENT_TOOLS_LIMIT, type TaskRecord } from "./task-record.ts";
+import { llamaShared, rebalanceShared } from "./shared-context.ts";
 import type { TaskRegistry } from "./task-registry.ts";
 import { settle, type TaskOutcome } from "./task-outcome.ts";
 import type { LeaseStore } from "./store.ts";
@@ -34,6 +35,10 @@ interface StartTaskOptions {
   cwd: string;
   agentDir: string;
   model: Model<any>;
+  /** Re-reads the model from its provider, for the served context window a cold preset cannot report yet. */
+  resolveModel?: () => Promise<Model<any> | undefined>;
+  /** Slice of a shared KV pool this task starts with, before the pool is known from the server. */
+  sharedWindow?: number;
   sessionManager: SessionManager;
   registry: TaskRegistry;
   /** Lease ids acquired for this task's groups; released when the task ends. */
@@ -55,12 +60,15 @@ export class SubagentTask {
   private unsubscribe?: () => void;
   private lastAssistant?: AgentMessage;
   private aborted = false;
+  private modelRefresh?: Promise<void>;
+  private sharedWindow?: number;
   private lastStatusEmit = 0;
   private readonly donePromise: Promise<void>;
   private resolveDone!: () => void;
 
   constructor(options: StartTaskOptions) {
     this.options = options;
+    this.sharedWindow = options.sharedWindow;
     this.donePromise = new Promise<void>((resolve) => {
       this.resolveDone = resolve;
     });
@@ -76,6 +84,20 @@ export class SubagentTask {
     this.aborted = true;
     // Aborts that land before `createAgentSession` resolves are picked up by `start()`.
     await this.session?.abort();
+  }
+
+  /** Adopt a slice of a shared KV pool; the session's next request compacts if it is over the new window. */
+  async setContextWindow(window: number | undefined): Promise<void> {
+    if (window === undefined) return;
+    this.sharedWindow = window;
+    const session = this.session;
+    const current = session?.model;
+    if (!session || !current || this.aborted || current.contextWindow === window) return;
+    try {
+      await session.setModel({ ...current, contextWindow: window, maxTokens: Math.min(current.maxTokens, window) });
+    } catch {
+      // A session on its way out keeps the window it already has.
+    }
   }
 
   async start(): Promise<void> {
@@ -108,6 +130,9 @@ export class SubagentTask {
         tools: resolvedTools.tools,
         excludeTools: resolvedTools.excludeTools,
       })).session;
+      // Not passed as the session model: binding this session's own extensions re-registers the provider and resets
+      // the model to the catalog one, so the promised slice is applied after that has settled.
+      await this.setContextWindow(this.sharedWindow);
       if (!this.aborted) {
         this.subscribe();
         await this.session.prompt(this.buildPrompt());
@@ -116,6 +141,9 @@ export class SubagentTask {
       // The outcome is recorded once, by `applyOutcome` below; here the reason is only remembered.
       caughtError = err instanceof Error ? err.message : String(err);
     }
+
+    // The served window is only known once the server has loaded the model, which the first response proves.
+    await this.modelRefresh;
 
     // The tail always runs: a task that never reports would hang `subagent_wait`.
     try {
@@ -133,6 +161,8 @@ export class SubagentTask {
     }
     this.releaseLeases();
     this.options.registry.markFinished(record.id);
+    // Hand the peers still running on this model the share this task just freed.
+    rebalanceShared(this.options.registry.all(), record.provider, record.model);
     try {
       this.options.onFinish(record);
     } catch {
@@ -193,6 +223,8 @@ export class SubagentTask {
         record.usage.generated += usage.output ?? 0;
         record.usage.cost += usage.cost?.total ?? 0;
       }
+      // `--fit` picks the served context at load time, so the window a cold catalog reported is stale until now.
+      this.modelRefresh ??= this.refreshModel();
       // An abort lands here as an assistant error message. Painting "model error: ... aborted" over the tool the
       // subagent was running would make a task we stopped ourselves look like one that crashed.
       if (!this.aborted && event.message.stopReason !== "aborted") {
@@ -232,6 +264,32 @@ export class SubagentTask {
       this.lastStatusEmit = now;
       this.readContextUsage();
       this.options.onStatus(this.options.record);
+    }
+  }
+
+  /** Adopt the served context window once the model has answered; a server that cannot be asked keeps the catalog. */
+  private async refreshModel(): Promise<void> {
+    const session = this.session;
+    const { resolveModel, record, registry } = this.options;
+    if (!session || !resolveModel || this.aborted) return;
+    try {
+      const live = await resolveModel();
+      const current = session.model;
+      if (!live || !current) return;
+      // Keep the slice this task currently holds, even though the provider reported the whole safe window.
+      const target =
+        this.sharedWindow !== undefined
+          ? { ...live, contextWindow: this.sharedWindow, maxTokens: Math.min(live.maxTokens, this.sharedWindow) }
+          : live;
+      if (target.contextWindow !== current.contextWindow && !this.aborted) await session.setModel(target);
+      // A preset that just loaded may now reveal the pool its slots share: split it across the running peers.
+      const shared = llamaShared(live);
+      if (shared) {
+        record.shared = shared;
+        rebalanceShared(registry.all(), record.provider, record.model, shared);
+      }
+    } catch {
+      // Nothing to update when the provider stays silent.
     }
   }
 
