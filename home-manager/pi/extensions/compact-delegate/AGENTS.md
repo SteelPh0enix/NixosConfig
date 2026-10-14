@@ -19,6 +19,15 @@ compaction: unavailable model, request error, `stopReason` `error` or `length`, 
 partial checkpoint and must never be persisted, which is also what pi's own code refuses. `cancel: true` is returned
 only when the abort signal already fired, so a user pressing Esc does not start a second, slower compaction.
 
+## standing aside for a running task
+
+A llama.cpp provider keeps one preset resident, so summarizing on another model while a subagent runs would swap that
+model out and reload it for the task's next turn. `index.ts` therefore subscribes to `subagents:status` and keeps the
+running tasks' `{ provider, model }`, and `session_before_compact` asks `conflictingModel()` (in `config.ts`, pure and
+tested) whether the summarizer's provider is held by a different model. On a conflict it notes which model and returns
+`undefined`, so pi compacts itself. The same provider with the summarizer's own model is not a conflict, and neither is
+a task on another provider.
+
 ## why the caps are the way they are
 
 pi clips each tool result to `TOOL_RESULT_MAX_CHARS = 2000` in `serializeConversation()`, because the summarization

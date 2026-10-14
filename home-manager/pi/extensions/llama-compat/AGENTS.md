@@ -8,8 +8,8 @@ this is how the server's answers become pi catalog entries.
 | Read | Used for |
 |---|---|
 | `GET /props` | whether the endpoint is a llama.cpp server at all; anything else is left alone |
-| `GET /models` | `contextWindow` from `meta.n_ctx` or the preset's `--ctx-size` arg, `input` from `architecture.input_modalities`, instance ids, aliases, `status.value` |
-| `GET /props?model=X&autoload=false`, loaded or sleeping instances only | served `n_ctx`, vision, the thinking switch and the effort variable the template declares, the effort values it accepts, `chat_template_caps.supports_reasoning_effort` and `supports_preserve_reasoning` |
+| `GET /models` | `contextWindow` from `meta.n_ctx` or the preset's `--ctx-size` arg, `input` from `architecture.input_modalities`, instance ids, aliases, `status.value`, and the `--parallel` / `--kv-unified` launch args |
+| `GET /props?model=X&autoload=false`, loaded or sleeping instances only | served `n_ctx`, `total_slots`, vision, the thinking switch and the effort variable the template declares, the effort values it accepts, `chat_template_caps.supports_reasoning_effort` and `supports_preserve_reasoning` |
 
 The per-model read carries `autoload=false`: a probe must never load a model on a router that keeps one preset
 resident. The two server-level reads (`/props`, `/models`) answer about the server and need no such marking.
@@ -18,7 +18,8 @@ resident. The two server-level reads (`/props`, `/models`) answer about the serv
 
 | Server says | Applied |
 |---|---|
-| served `n_ctx` | `contextWindow`, and `maxTokens` clamped down to it |
+| served `n_ctx`, else the preset's `--ctx-size`, else pi's 128K default; with `--kv-unified` and more than one slot, divided by the slot count | `contextWindow`, and `maxTokens` clamped down to it |
+| `--kv-unified` with more than one slot | `llamaShared: { pool, slots }` on the registered model, so a concurrent-session extension can re-divide the pool by the tasks actually running |
 | vision projector present / absent | `input` `["text", "image"]` / `["text"]` |
 | any thinking switch, effort, or thinking tags of its own | `reasoning: true`, otherwise `false` |
 | template emits thinking tags but reads no variable about it (LFM2.5) | `reasoning: true`, no thinking format, `thinkingLevelMap` left as `models.json` gave it - only `off` means anything to it |
@@ -31,6 +32,11 @@ resident. The two server-level reads (`/props`, `/models`) answer about the serv
 Only presets pi can actually route are registered: a loaded or sleeping instance, or a cold one when the router
 reports `models_autoload` (llama.cpp's own rule). Presets that can only answer with vectors (`--embeddings` or
 `--pooling` in their launch args) are left out.
+
+A `--kv-unified` preset gives all its slots one shared KV pool, so `-c` is the pool, not a per-request window: the
+window is divided by the slot count or two parallel requests would each claim the whole pool and together overrun
+it. `--no-kv-unified` keeps one cache per slot, so the window is left whole. The slot count comes from `total_slots`
+when the instance answers, and from `--parallel` when it is still cold.
 
 A cold preset cannot report its template or its served context, so it starts from its `--ctx-size` arg (pi's 128K
 default when the preset passes none) and without thinking.

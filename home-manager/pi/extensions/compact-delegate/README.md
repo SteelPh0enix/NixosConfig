@@ -55,6 +55,14 @@ and how long it took.
 
 Branch summaries (`/tree`) are still pi's own.
 
+## when not to delegate
+
+A llama.cpp server keeps one preset resident. If a subagent is running on a *different* model of the summarizer's
+provider, delegating would swap that model out and reload it for the task that is mid-flight, so compact-delegate
+leaves the compaction to pi instead. The check reads the running tasks the subagents extension publishes on
+`subagents:status`; a summary on the same provider as the only running model, or on a provider with nothing running,
+delegates as usual. The notification says which model was holding the server.
+
 ## verifying it
 
 Nothing to set up. `/compact` in a session that has something to summarize, then watch for

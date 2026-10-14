@@ -25,6 +25,18 @@ export interface LoadedConfig {
   errors: string[];
 }
 
+/**
+ * The model already holding `provider` that a summarizer request would evict: a llama.cpp server keeps one preset
+ * resident, so summarizing on another model would swap the running task's model out from under it.
+ */
+export function conflictingModel(
+  busy: readonly { provider: string; model: string }[],
+  provider: string,
+  model: string,
+): string | undefined {
+  return busy.find((task) => task.provider === provider && task.model !== model)?.model;
+}
+
 const KEYS = new Set(["enabled", "provider", "model", "toolResultMaxChars", "maxSummaryTokens", "reasoning"]);
 const REASONING = new Set(["off", "minimal", "low", "medium", "high", "xhigh"]);
 

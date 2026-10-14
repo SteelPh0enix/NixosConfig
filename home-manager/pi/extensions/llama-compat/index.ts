@@ -26,6 +26,8 @@ type ServerProps = {
   chat_template_caps?: Caps;
   modalities?: { vision?: boolean };
   default_generation_settings?: { n_ctx?: number };
+  /** The slot count the instance actually resolved, which supersedes the launch args. */
+  total_slots?: number;
 };
 
 type RouterModel = {
@@ -43,6 +45,9 @@ type Served = {
   nCtx?: number;
   /** What the preset was started with, from its launch args; weaker than the served n_ctx. */
   requested?: number;
+  /** Slots the instance runs; with `kvUnified` they share one pool, so each gets nCtx / parallel. */
+  parallel: number;
+  kvUnified: boolean;
   vision?: boolean;
   /** What the chat template can do about thinking; absent when the template could not be read. */
   thinking?: TemplateThinking;
@@ -50,6 +55,9 @@ type Served = {
 
 /** The chat variant of a registered model config. */
 type ChatModelConfig = Exclude<ProviderModelConfig, { type: "image" } | { type: "classifier" }>;
+
+/** What this extension records for a concurrent-session extension: the pool a unified model's slots share. */
+type LlamaModelConfig = ChatModelConfig & { llamaShared?: { pool: number; slots: number } };
 
 type ModelsJsonCompat = Record<string, unknown>;
 
@@ -371,15 +379,24 @@ function requestedContext(model: RouterModel): number | undefined {
   return Number.isSafeInteger(size) && size > 0 ? size : undefined;
 }
 
+/** A preset's slot count from its launch args; the served `total_slots` supersedes it once the instance answers. */
+function parallelOf(args: string[]): number {
+  const size = Number(flagValue(args, "-np", "--parallel"));
+  return Number.isSafeInteger(size) && size > 0 ? size : 1;
+}
+
 /** Instances pi can route a configured model to: the preset name, one of its aliases, or the lowercased name. */
 function servedFor(models: RouterModel[], root: string, signal?: AbortSignal): Promise<Served[]> {
   return Promise.all(
     models.map(async (model): Promise<Served> => {
+      const args = model.status?.args ?? [];
       const served: Served = {
         id: model.id,
         aliases: model.aliases ?? [],
         nCtx: model.meta?.n_ctx,
         requested: requestedContext(model),
+        parallel: parallelOf(args),
+        kvUnified: args.includes("--kv-unified"),
         vision: model.architecture?.input_modalities?.includes("image"),
       };
       const status = model.status?.value;
@@ -391,6 +408,7 @@ function servedFor(models: RouterModel[], root: string, signal?: AbortSignal): P
       return {
         ...served,
         nCtx: props.default_generation_settings?.n_ctx ?? served.nCtx,
+        parallel: props.total_slots ?? served.parallel,
         vision: props.modalities?.vision ?? served.vision,
         thinking: templateThinking(props),
       };
@@ -407,7 +425,7 @@ function match(served: Served[], modelId: string): Served | undefined {
  * (a cold preset, for instance) keeps the configured value.
  */
 function withServedInfo(model: ModelsJsonModel, providerCompat: ModelsJsonCompat | undefined, served: Served): {
-  config: ChatModelConfig;
+  config: LlamaModelConfig;
   added: string[];
   thinking: string;
 } {
@@ -428,16 +446,22 @@ function withServedInfo(model: ModelsJsonModel, providerCompat: ModelsJsonCompat
     llamaCompat.supportsReasoningEffort = policy.supportsReasoningEffort ?? false;
   }
 
+  // A hand-written context beats the preset's launch args, which only fill in for a discovered preset; a preset
+  // that cannot describe itself yet leaves pi's 128K default. With --kv-unified what the server reports is the pool
+  // every slot shares, so the window one request may use is its fair share of that pool.
+  const share = (value: number | undefined): number | undefined =>
+    served.kvUnified && served.parallel > 1 && value !== undefined ? Math.floor(value / served.parallel) : value;
+  const contextWindow = share(served.nCtx) ?? model.contextWindow ?? share(served.requested) ?? 128000;
+  // With --kv-unified the slots share one budget; exposed so a concurrent-session extension can split it by peers.
+  const pool = served.kvUnified && served.parallel > 1 ? served.nCtx ?? served.requested : undefined;
   const servedValues: Derived = {
     reasoning: policy ? policy.reasoning : model.reasoning,
     input: served.vision === undefined ? model.input : served.vision ? ["text", "image"] : ["text"],
-    // A hand-written context beats the preset's launch args, which only fill in for a discovered preset.
-    contextWindow: served.nCtx ?? model.contextWindow ?? served.requested,
+    contextWindow,
     thinkingLevelMap: policy?.thinkingLevelMap ?? model.thinkingLevelMap,
   };
-  if (servedValues.contextWindow && model.maxTokens) {
-    servedValues.maxTokens = Math.min(model.maxTokens, servedValues.contextWindow);
-  }
+  // The clamp reads the resolved window, not the one field: a defaulted window still caps the output.
+  if (model.maxTokens) servedValues.maxTokens = Math.min(model.maxTokens, contextWindow);
 
   const added = Object.entries(servedValues)
     .filter(([field, value]) => value !== undefined && JSON.stringify(value) !== JSON.stringify((model as Record<string, unknown>)[field]))
@@ -454,13 +478,14 @@ function withServedInfo(model: ModelsJsonModel, providerCompat: ModelsJsonCompat
       reasoning: servedValues.reasoning === true,
       input: servedValues.input ?? ["text"],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, ...(model.cost ?? {}) },
-      contextWindow: servedValues.contextWindow ?? 128000,
-      maxTokens: servedValues.maxTokens ?? servedValues.contextWindow ?? 128000,
+      contextWindow,
+      maxTokens: servedValues.maxTokens ?? contextWindow,
       compat: compat as ChatModelConfig["compat"],
       ...(servedValues.thinkingLevelMap ? { thinkingLevelMap: servedValues.thinkingLevelMap } : {}),
       ...(model.baseUrl ? { baseUrl: model.baseUrl } : {}),
       ...(model.headers ? { headers: model.headers } : {}),
       ...(model.samplingParams ? { samplingParams: model.samplingParams } : {}),
+      ...(pool !== undefined ? { llamaShared: { pool, slots: served.parallel } } : {}),
     },
     added,
     thinking: policy?.label ?? "as configured",
@@ -515,7 +540,9 @@ export default async function llamaCompat(pi: ExtensionAPI) {
           debug(`${name}: ${root} does not offer ${missing.join(", ")}`);
           return false;
         }
-        const built = models.map((model) => withServedInfo(model, provider.compat, match(served, model.id) ?? { id: model.id, aliases: [] }));
+        const built = models.map((model) =>
+          withServedInfo(model, provider.compat, match(served, model.id) ?? { id: model.id, aliases: [], parallel: 1, kvUnified: false }),
+        );
         current = built.map((entry) => entry.config);
         detail = built.map((entry) => `${entry.config.id}: ${entry.added.join(" ") || "nothing new"}, thinking=${entry.thinking}`).join("; ");
         return true;
