@@ -13,7 +13,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { resolveTools, type ResolvedTools, type SubagentConfig } from "./config.ts";
 import type { SubagentContext } from "./context.ts";
-import type { TaskRecord } from "./state.ts";
+import type { TaskRecord } from "./task-record.ts";
 import { SubagentTask } from "./task.ts";
 import type { AcquireResult, LeaseRequest } from "./store.ts";
 import { emitStatus, notifyCompletion, type SpawnDetails } from "./ui.ts";

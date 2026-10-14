@@ -19,7 +19,9 @@ import type { Model } from "@earendil-works/pi-ai/compat";
 import type { SubagentConfig, ResolvedTools } from "./config.ts";
 import { applySubagentPrompt, subagentPromptText } from "./prompt.ts";
 import { formatDuration, oneLine } from "./format.ts";
-import { keepSaidText, RECENT_OUTPUT_LIMIT, RECENT_TOOLS_LIMIT, type TaskRegistry, type TaskRecord } from "./state.ts";
+import { RECENT_TOOLS_LIMIT, type TaskRecord } from "./task-record.ts";
+import type { TaskRegistry } from "./task-registry.ts";
+import { settle, type TaskOutcome } from "./task-outcome.ts";
 import type { LeaseStore } from "./store.ts";
 
 type TaskCallback = (record: TaskRecord) => void;
@@ -79,6 +81,7 @@ export class SubagentTask {
   async start(): Promise<void> {
     const { record, resolvedTools, cwd, agentDir, model, sessionManager } = this.options;
     record.runner = this;
+    let caughtError: string | undefined;
 
     try {
       // pi only loads codemode, tool_search and MCP in the CLI; an SDK session gets none of them
@@ -110,16 +113,16 @@ export class SubagentTask {
         await this.session.prompt(this.buildPrompt());
       }
     } catch (err) {
-      record.state = "failed";
-      record.error = err instanceof Error ? err.message : String(err);
+      // The outcome is recorded once, by `applyOutcome` below; here the reason is only remembered.
+      caughtError = err instanceof Error ? err.message : String(err);
     }
 
     // The tail always runs: a task that never reports would hang `subagent_wait`.
     try {
-      this.applyOutcome();
+      this.applyOutcome(caughtError);
     } catch (err) {
-      record.state = "failed";
       record.error ??= err instanceof Error ? err.message : String(err);
+      settle(record, "failed", { error: record.error });
       record.finishedAt ??= Date.now();
     }
     this.unsubscribe?.();
@@ -261,31 +264,25 @@ export class SubagentTask {
     return parts.join("\n");
   }
 
-  private applyOutcome(): void {
+  private applyOutcome(caughtError?: string): void {
     const { record } = this.options;
     const assistant = this.lastAssistant?.role === "assistant" ? this.lastAssistant : undefined;
-    if (this.aborted || assistant?.stopReason === "aborted") {
-      record.state = "killed";
-    } else if (assistant?.stopReason === "error") {
-      record.state = "failed";
-      record.error = assistant.errorMessage ?? "Model returned an error";
-    } else if (record.state !== "failed") {
-      // Do not overwrite a failure the prompt() catch already recorded.
-      record.state = "done";
-      if (assistant?.stopReason === "length") record.error = "report hit the model's output limit";
-    }
-    record.finishedAt = Date.now();
-    record.usage.streaming = 0;
-    // A settled task is not running a tool, whatever it was in the middle of when it stopped.
-    record.currentTool = undefined;
-    record.output = assistant ? extractText(assistant) : (this.session?.getLastAssistantText() ?? "");
-    record.recentOutput = record.output.slice(-RECENT_OUTPUT_LIMIT);
+
+    // An abort wins over everything: a task we stopped is killed, whatever the model did on its way out. Otherwise a
+    // model error, or a failure before the model ever answered, makes it failed; a length stop is done with a note.
+    let outcome: TaskOutcome;
+    if (this.aborted || assistant?.stopReason === "aborted") outcome = "killed";
+    else if (assistant?.stopReason === "error" || caughtError) outcome = "failed";
+    else outcome = "done";
+
+    let error = caughtError;
+    if (assistant?.stopReason === "error") error = assistant.errorMessage ?? "Model returned an error";
+    else if (outcome === "done" && assistant?.stopReason === "length") error = "report hit the model's output limit";
+
+    const output = assistant ? extractText(assistant) : (this.session?.getLastAssistantText() ?? "");
+    settle(record, outcome, { error, output });
     // The last figure the task's model reported is the one worth showing next to its totals.
     this.readContextUsage();
-    keepSaidText(record);
-    // A settled task has no "right now", and the last thing it did reads as if it were still going. Where it stopped
-    // is worth keeping when it was aborted.
-    if (record.state !== "killed") record.lastActivity = "";
   }
 }
 

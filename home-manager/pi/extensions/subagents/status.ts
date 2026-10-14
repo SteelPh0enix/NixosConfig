@@ -3,7 +3,7 @@
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { SubagentContext } from "./context.ts";
 import { formatReportLine } from "./format.ts";
-import { toSummary } from "./state.ts";
+import { toSummary } from "./task-record.ts";
 import type { StatusDetails } from "./ui.ts";
 
 export interface StatusParams {

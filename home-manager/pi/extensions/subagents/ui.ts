@@ -12,7 +12,8 @@ import type {
   Theme,
   ThemeColor,
 } from "@earendil-works/pi-coding-agent";
-import { IDLE_AFTER_MS, toSummary, type TaskRecord, type TaskRegistry, type TaskState, type TaskSummary } from "./state.ts";
+import { IDLE_AFTER_MS, toSummary, type TaskRecord, type TaskState, type TaskSummary } from "./task-record.ts";
+import type { TaskRegistry } from "./task-registry.ts";
 import { activityLine, formatElapsed, formatTokenStats, oneLine, toolBreadcrumb } from "./format.ts";
 
 // ---- details shapes (matched by renderResult) -----------------------------

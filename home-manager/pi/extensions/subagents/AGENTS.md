@@ -152,7 +152,9 @@ subagents/
   config.ts           # subagents.json schema, merging, prompt files and tool resolution
   prompt.ts           # the section a spawning session is given, and how a subagent's own prompt is applied
   task.ts             # SubagentTask: createAgentSession, the prompt extension, progress events, outcome, lease release
-  state.ts            # task registry + completion queue, TaskSummary for details and events, kill with a deadline
+  task-record.ts      # TaskRecord/TaskSummary, the derived fields (toSummary), RECENT_*/IDLE constants
+  task-registry.ts    # TaskRegistry: the task map and the completion queue `subagent_wait` drains
+  task-outcome.ts     # settle (the one terminal-state writer) and killRecord with its deadline
   store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
   ui.ts               # event emission, renderCall/renderResult, completion toast
   test-utils/check.mjs
@@ -164,13 +166,17 @@ subagents/
 node test-utils/check.mjs        # ~1 s, no pi running, no model called; exits non-zero on failure
 ```
 
-`state.ts`, `store.ts` and `format.ts` import nothing outside node, so their assertions run directly. `config.ts` (`typebox`) and
+`task-record.ts`, `task-registry.ts`, `task-outcome.ts`, `store.ts` and `format.ts` import nothing outside node, so
+their assertions run directly. `config.ts` (`typebox`) and
 `ui.ts` (`pi-tui`) need pi's `node_modules`: the script locates it through the `pi` on `PATH`, or takes
 `PI_NODE_MODULES=/nix/store/<hash>-pi/lib/pi/node_modules`. If neither works the two sections are reported as SKIP and
 the run still fails, so a missing dependency is never mistaken for a passing suite.
 
 What it pins down, mostly with the bugs it was written against:
 
+- **settle** — the one terminal writer: a second settle is a no-op (so a kill that outruns its runner cannot
+  resurrect a task), a finished task loses its activity line while a killed one keeps the line it stopped on, and an
+  error is only added, never cleared.
 - **registry** — a claim filtered by `ids` leaves the other finished tasks claimable instead of throwing them away;
   every task is delivered exactly once; a wait for `task-b` survives `task-a` finishing and is still woken when
   `task-b` does (a waiter dropped by an unasked-for finish used to sit out the whole timeout); abort ends the wait;

@@ -4,8 +4,8 @@
 //
 //   node test-utils/check.mjs
 //
-// state.ts and store.ts need nothing outside node, but config.ts (`typebox`) and ui.ts (`pi-tui`) do, so they are
-// copied to a scratch dir that links pi's node_modules. The location is read from the pi on PATH, or given with
+// task-record.ts, task-registry.ts and store.ts need nothing outside node, but config.ts (`typebox`) and ui.ts
+// (`pi-tui`) do, so they are copied to a scratch dir that links pi's node_modules. The location is read from the pi on PATH, or given with
 // PI_NODE_MODULES=/nix/store/<hash>-pi/lib/pi/node_modules. A run prints one line per assertion and exits non-zero
 // on the first failure. node:sqlite prints an ExperimentalWarning; that is expected.
 import { execSync } from "node:child_process";
@@ -29,9 +29,11 @@ const record = (id, over = {}) => ({
   usage: { tokens: 1, cost: 0, generated: 0 }, groups: [], ...over,
 });
 
-// ---- the completion queue (state.ts) ----
+// ---- the task model and the completion queue (task-record.ts / task-registry.ts) ----
 
-const { TaskRegistry, toSummary, killRecord, withTimeout, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "state.ts");
+const { TaskRegistry } = await importFrom(SRC, "task-registry.ts");
+const { toSummary, RECENT_OUTPUT_LIMIT } = await importFrom(SRC, "task-record.ts");
+const { killRecord, withTimeout, settle } = await importFrom(SRC, "task-outcome.ts");
 const { oneLine, formatDuration, formatElapsed, formatTokenStats, formatTokens, tailLines, activityLine, toolBreadcrumb } = await importFrom(SRC, "format.ts");
 
 console.log("\nregistry");
@@ -115,6 +117,24 @@ const forceKilled = record("task-r", { state: "killed", finishedAt: Date.now() }
 resurrectReg.add(forceKilled);
 resurrectReg.markFinished("task-r");
 ok("a task killed before its runner settled stays killed", forceKilled.state === "killed");
+
+console.log("\nsettle");
+// settle is the one writer of terminal fields; every assertion here pins an invariant the three old writers shared.
+const settling = record("task-settle", { lastActivity: "bash: sleep 60", currentTool: { name: "bash", summary: "sleep 60", startedAt: Date.now() }, usage: { tokens: 10, cost: 0, generated: 5, streaming: 7 } });
+settle(settling, "done", { output: "report" });
+ok("settle writes the outcome, clears the running tool and the streaming estimate", settling.state === "done" && settling.currentTool === undefined && settling.usage.streaming === 0 && settling.output === "report" && settling.finishedAt !== undefined);
+ok("a finished task has no activity line", settling.lastActivity === "");
+settle(settling, "failed", { error: "late" });
+ok("a second settle is a no-op", settling.state === "done" && settling.error === undefined && settling.output === "report");
+const killedSettle = record("task-settle-k", { lastActivity: "bash: sleep 60", output: "", lastText: "what it was saying" });
+settle(killedSettle, "killed");
+ok("a killed task keeps its activity line and what it had said", killedSettle.state === "killed" && killedSettle.lastActivity === "bash: sleep 60" && killedSettle.output === "what it was saying");
+const failedSettle = record("task-settle-f", { lastActivity: "read x", currentTool: { name: "read", summary: "x", startedAt: Date.now() } });
+settle(failedSettle, "failed", { error: "boom" });
+ok("a failed settle records the reason and clears the activity", failedSettle.error === "boom" && failedSettle.lastActivity === "");
+const keepsError = record("task-settle-e", { error: "early" });
+settle(keepsError, "done");
+ok("a settle never clears an error it was not given", keepsError.error === "early");
 
 const counting = toSummary(record("task-tok", { usage: { tokens: 5000, cost: 0, generated: 1200, streaming: 80 } }));
 const finishedTokens = toSummary(record("task-tok2", { state: "done", finishedAt: Date.now(), usage: { tokens: 5000, cost: 0, generated: 1200, streaming: 80 } }));

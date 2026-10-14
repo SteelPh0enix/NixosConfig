@@ -5,7 +5,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { SubagentConfig } from "./config.ts";
 import type { LeaseStore } from "./store.ts";
-import type { TaskRegistry } from "./state.ts";
+import type { TaskRegistry } from "./task-registry.ts";
 
 export interface SubagentContext {
   pi: ExtensionAPI;

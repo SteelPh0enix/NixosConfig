@@ -2,7 +2,8 @@
 
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { SubagentContext } from "./context.ts";
-import { killRecord, type TaskRecord } from "./state.ts";
+import { killRecord } from "./task-outcome.ts";
+import type { TaskRecord } from "./task-record.ts";
 import { emitStatus, type KillDetails } from "./ui.ts";
 
 /**
