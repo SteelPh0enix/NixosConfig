@@ -88,10 +88,14 @@ in
     # cover the window before tuned activates a profile (see services.nix).
     "snd-hda-intel.power_save=0"
     "snd-hda-intel.power_save_controller=N"
+    # llama.cpp and the JVM never madvise(MADV_HUGEPAGE), so the `madvise` default of the kernel
+    # would leave their heaps on 4K pages.
+    "transparent_hugepage=always"
   ];
 
   hardware.enableRedistributableFirmware = true;
-  hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+  # AMD microcode comes from ucodenix (`nixos/services.nix`), whose blobs are fresher than
+  # linux-firmware's; `microcode.amd_sha_check=off` above is what lets them load.
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
   hardware.amdgpu = {
