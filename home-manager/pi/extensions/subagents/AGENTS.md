@@ -61,6 +61,8 @@ instance, so the split counts this pi's tasks only: two pi instances on one mode
   dropped silently — a typo just leaves the subagent short of tools.
 - Each task is its own SDK session, which means the whole extension stack in `~/.pi/agent/extensions` is loaded again
   per task. That reload, not the model, is where most of a spawn's cost goes.
+- The main-session summarizer (`compact-delegate`) is filtered out of that stack by `withoutMainOnlyExtensions`, so a
+  subagent compacts on its own model with pi's default compaction instead of evicting itself to summarize on another.
 
 ## System prompt
 
@@ -84,15 +86,14 @@ real directory, the lease database lives there, so a directory-wide link is not 
 asserts, since a file that is missing only from the installed config is otherwise invisible until activation.
 
 `task.ts` hands the task's resource loader one more extension (`subagentPromptExtension`, hidden from the startup
-list), and its `before_agent_start` calls `applySubagentPrompt` from `prompt.ts`:
+list), and its `before_agent_start` calls `applySubagentPrompt` from `prompt.ts`. There is one mode:
 
-- **append** (the default) puts the text at the end of `appendSystemPrompt`, where pi collects `APPEND_SYSTEM.md`;
-  everything else pi builds stays.
-- **replace** (`replace_system_prompt`) sets `customPrompt` — that is what makes pi drop its preamble, rules and docs —
-  and empties `appendSystemPrompt`, `contextFiles` and `skills`, so neither `APPEND_SYSTEM.md`, nor the repo's
-  `AGENTS.md`, nor the skills list reaches a subagent running on its own prompt. pi renders no `<tools>` section for a
-  custom prompt, so the tool index is rendered from `selectedTools` and `toolSnippets` the way pi renders it and put
-  into `sections.tools`; a section by that name is allowed (`preamble` is the one name that is not).
+- The text goes through `customPrompt` — that is what makes pi drop its preamble, rules and docs — and
+  `appendSystemPrompt`, `contextFiles` and `skills` are emptied, so neither `APPEND_SYSTEM.md`, nor the repo's
+  `AGENTS.md`, nor the skills list reaches a subagent. A subagent's prompt is its role text plus the short framing,
+  and nothing of the main agent's. pi renders no `<tools>` section for a custom prompt, so the tool index is rendered
+  from `selectedTools` and `toolSnippets` the way pi renders it and put into `sections.tools`; a section by that name
+  is allowed (`preamble` is the one name that is not).
 
 `forceSystemPrompt` is deliberately unused: it replaces the whole prompt opaquely, with no sections for pi to diff on
 later. Tool names, descriptions and schemas travel with the request whatever the mode, so replacing the prompt hides
@@ -101,8 +102,8 @@ no tool — the `<tools>` index is only the one-line list. pi normalizes the pro
 base options, but a handler registered after this one does see them - including the emptied `appendSystemPrompt` of a
 replaced prompt.
 
-The fixed "you are a background subagent…" framing lives in `prompt.ts` (`SUBAGENT_FRAMING`) and is part of the system
-prompt in both modes; the user message is only the read-only transcript reference, the report rule and the task.
+The fixed "you are a background subagent…" framing lives in `prompt.ts` (`SUBAGENT_FRAMING`) and opens every
+subagent's prompt; the user message is only the read-only transcript reference, the report rule and the task.
 
 ## Task session directory
 
@@ -224,14 +225,15 @@ What it pins down, mostly with the bugs it was written against:
   inherits the main agent's tools, `disable` subtracts from them, and a tool the main agent lacks never leaks in.
 - **prompt files** — a `prompt` that names a file is read from the declaring config's own directory (user config and
   project config each get their own), trimmed, and kept as text when it is not path-like; a missing or empty file drops
-  the entry naming it, `replace_system_prompt` without a `prompt` is refused, and the `subagents.json` this repo ships
-  is loaded for real — the repo checkout, or `~/.pi/agent` when the suite runs from the installed copy — so every
-  prompt it names has to exist; run from the repo it also requires each of them to be linked by
+  the entry naming it, a legacy `replace_system_prompt` key is now an unknown key and refused, and the `subagents.json`
+  this repo ships is loaded for real — the repo checkout, or `~/.pi/agent` when the suite runs from the installed copy
+  — so every prompt it names has to exist; run from the repo it also requires each of them to be linked by
   `home-manager/pi/default.nix`.
-- **subagent prompt** — the framing alone when an entry has no `prompt`; appending joins it after what pi had and
-  touches nothing else; replacing sets `customPrompt`, empties the global append, the context files and the skills,
-  and rebuilds the tool index from the snippets (tools without one are left out, and an empty index still says
-  `(none)`); the extension `task.ts` registers asks for `before_agent_start` and stays hidden.
+- **subagent prompt** — the framing alone when an entry has no `prompt`, and the framing plus role text otherwise;
+  setting `customPrompt`, emptying the global append, the context files and the skills, and rebuilding the tool index
+  from the snippets (tools without one are left out, and an empty index still says `(none)`); the extension `task.ts`
+  registers asks for `before_agent_start` and stays hidden; `withoutMainOnlyExtensions` drops `compact-delegate` and
+  keeps the rest.
 - **system prompt** — the section names all five tools, quotes the group limit and each model's slot count straight
   from the config, lists each subagent under the model it runs on with the roomiest model first, explains a refusal as
   a refusal rather than a queue, and is empty when nothing is configured.
@@ -251,9 +253,8 @@ What it pins down, mostly with the bugs it was written against:
 Not covered: `task.ts` and `index.ts` end to end, which need a live model — do that in a real pi session with a
 `subagents.json` naming a small local model, and follow the rule in `../llama-dx/TESTING.md`: a test that reaches a
 server never takes one from pi's default model. The prompt pipeline is the part that can be checked without pi: build
-a `DefaultResourceLoader` with `extensionFactories: [createCodemodeExtension(), subagentPromptExtension(text, replace)]`,
-prompt a small model, and read the `sections` of the system message — appending leaves `preamble`, `tools`, `rules`,
-`docs`, `addendum`, `cwd` and puts the role text at the end of `addendum`; replacing leaves `preamble` (the role text),
-`tools` (rendered here) and `cwd` and nothing else. The fake-pi fixture deliberately gives no subagent a resolvable model,
+a `DefaultResourceLoader` with `extensionFactories: [createCodemodeExtension(), subagentPromptExtension(text)]`,
+prompt a small model, and read the `sections` of the system message — only `preamble` (the role text), `tools`
+(rendered here) and `cwd` remain, and nothing else. The fake-pi fixture deliberately gives no subagent a resolvable model,
 so it cannot create a task record; the wording of `subagent_wait` for ids already delivered, and of a `subagent_kill`
 that ran out of time, is therefore checked only at the `killRecord` level.

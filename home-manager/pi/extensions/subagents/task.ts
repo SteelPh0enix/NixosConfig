@@ -13,6 +13,7 @@ import {
   type AgentSessionEvent,
   type ExtensionAPI,
   type InlineExtension,
+  type LoadExtensionsResult,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai/compat";
@@ -53,6 +54,19 @@ interface StartTaskOptions {
 }
 
 const STATUS_THROTTLE_MS = 1000;
+
+/**
+ * Extensions a subagent session must not load: `compact-delegate` asks the summarizer's model to write session
+ * summaries, and doing that in a subagent would evict the task's own model from the server. A subagent compacts on
+ * its own model, with pi's default compaction.
+ */
+const MAIN_ONLY_EXTENSIONS = ["compact-delegate"];
+
+/** Drop the main-session-only extensions before a subagent session is built. Exported for the check. */
+export function withoutMainOnlyExtensions(base: LoadExtensionsResult): LoadExtensionsResult {
+  const isMainOnly = (path: string) => MAIN_ONLY_EXTENSIONS.some((name) => path.includes(name));
+  return { ...base, extensions: base.extensions.filter((ext) => !isMainOnly(ext.path) && !isMainOnly(ext.resolvedPath)) };
+}
 
 export class SubagentTask {
   private readonly options: StartTaskOptions;
@@ -116,8 +130,9 @@ export class SubagentTask {
         settingsManager,
         extensionFactories: [
           createCodemodeExtension(),
-          subagentPromptExtension(subagentPromptText(config), config.replace_system_prompt === true),
+          subagentPromptExtension(subagentPromptText(config)),
         ],
+        extensionsOverride: withoutMainOnlyExtensions,
       });
       await resourceLoader.reload();
       this.session = (await createAgentSession({
@@ -344,17 +359,16 @@ export class SubagentTask {
 }
 
 /**
- * Hands the subagent its role prompt at the start of every run: appended to pi's prompt, or - with
- * `replace` - put in its place, keeping the tool index. See `applySubagentPrompt`. Exported so the check can
- * exercise the wiring without a session.
+ * Hands the subagent its role prompt at the start of every run: put in place of pi's prompt, keeping the tool
+ * index. See `applySubagentPrompt`. Exported so the check can exercise the wiring without a session.
  */
-export function subagentPromptExtension(roleText: string, replace: boolean): InlineExtension {
+export function subagentPromptExtension(roleText: string): InlineExtension {
   return {
     name: "subagent-prompt",
     hidden: true,
     factory: (pi: ExtensionAPI) => {
       pi.on("before_agent_start", (event) => {
-        applySubagentPrompt(event.systemPromptOptions, roleText, replace);
+        applySubagentPrompt(event.systemPromptOptions, roleText);
       });
     },
   };

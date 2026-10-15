@@ -28,6 +28,10 @@ tested) whether the summarizer's provider is held by a different model. On a con
 `undefined`, so pi compacts itself. The same provider with the summarizer's own model is not a conflict, and neither is
 a task on another provider.
 
+This guard covers subagents *other* than the one compacting: a subagent's own session never loads the extension. The
+subagents extension filters it out of the SDK session's extension stack (`withoutMainOnlyExtensions` in its `task.ts`),
+so a task compacts on its own model with pi's default compaction rather than evicting itself.
+
 ## why the caps are the way they are
 
 pi clips each tool result to `TOOL_RESULT_MAX_CHARS = 2000` in `serializeConversation()`, because the summarization

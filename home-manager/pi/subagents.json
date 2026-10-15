@@ -88,18 +88,16 @@
     "Denji": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs. Longest context here but still 4B - spell out every step and say when to stop, then verify its report against the tree, because a little model reports steps it never ran. Its own system prompt, so it never sees the repo's AGENTS.md: name the commands to run. sharp-spark, 4 slots.",
+      "description": "Mechanical work on a change that is already fully specified: renames, formatting, dependency churn, grepping, triaging logs. Longest context here but still 4B - spell out every step and say when to stop, then verify its report against the tree, because a little model reports steps it never ran. No repo AGENTS.md reaches it, so name the commands to run. sharp-spark, 4 slots.",
       "prompt": "subagents/worker.md",
-      "replace_system_prompt": true,
       "tools": ["read", "bash", "edit", "write", "codemode"],
       "groups": ["pc"]
     },
     "summarizer": {
       "provider": "llama-pc",
       "model": "sharp-spark",
-      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. Cheapest prefill and the largest window here; 4B, so ask for extraction, not judgement. Its own system prompt, so it never sees the repo's AGENTS.md. sharp-spark, 4 slots.",
+      "description": "Digest what does not fit in the main context - build logs, dumps, long transcripts, whole directories - and report the short version with the parts that matter quoted. Cheapest prefill and the largest window here; 4B, so ask for extraction, not judgement. No repo AGENTS.md reaches it. sharp-spark, 4 slots.",
       "prompt": "subagents/summarizer.md",
-      "replace_system_prompt": true,
       "tools": ["read", "bash", "codemode"],
       "groups": ["pc"]
     }

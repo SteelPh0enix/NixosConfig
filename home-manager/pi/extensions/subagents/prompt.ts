@@ -31,10 +31,11 @@ function modelLines(configs: Map<string, SubagentConfig>, slots: Map<string, num
 
 /** Every subagent is one of these, whether or not its config adds anything. */
 export const SUBAGENT_FRAMING =
-  "You are a background subagent handling a single delegated task. You cannot spawn or manage other subagents, and you cannot see or affect other subagents.";
+  "You are a background subagent. A coordinator agent has given you a single job: do exactly that job and nothing else, and finish with a focused report as quickly as you can.";
 
 /**
- * What a subagent's system prompt is built from: the framing, then its own role text.
+ * What a subagent's system prompt is built from: the framing, then its own role text. This is the whole prompt - a
+ * subagent is not given the main agent's system prompt.
  */
 export function subagentPromptText(config: SubagentConfig): string {
   return config.prompt ? `${SUBAGENT_FRAMING}\n\n${config.prompt}` : SUBAGENT_FRAMING;
@@ -54,17 +55,13 @@ export interface SubagentPromptOptions {
 /**
  * Shape a subagent's prompt options in place, from a `before_agent_start` handler.
  *
- * Appending leaves pi's build alone and adds the role text to what pi puts in `<addendum>`, after the user's
- * APPEND_SYSTEM.md. Replacing goes through `customPrompt`, which is what makes pi drop its own preamble, rules and
- * docs, and empties the rest of pi's additions (the global append, AGENTS.md, the skills list). pi renders no
- * `<tools>` section for a custom prompt and a section called `tools` is allowed, so the tool index is rendered here
- * the same way pi does it - the tool declarations themselves travel with the request either way.
+ * The role text goes through `customPrompt`, so pi drops its own preamble, rules and docs, and the rest of pi's
+ * additions are emptied too (the global append, AGENTS.md, the skills list): a subagent gets its own short prompt
+ * and nothing of the main agent's. pi renders no `<tools>` section for a custom prompt and a section called `tools`
+ * is allowed, so the tool index is rendered here the same way pi does it - the tool declarations themselves travel
+ * with the request either way.
  */
-export function applySubagentPrompt(options: SubagentPromptOptions, text: string, replace: boolean): void {
-  if (!replace) {
-    options.appendSystemPrompt = options.appendSystemPrompt ? `${options.appendSystemPrompt}\n\n${text}` : text;
-    return;
-  }
+export function applySubagentPrompt(options: SubagentPromptOptions, text: string): void {
   const listed = options.selectedTools.filter((name) => options.toolSnippets[name]);
   options.customPrompt = text;
   options.appendSystemPrompt = "";

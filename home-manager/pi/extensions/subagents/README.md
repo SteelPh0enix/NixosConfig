@@ -49,7 +49,6 @@ the project entry wins.
       "model": "llama-3.1-8x22b",
       "description": "Runs GPU-bound inference; limited by the 'gpu' group.",
       "prompt": "Only rename what the task names, and stop when the last step is done.",
-      "replace_system_prompt": true,
       "groups": ["gpu"]
     }
   },
@@ -67,19 +66,15 @@ the project entry wins.
 - `description` — optional, listed as one `name: description` line on the `name` parameter of `subagent_spawn`, which
   is the only place the main agent reads it. Worth naming what the subagent is for and how many slots its model has,
   since a spawn for a model another task already holds is refused.
-- `prompt` — optional. What the subagent is told about itself, its own text rather than the main agent's: a string, or
-  a file to read (`"subagents/coder.md"`), resolved against the directory of the config that names it — `~/.pi/agent/`
-  for the user file, `.pi/` for the project one. Read at startup along with the rest of the config, so **editing a
-  prompt file needs a restart**. A path that does not exist, or an empty file, drops the entry with a message naming
-  it. A value is read as a file when it is a single line that is absolute or looks like a path (it contains `/` or ends
-  in `.md`), so a one-line instruction spelled that way is looked for on disk — write it over two lines, or reword it,
-  if you mean it as text. By default this text is added to the prompt pi builds for the subagent, after
-  `APPEND_SYSTEM.md`.
-- `replace_system_prompt` — optional, default `false`. With `true` the `prompt` is put **in place of** pi's prompt:
-  pi's own preamble, rules and docs, `APPEND_SYSTEM.md`, the repo's `AGENTS.md` and the skills list all go away - which
-  includes every convention written in them, so a replaced subagent has to be told the commands of the project in its
-  own prompt. What stays is the tool index and the working directory, and the tools themselves are declared to the
-  model either way. Needs a `prompt` — an entry replacing the prompt with nothing is refused.
+- `prompt` — optional. The subagent's whole system prompt: a string, or a file to read (`"subagents/coder.md"`),
+  resolved against the directory of the config that names it — `~/.pi/agent/` for the user file, `.pi/` for the project
+  one. Read at startup along with the rest of the config, so **editing a prompt file needs a restart**. A path that
+  does not exist, or an empty file, drops the entry with a message naming it. A value is read as a file when it is a
+  single line that is absolute or looks like a path (it contains `/` or ends in `.md`), so a one-line instruction
+  spelled that way is looked for on disk — write it over two lines, or reword it, if you mean it as text. A short
+  framing ("you are a subagent with one job from a coordinator") is prepended, and this text **replaces** pi's prompt:
+  pi's own preamble, rules and docs, `APPEND_SYSTEM.md`, the repo's `AGENTS.md` and the skills list are all left out.
+  The tool index and the working directory stay, and the tools themselves are declared to the model either way.
 - `tools` — optional. Which tools the subagent gets, chosen from the main agent's active set at spawn. Omitted: the
   main agent's tools as it stands, so `--tools`, the `defaultTools` setting and tools registered by extensions all
   carry over. A list (or `{ "enable": [...] }`): exactly that allowlist and nothing else. `{ "disable": [...] }`: the
@@ -129,6 +124,9 @@ supplied by the task, and `tool_search` and MCP tools are not loaded whatever yo
   otherwise; a subagent with `bash` can reach everything the main agent can. Use an allowlist for a strict setup. A
   subagent cannot spawn or manage subagents.
 - Each task is its own SDK session, which reloads the whole extension stack — most of a spawn's cost, not the model.
+- A subagent compacts on its own model: `compact-delegate`, which summarizes on another model, is not loaded in a
+  task's session, or it would evict the task's own model from the server. Session summaries are written for the main
+  session only.
 
 Internals — concurrency mechanics, isolation, the system prompt section, the layout and the test suite:
 [AGENTS.md](AGENTS.md).
