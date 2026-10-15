@@ -17,7 +17,7 @@ import type { TaskRecord } from "./task-record.ts";
 import { SubagentTask } from "./task.ts";
 import { llamaShared, rebalanceShared, runningOn, sharedWindow } from "./shared-context.ts";
 import type { AcquireResult, LeaseRequest } from "./store.ts";
-import { emitStatus, notifyCompletion, type SpawnDetails } from "./ui.ts";
+import { emitStatus, injectCompletion, notifyCompletion, type SpawnDetails } from "./ui.ts";
 
 /** Directory (under the main working directory) for saved subagent sessions. */
 const SUBAGENT_SESSION_DIR = join(".pi", "subagents", "sessions");
@@ -175,6 +175,8 @@ export async function executeSpawn(
       onStatus: () => emitStatus(pi, registry),
       onFinish: (finished) => {
         notifyCompletion(toolCtx, finished);
+        // The result reaches the main agent as a message, so it can end its turn instead of blocking in a wait.
+        injectCompletion(pi, finished);
         emitStatus(pi, registry);
       },
     });

@@ -301,7 +301,7 @@ if (!nodeModules) {
   for (const file of readdirSync(SRC)) if (file.endsWith(".ts")) copyFileSync(join(SRC, file), join(ws, file));
 
   const { loadSubagentConfigs, resolveTools } = await importFrom(ws, "config.ts");
-  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, emitStatus, notifyCompletion } = await importFrom(ws, "ui.ts");
+  const { renderStatusResult, renderWaitResult, renderSpawnResult, renderKillResult, renderResultResult, emitStatus, notifyCompletion, injectCompletion } = await importFrom(ws, "ui.ts");
 
   console.log("\nconfig");
   const agentDir = mkdtempSync(join(tmpdir(), "subagents-agent-"));
@@ -518,6 +518,7 @@ if (!nodeModules) {
   ok("the roomiest model is the first one offered", promptText.indexOf("sharp-spark") < promptText.indexOf("cyber-tiel-coder"));
   ok("a model nobody gave slots has one", subagentPromptSection(cfg, new Map(), new Map()).includes("cyber-tiel-coder: 1 slot — coder, reviewer"));
   ok("a refusal is explained as one, not as a queue", promptText.includes("refused on the spot rather than queued"));
+  ok("the spawning agent is told a finished task wakes it with the result", promptText.includes("notified automatically") && promptText.includes("do not busy-wait"));
   ok("nothing configured means no section at all", subagentPromptSection(new Map(), new Map(), new Map()) === "");
 
   console.log("\nrenderers");
@@ -546,6 +547,28 @@ if (!nodeModules) {
   notifyCompletion({ ui: { notify: (m) => toasts.push(m) } }, toastRecord);
   notifyCompletion({ ui: { notify: (m) => toasts.push(m) } }, toastRecord);
   ok("a finishing task toasts once, not again when its report is read", toasts.length === 1);
+
+  // A finished task wakes the main agent with its own report, so it never has to block in subagent_wait.
+  const injected = [];
+  const mailer = { sendMessage: (message, options) => injected.push({ message, options }) };
+  const finishedTask = record("task-i", { state: "done", startedAt: Date.now() - 5000, finishedAt: Date.now(), output: "the report body" });
+  injectCompletion(mailer, finishedTask);
+  ok("a finished subagent injects its result into the session", injected.length === 1 && injected[0].message.customType === "subagent-result" && injected[0].message.content.includes("the report body") && injected[0].message.details.id === "task-i");
+  ok("and it wakes the agent with a follow-up turn, not a steer", injected[0].options.triggerTurn === true && injected[0].options.deliverAs === "followUp");
+  injectCompletion(mailer, record("task-r", { state: "running" }));
+  ok("a running task injects nothing", injected.length === 1);
+  injectCompletion(mailer, record("task-f", { state: "failed", startedAt: Date.now(), finishedAt: Date.now(), output: "", error: "boom" }));
+  ok("a failed task injects its error when there is no report", injected.length === 2 && injected[1].message.content.includes("boom"));
+  injectCompletion(mailer, record("task-long", { state: "done", startedAt: Date.now(), finishedAt: Date.now(), output: "x".repeat(10000) }));
+  const longMessage = injected.at(-1).message.content;
+  ok("a long report is truncated with a pointer to subagent_result", longMessage.includes('subagent_result("task-long")') && longMessage.length < 9000);
+  let injectedThrew = false;
+  try {
+    injectCompletion({ sendMessage: () => { throw new Error("this ctx is stale"); } }, finishedTask);
+  } catch {
+    injectedThrew = true;
+  }
+  ok("injecting into a session pi has replaced does not throw", !injectedThrew);
 
   const full = { ...toSummary(record("task-stats", { usage: { tokens: 1234, cost: 0, generated: 1234 }, context: { tokens: 41200, contextWindow: 262144, percent: 15.7 } })), generatedLive: false };
   ok("tokens read as out and context fill", formatTokenStats(full) === "out 1.2k · ctx 41.2k/262k (16%)");

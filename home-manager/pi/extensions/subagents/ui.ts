@@ -1,6 +1,8 @@
 // Rendering, live status emission, and completion notifications for the
 // subagents tools. Rendering uses pi-tui's Text + theme colors; the live
-// status is pushed on pi.events for whatever widget wants to show it.
+// status is pushed on pi.events for whatever widget wants to show it, and a
+// finished task injects its report into the session so the main agent can be
+// woken with the result instead of blocking in `subagent_wait`.
 // Details types are shared with index.ts.
 
 import { Text } from "@earendil-works/pi-tui";
@@ -236,6 +238,9 @@ export function renderKillResult(
 
 // ---- notifications ---------------------------------------------------------
 
+/** How much of a finished report the completion message carries; the full one stays behind `subagent_result`. */
+const INJECTED_REPORT_LIMIT = 8000;
+
 /** Toast the user once when a subagent finishes; reading its report again must not toast a second time. */
 export function notifyCompletion(ctx: ExtensionToolContext, record: TaskRecord): void {
   if (record.state === "running" || record.notified) return;
@@ -244,4 +249,43 @@ export function notifyCompletion(ctx: ExtensionToolContext, record: TaskRecord):
     `subagent ${record.name} (${record.id}) finished: ${record.state}` + (record.error ? ` — ${record.error}` : ""),
     record.state === "failed" ? "error" : record.state === "killed" ? "warning" : "info",
   );
+}
+
+/**
+ * Wake the main agent when a subagent settles, with the report in the message: it enters the session as a custom
+ * message and, when the agent is idle, starts a turn - so the agent can hand control to the user instead of blocking
+ * in `subagent_wait`. While the agent is streaming it queues as a follow-up. A message into a session pi has replaced
+ * is swallowed, like the status emit.
+ */
+export function injectCompletion(pi: ExtensionAPI, record: TaskRecord): void {
+  if (record.state === "running") return;
+  const elapsed = formatElapsed((record.finishedAt ?? Date.now()) - record.startedAt);
+  const head =
+    record.state === "done"
+      ? `Subagent ${record.name} (${record.id}) finished in ${elapsed}.`
+      : record.state === "failed"
+        ? `Subagent ${record.name} (${record.id}) failed after ${elapsed}${record.error ? `: ${oneLine(record.error, 300)}` : ""}.`
+        : `Subagent ${record.name} (${record.id}) was killed after ${elapsed}.`;
+  const report = record.output.trim();
+  const body = report
+    ? report.length > INJECTED_REPORT_LIMIT
+      ? `${report.slice(0, INJECTED_REPORT_LIMIT)}\n… (truncated — the full report is behind subagent_result("${record.id}"))`
+      : report
+    : record.error
+      ? `No report: ${oneLine(record.error, 300)}`
+      : "No report.";
+  const stats = formatTokenStats(toSummary(record));
+  try {
+    pi.sendMessage(
+      {
+        customType: "subagent-result",
+        content: [head, body, stats && `[${stats}]`].filter(Boolean).join("\n\n"),
+        display: true,
+        details: { id: record.id, name: record.name, state: record.state, elapsed, error: record.error },
+      },
+      { triggerTurn: true, deliverAs: "followUp" },
+    );
+  } catch {
+    // The session this extension was loaded for has been replaced; there is nobody to wake.
+  }
 }
