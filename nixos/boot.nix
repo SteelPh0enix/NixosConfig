@@ -13,7 +13,9 @@
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.timeout = 5;
 
-  boot.kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-latest-lto-x86_64-v3;
+  # Zen: mainline plus the desktop patch set, and Hydra builds it for cache.nixos.org. This box is
+  # a desktop, so it takes the desktop tweaks over XanMod's server-leaning config.
+  boot.kernelPackages = pkgs.linuxPackages_zen;
 
   boot.tmp.useTmpfs = true;
 }

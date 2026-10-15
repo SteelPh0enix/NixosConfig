@@ -1,7 +1,6 @@
 # Overlays shared by the system (`nixpkgs.overlays`) and the flake devShell.
 inputs: [
   inputs.rust-overlay.overlays.default
-  inputs.nix-cachyos-kernel.overlays.pinned
   inputs.llama-cpp.overlays.default
   (import ./overlays/flashpoint.nix)
   (import ./overlays/llama-cpp.nix)
