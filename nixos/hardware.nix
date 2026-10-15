@@ -1,4 +1,6 @@
-{ lib, ... }:
+{
+  ...
+}:
 {
   boot.initrd.kernelModules = [ "amdgpu" ];
   boot.kernelModules = [ "kvm-amd" ];
@@ -16,6 +18,9 @@
     "split_lock_detect=off"
     "amd_iommu=off"
     "ttm.pages_limit=32505856"
+    # llama.cpp and the JVM never madvise(MADV_HUGEPAGE), so the `madvise` default of the kernel
+    # would leave their heaps on 4K pages.
+    "transparent_hugepage=always"
   ];
 
   boot.extraModprobeConfig = ''
@@ -26,7 +31,8 @@
   '';
 
   hardware.enableRedistributableFirmware = true;
-  hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+  # AMD microcode comes from ucodenix (`nixos/services.nix`), whose blobs are fresher than
+  # linux-firmware's; `microcode.amd_sha_check=off` above is what lets them load.
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
   hardware.amdgpu = {
@@ -109,6 +115,8 @@
     "kernel.sched_cfs_bandwidth_slice_us" = 3000;
     "net.core.netdev_max_backlog" = 65536;
     "net.ipv4.tcp_fastopen" = 3;
+    # XanMod picks bbr by default; pinned here so a kernel swap cannot move it under us.
+    "net.ipv4.tcp_congestion_control" = "cubic";
   };
 
   zramSwap = {
