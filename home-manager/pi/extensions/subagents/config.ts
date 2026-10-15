@@ -1,9 +1,9 @@
 // Config schema, loading, and tool resolution for the subagents extension.
 //
 // A subagent is bound to one provider + model, carries the system prompt it is
-// told about itself with (`prompt`, plus `replace_system_prompt` to swap pi's out
-// instead of adding to it), and carries a `tools` setting that decides which tools
-// it gets, out of `mainTools` (the main agent's active tools, read at spawn):
+// told about itself (`prompt`, which replaces pi's prompt), and carries a `tools`
+// setting that decides which tools it gets, out of `mainTools` (the main agent's
+// active tools, read at spawn):
 //   - omitted        -> mainTools
 //   - { disable }    -> mainTools minus these
 //   - a list / { enable } -> that exact list, and nothing else
@@ -39,7 +39,7 @@ const GroupsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ m
 /** provider/model -> how many of that model may run at once (integer >= 1); a model left out of this map has one. */
 const SlotsSchema = Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 1 }));
 
-const ENTRY_KEYS = "provider, model, description, tools, groups, prompt and replace_system_prompt";
+const ENTRY_KEYS = "provider, model, description, tools, groups and prompt";
 
 // `additionalProperties: false` matters: an entry whose `groups` key is misspelled would otherwise load as a
 // subagent with no group at all, which is a concurrency limit silently not enforced.
@@ -51,7 +51,6 @@ const SubagentConfigSchema = Type.Object(
     tools: Type.Optional(ToolConfigSchema),
     groups: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
     prompt: Type.Optional(Type.String({ minLength: 1 })),
-    replace_system_prompt: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -64,12 +63,10 @@ export interface SubagentConfig {
   /** Groups this subagent occupies a slot in (each must be in the `groups` map). */
   groups?: string[];
   /**
-   * The subagent's own system prompt text. A value naming a file is replaced by that file's contents at load,
-   * resolved against the directory of the config that declared it.
+   * The subagent's own system prompt text, which replaces pi's. A value naming a file is replaced by that file's
+   * contents at load, resolved against the directory of the config that declared it.
    */
   prompt?: string;
-  /** Replace pi's system prompt with `prompt` rather than appending to it. */
-  replace_system_prompt?: boolean;
 }
 
 export interface ResolvedTools {
@@ -214,11 +211,6 @@ export function loadSubagentConfigs(cwd: string, agentDir: string): LoadedConfig
           continue;
         }
         entry.prompt = resolved.text;
-      }
-      // An empty preamble is not a preference: it is a subagent with no instructions at all.
-      if (entry.replace_system_prompt && !entry.prompt) {
-        errors.push(`${source} subagent "${name}" skipped: replace_system_prompt needs a prompt to replace with`);
-        continue;
       }
       subagents.set(name, entry);
     }

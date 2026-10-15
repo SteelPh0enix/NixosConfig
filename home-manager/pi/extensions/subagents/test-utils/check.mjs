@@ -400,8 +400,7 @@ if (!nodeModules) {
       multiline: { provider: "p", model: "m", prompt: "line one\nline two" },
       missingFile: { provider: "p", model: "m", prompt: "subagents/nope.md" },
       emptyFile: { provider: "p", model: "m", prompt: "subagents/empty.md" },
-      replaceNoPrompt: { provider: "p", model: "m", replace_system_prompt: true },
-      replacing: { provider: "p", model: "m", prompt: "subagents/user-role.md", replace_system_prompt: true },
+      legacyReplace: { provider: "p", model: "m", prompt: "subagents/user-role.md", replace_system_prompt: true },
     },
   });
   write(join(promptProj, ".pi"), "subagents.json", {
@@ -414,8 +413,8 @@ if (!nodeModules) {
   ok("multiline text is never taken for a path", prompted.subagents.get("multiline").prompt === "line one\nline two");
   ok("a prompt file that does not exist drops the entry, naming it", !prompted.subagents.has("missingFile") && prompted.errors.some((e) => e.includes('"missingFile"') && e.includes("prompt file")));
   ok("an empty prompt file drops the entry too", !prompted.subagents.has("emptyFile"));
-  ok("replace_system_prompt without a prompt is refused", !prompted.subagents.has("replaceNoPrompt"));
-  ok("replace_system_prompt loads beside its prompt", prompted.subagents.get("replacing").replace_system_prompt === true);
+  // The switch is gone; a config still carrying it is refused like any other unknown key.
+  ok("a legacy replace_system_prompt key is refused", !prompted.subagents.has("legacyReplace") && prompted.errors.some((e) => e.includes('"legacyReplace"') && e.includes("only provider, model")));
 
   console.log("\nsubagent system prompt");
   const { subagentPromptText, applySubagentPrompt, SUBAGENT_FRAMING } = await importFrom(ws, "prompt.ts");
@@ -426,31 +425,31 @@ if (!nodeModules) {
     appendSystemPrompt: "GLOBAL", selectedTools: ["read", "bash", "quiet_tool"], toolSnippets: snippets,
     contextFiles: [{ path: "AGENTS.md", content: "repo rules" }], skills: ["a skill"], sections: {},
   });
-  const appended = optionsFor();
-  applySubagentPrompt(appended, "ROLE", false);
-  ok("appending puts the role after what pi already had", appended.appendSystemPrompt === "GLOBAL\n\nROLE");
-  ok("appending touches nothing else", appended.customPrompt === undefined && appended.contextFiles.length === 1 && appended.skills.length === 1 && appended.sections.tools === undefined);
-  const bareAppend = { ...optionsFor(), appendSystemPrompt: "" };
-  applySubagentPrompt(bareAppend, "ROLE", false);
-  ok("appending to nothing just sets the role", bareAppend.appendSystemPrompt === "ROLE");
-  const replaced = optionsFor();
-  applySubagentPrompt(replaced, "ROLE", true);
-  ok("replacing puts the role where pi's preamble was", replaced.customPrompt === "ROLE");
-  ok("replacing drops pi's own additions", replaced.appendSystemPrompt === "" && replaced.contextFiles.length === 0 && replaced.skills.length === 0);
-  ok("replacing keeps the tool index with its descriptions, and only tools that have one", replaced.sections.tools === "- read: Read files\n- bash: Run commands");
+  const promptOptions = optionsFor();
+  applySubagentPrompt(promptOptions, "ROLE");
+  ok("the role goes where pi's preamble was", promptOptions.customPrompt === "ROLE");
+  ok("pi's own additions are dropped", promptOptions.appendSystemPrompt === "" && promptOptions.contextFiles.length === 0 && promptOptions.skills.length === 0);
+  ok("the tool index keeps descriptions, and only tools that have one", promptOptions.sections.tools === "- read: Read files\n- bash: Run commands");
   const noSnippets = { ...optionsFor(), selectedTools: ["quiet_tool"], sections: {} };
-  applySubagentPrompt(noSnippets, "ROLE", true);
+  applySubagentPrompt(noSnippets, "ROLE");
   ok("a subagent whose tools have no snippets still gets a tool index", noSnippets.sections.tools === "(none)");
 
   // The extension task.ts hands the resource loader: a fake ExtensionAPI shows what it wires up, no session needed.
-  const { subagentPromptExtension } = await importFrom(ws, "task.ts");
+  const { subagentPromptExtension, withoutMainOnlyExtensions } = await importFrom(ws, "task.ts");
   const registered = new Map();
-  const role = subagentPromptExtension("ROLE", true);
+  const role = subagentPromptExtension("ROLE");
   await role.factory({ on: (name, handler) => registered.set(name, handler) });
   const wired = optionsFor();
   await registered.get("before_agent_start")({ systemPromptOptions: wired });
   ok("the task's extension registers before_agent_start and applies the prompt", registered.has("before_agent_start") && wired.customPrompt === "ROLE");
   ok("and it stays out of the startup extension list", role.hidden === true);
+
+  // The main-session compaction delegate must not load in a subagent session: it would summarize on another model
+  // and evict the task's own. The filter is by extension directory, the one thing the loader exposes.
+  const ext = (path) => ({ path, resolvedPath: path });
+  const filtered = withoutMainOnlyExtensions({ extensions: [ext("/agent/extensions/compact-delegate"), ext("/agent/extensions/searxng")], errors: [], runtime: {} });
+  ok("a subagent session drops compact-delegate", filtered.extensions.length === 1 && filtered.extensions[0].path.endsWith("searxng"));
+  ok("and keeps everything else", withoutMainOnlyExtensions({ extensions: [ext("/agent/extensions/subagents")], errors: [], runtime: {} }).extensions.length === 1);
 
   // The prompts shipped with this config, whichever copy the suite runs from: the repo checkout, or the installed
   // agent dir. Every `prompt` it names has to resolve from that config's own directory.

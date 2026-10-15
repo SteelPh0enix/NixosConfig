@@ -9,6 +9,9 @@ anyone reads them.
 Nothing else changes. The trigger, what gets cut, the structured summary format and what pi stores are still pi's, and
 the summary is what your session model reads back.
 
+It applies to the **main session**: a subagent session does not load it, so a task compacts on its own model instead
+of evicting itself to summarize on the summarizer's.
+
 ## configuration
 
 Optional: `~/.pi/agent/compact-delegate.json`, or `.pi/compact-delegate.json` in the project, which wins. With no
