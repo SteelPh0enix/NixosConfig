@@ -128,7 +128,10 @@ export function subagentPromptSection(
     "- A spawn that cannot take capacity is refused on the spot rather than queued; the refusal names the group and the",
     "  model in the way. Retry only once the tasks it lists have finished, and do not try a third model to dodge it.",
     "- Models are local, so a parallel task costs nothing you would miss. Delegate anything that can run while you work.",
-    "- Spawn a batch in one turn, then get on with your own work instead of sitting in a wait: check back with `subagent_status`, or `subagent_wait` with a short `timeout_s`.",
+    "- Spawn a batch in one turn and end your turn: when a task settles, its report arrives as a message in this session",
+    "  and starts a new turn, so the user keeps control while it works. You are notified automatically — do not busy-wait",
+    "  in `subagent_wait`; use it only when you need the result before you can do anything else. `subagent_status` shows",
+    "  what is still running.",
     "- This session's model is the slowest here and the one that reads best, so spend it on deciding and delegating, and let the subagents do the reading.",
   ].join("\n");
 }

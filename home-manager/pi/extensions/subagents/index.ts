@@ -103,7 +103,7 @@ export default function subagents(pi: ExtensionAPI): void {
     name: "subagent_spawn",
     label: "Spawn a background subagent",
     description:
-      "Delegate a task to a configured subagent, which runs in the background. A spawn that cannot get a concurrency slot is refused rather than queued, so retry it once the tasks it names have finished.",
+      "Delegate a task to a configured subagent, which runs in the background. Its report is delivered as a message when the task settles, so you can end your turn instead of waiting. A spawn that cannot get a concurrency slot is refused rather than queued, so retry it once the tasks it names have finished.",
     parameters: spawnParameters,
     execute: async (_id, params: Static<typeof spawnParameters>, _signal, _onUpdate, ctx): Promise<AgentToolResult<SpawnDetails>> => executeSpawn(deps, params, ctx),
     renderCall: (args, theme) => renderSpawnCall(args, theme),
@@ -123,7 +123,7 @@ export default function subagents(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "subagent_wait",
     label: "Wait for subagent tasks to finish",
-    description: "Block until one or more subagent tasks finish, then report their outcomes.",
+    description: "Block until one or more subagent tasks finish, then report their outcomes. Usually unnecessary: a settled task wakes this session with its report by itself. Use it only when you must have the result before you can do anything else.",
     parameters: waitParameters,
     execute: async (_id, params: Static<typeof waitParameters>, signal, onUpdate): Promise<AgentToolResult<WaitDetails>> => executeWait(deps, params, signal, onUpdate),
     renderCall: (args, theme) => renderWaitCall(args, theme),

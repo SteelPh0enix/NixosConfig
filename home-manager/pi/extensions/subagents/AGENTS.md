@@ -68,8 +68,9 @@ instance, so the split counts this pi's tasks only: two pi instances on one mode
 
 The extension introduces itself. `before_agent_start` fills `systemPromptOptions.sections.subagents` with what the
 extension is for, how the five calls differ, and the group and slot limits *read out of the config* — the same
-numbers `store.ts` enforces, so what the model is told cannot drift from what it gets. Built once at load and never
-rewritten mid-session, so the prompt cache stays warm.
+numbers `store.ts` enforces, so what the model is told cannot drift from what it gets — and that a settled task wakes
+the session with its result, so it should end its turn rather than busy-wait in `subagent_wait`. Built once at load
+and never rewritten mid-session, so the prompt cache stays warm.
 
 It reaches only a session that holds `subagent_spawn`. A subagent's own session has all five tools stripped (see
 [Isolation](#isolation)), so it never gets the section and is never invited to recurse. Nothing about subagents
@@ -146,6 +147,13 @@ within the same second). Every task's transcript is persisted there with the SDK
   its tokens as `input`, with no cache split and every cost but the total at zero.
 - A toast fires when a task reaches `done`/`failed`/`killed`, from the task itself — it arrives whether or not anyone
   is waiting on it, and only once, not again when the report is read.
+- A settled task also sends the session a `subagent-result` custom message (`injectCompletion`): a header naming the
+  task, its report (the full report of a task that wrote one, clipped to `INJECTED_REPORT_LIMIT`, with a pointer to
+  `subagent_result` when it is), and its cost. It is sent with `triggerTurn: true` and `deliverAs: "followUp"`, so an
+  idle agent starts a turn and a streaming one gets it after the current run — the point is that the main agent can end
+  its turn instead of blocking in `subagent_wait`. Sending into a session pi has replaced is swallowed, like the status
+  emit. The message is not a tool result, so it carries no `usage`: a task whose report is never collected by
+  `subagent_result` or `subagent_wait` does not add to the main session's totals.
 - `pi.events` gets a snapshot of the running tasks on `subagents:status`,
   `{ tasks: [{ id, name, provider, model, state, elapsed, idle, turns, tokens, lastActivity, tool, recentTools, retry, error, recentOutput }] }`,
   whenever their state changes. `../llama-dx` subscribes to it and paints a row of its own above the two llama.cpp
@@ -174,7 +182,7 @@ subagents/
   task-outcome.ts     # settle (the one terminal-state writer) and killRecord with its deadline
   shared-context.ts   # how a `--kv-unified` pool is split across the tasks actually running on one model
   store.ts            # LeaseStore: cross-instance concurrency over a shared SQLite file — a group counts models, a model counts slots
-  ui.ts               # event emission, renderCall/renderResult, completion toast
+  ui.ts               # event emission, renderCall/renderResult, completion toast and the result message injected into the session
   test-utils/check.mjs
 ```
 
@@ -242,6 +250,10 @@ What it pins down, mostly with the bugs it was written against:
   rather than again when the report is read, an abort never overwrites the activity line with a model error — not even
   the turn pi opens while aborting — a blocked spawn says which group, elapsed formats as `41s` / `3m12s` / `1h05m`, a
   live wait shows the subagent's last lines and says it is still running, and a timed-out wait says so.
+- **completion message** — a finished or failed task injects a `subagent-result` custom message with the report (or its
+  error when it wrote none) and `triggerTurn: true` / `deliverAs: "followUp"`; a running task injects nothing; a report
+  over `INJECTED_REPORT_LIMIT` is clipped with a `subagent_result` pointer; injecting into a replaced session throws
+  nothing. The section the spawning agent is given says it is notified automatically and must not busy-wait.
 - **entry point** — `index.ts` loaded against a fake pi: the five tools and the command register, the spawn tool's
   `name` carrying every configured subagent with its description, and every way into a spawn fails with a message
   before a session could be created (unconfigured name, unknown model, a missing or non-kebab-case `session`, a group

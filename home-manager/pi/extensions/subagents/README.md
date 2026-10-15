@@ -10,13 +10,20 @@ the spawn tool's `name` parameter is built from the config, so anything unconfig
 |---|---|---|
 | `subagent_spawn` | `name`, `task`, `session`, `workdir?` | Starts the task in the background and returns its `id` at once. |
 | `subagent_status` | `id?` | One task or all: state, elapsed, how long it has been silent, turns, tokens, what its model produced and how full its context is, the tool it is on with a live timer, the last few calls, retry, error. Errors on an unknown id. |
-| `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Blocks until a task finishes and returns it. Each task is delivered once, and reading a report with `subagent_result` counts as that delivery. A timeout is a normal result, not an error. |
+| `subagent_wait` | `ids?`, `timeout_s?` (default 300) | Blocks until a task finishes and returns it. Only needed when the result is required before doing anything else — a settled task otherwise wakes the session by itself. Each task is delivered once, and reading a report with `subagent_result` counts as that delivery. A timeout is a normal result, not an error. |
 | `subagent_result` | `id` | The full report (over 20 000 chars is truncated, with the whole thing written to a temp file), followed by what the task cost. A task that ended with nothing to show says so, with its error where it has one. |
 | `subagent_kill` | `id`, `timeout_s?` (default 10) | Aborts a running task; it ends `killed` holding whatever output it has. |
 
-Workflow: spawn several in one turn → keep working → `subagent_wait` (loop; each finished subagent is delivered by
-exactly one call) → `subagent_status` for the laggards, `subagent_kill` for a stuck one, `subagent_result` to re-read
-a report. A toast fires when a task reaches `done`/`failed`/`killed`, whether or not anyone is waiting on it.
+Workflow: spawn several in one turn → end your turn and keep working → a settled task sends the session a
+`subagent-result` message carrying its report, so you are woken with the result instead of blocking → `subagent_status`
+for the laggards, `subagent_kill` for a stuck one, `subagent_result` to re-read a report. A toast fires when a task
+reaches `done`/`failed`/`killed`, whether or not anyone is waiting on it.
+
+When a task settles (done, failed or killed), the extension injects a `subagent-result` custom message into the main
+session: a header naming the task, its report (the full report of a task that wrote one, clipped to 8000 characters),
+and its cost. The message starts a turn when the agent is idle and queues as a follow-up while it streams, so the main
+agent can hand control back to the user and still be woken with the result. The full report of a clipped message stays
+behind `subagent_result`.
 
 `session` is required: it names the task and the directory under `.pi/subagents/sessions/` where its transcript is
 always saved, openable in pi afterwards. `workdir` additionally runs the task inside that directory as an isolated
