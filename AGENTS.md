@@ -39,8 +39,10 @@ groups, and the file's own comment style, which explains *why* rather than *what
   secret is created by hand at mode 0600, and the commit records the path, never the value.
 - Run `nix flake update` casually. `pi` has no binary cache, so it costs minutes of local building;
   `llama-cpp`, `mcserver` and `berkeleyMono` are `path:` inputs where an update does nothing at all
-  (see the README); and the kernel comes from `nix-cachyos-kernel`. If a kernel must be frozen, the
-  pin goes in `flake.nix` with the reasoning, not quietly in `flake.lock` — `kernel-version-pin.md`.
+  (see the README). The kernel is `linuxPackages_xanmod_latest` from cache.nixos.org, so a `nixpkgs`
+  bump normally just substitutes it; the `nix-cachyos-kernel` flake is gone because its author's
+  cache and Hydra were compromised. If a kernel must be frozen, the pin goes in `flake.nix` with the
+  reasoning, not quietly in `flake.lock`.
 - Hand-edit `~/.pi/agent/settings.json` to change a managed setting. Edit `home-manager/pi/default.nix`
   and re-activate; a hand-edit in the live file only gets shadowed by the managed key again.
 

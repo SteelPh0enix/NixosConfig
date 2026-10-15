@@ -118,8 +118,3 @@ them. Each is read by path, as a boot-time credential or an env file.
 | `tailscale-authkey` | tailscaled, re-applied on every boot |
 | `searxng.env` | SearXNG (`SEARXNG_SECRET`, optional Brave/Kagi keys) |
 | `llama-strix-api-key` | the Gufo engine (`LoadCredential` in `nixos/services/gufo.nix`) and pi's `models.json` through an `apiKey: "!command"` |
-
-## Notes
-
-`kernel-version-pin.md` is a runbook from the 2026-10 kernel breakage: how to find the revision that
-produces the running kernel, pin it, prove the pin worked, and unpin it.
