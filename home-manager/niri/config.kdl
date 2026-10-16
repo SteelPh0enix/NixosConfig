@@ -143,6 +143,8 @@ binds {
     Mod+Shift+F { fullscreen-window; }
     Mod+Minus { set-column-width "-10%"; }
     Mod+Equal { set-column-width "+10%"; }
+    // niri has no column slots, so "centre it" means scroll the view around this column.
+    Mod+C hotkey-overlay-title="Centre Column" { center-column; }
     // niri has no split toggle: windows stack in a column, tabs turn that column into a stack.
     Mod+BracketLeft { consume-or-expel-window-left; }
     Mod+BracketRight { consume-or-expel-window-right; }
@@ -157,6 +159,9 @@ binds {
     // Workspaces are shared across outputs, so reaching the other panel is its own action.
     Mod+Shift+Left { focus-monitor-left; }
     Mod+Shift+Right { focus-monitor-right; }
+    // The overlay lists hardcoded binds plus the ones with a title, so titling these two adds them.
+    Mod+Shift+Ctrl+Left hotkey-overlay-title="Move Column to Left Monitor" { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+Right hotkey-overlay-title="Move Column to Right Monitor" { move-column-to-monitor-right; }
 
     // Workspaces 1-10 (Mod+0 = 10), Mod+Shift = move the column there.
     Mod+1 { focus-workspace 1; }
