@@ -25,17 +25,20 @@
 # it, exactly like llama-server-vulkan. Add one (strataApiKey in settings, passed as API_KEY)
 # before ever routing that port beyond the LAN.
 #
-# How little of the machine it leaves used is three settings: the context and the container's RAM
-# ceiling, the mapped expert variant in the env below, and strataVramReserveMiB. The last one is an
-# argument of the engine and the image's entry point has no variable for it, so it is written into
-# Strata's own config on the data volume before every start - the file is otherwise Strata's, and a
-# reinstall (REINSTALL=1) rewrites it without the argument. On a data volume with nothing installed
-# yet the patch has no file to touch, so the very first start runs with the engine's default and the
-# one after it is sized as configured.
+# The context, the VRAM reserve and strataEngineArgs are arguments of the engine, and the image's
+# entry point has no variable for them, so they are written into Strata's own config on the data
+# volume before every start - the file is otherwise Strata's, and a reinstall (REINSTALL=1) rewrites
+# it without them. On a volume with nothing installed yet the patch has no file to touch, so the very
+# first start runs on the engine's defaults and the one after it is as configured.
 #
-# Measured with all of that on this box (RX 7900 XT, 31 GB): 1.1 GiB of VRAM and 27 GB of RAM free
-# while serving, 33-59 tokens/s out, and llama-server-vulkan's presets swap the card in when it is
-# started again.
+# Measured here (RX 7900 XT 20 GB, 31 GB RAM), same harness every time: a 22.6K-token prompt, then
+# 256 tokens out cold - each line is the one above plus one change:
+#   32K context                     49 out,  963 prompt t/s   865 MiB VRAM free   27 GB RAM free
+#   131K, KV in VRAM                48       1110                               27
+#   + KV streaming                  52       1032                               25
+#   + experts copied to RAM         55       1112     1.1 GiB VRAM free          10
+# 262144 is the model's native length but it does not fit beside the RAM copy - the engine's own
+# guard refuses the start - and forcing it in with a smaller copy served at 5 tokens/s.
 {
   pkgs,
   lib,
@@ -69,31 +72,45 @@ let
     PORT = toString containerPort;
   };
 
-  # --vram-reserve-mib into Strata's model config, and nowhere else: the entry point only forwards
-  # the settings it knows, and a setup pass would write the argument out.
-  reserveConfig = pkgs.writeText "strata-vram-reserve.py" ''
+  # What the engine is started with. These go into Strata's own model config and nowhere else: the
+  # entry point forwards only the settings it has a variable for, and a setup pass rewrites the file.
+  engineArgs = [
+    "--max-context"
+    (toString settings.strataContext)
+    "--vram-reserve-mib"
+    (toString settings.strataVramReserveMiB)
+  ]
+  ++ settings.strataEngineArgs;
+
+  # Ensure those arguments in the pack config: whatever is there of them is dropped, the list is
+  # appended, and a file that already matches is left alone.
+  engineConfig = pkgs.writeText "strata-engine-args.py" ''
     import json, pathlib
 
     cfg = pathlib.Path("${settings.strataDataPath}/config/strata-coder-iq1_m.json")
-    tail = ["--vram-reserve-mib", "${toString settings.strataVramReserveMiB}"]
+    wanted = ${builtins.toJSON engineArgs}
+    # The pinned variants: they take the RAM and do not give it back, which is what put this box on
+    # its back the first time Strata ran. Stripped even though nothing asks for them.
+    forbidden = ["--resident-experts", "--resident-budget-gib"]
     if cfg.exists():
         d = json.loads(cfg.read_text(encoding="utf-8"))
-        args, drop_one = [], False
-        for a in d.get("args", []):
-            if a == "--vram-reserve-mib":
-                drop_one = True
+        owned = {a for a in wanted if a.startswith("--")} | set(forbidden)
+        args, have, i = [], d.get("args", []), 0
+        while i < len(have):
+            if have[i] in owned:
+                i += 1
+                if i < len(have) and not have[i].startswith("--"):
+                    i += 1
                 continue
-            if drop_one:
-                drop_one = False
-                continue
-            args.append(a)
-        if d["args"][-2:] != tail:
-            d["args"] = args + tail
+            args.append(have[i])
+            i += 1
+        if args + wanted != have:
+            d["args"] = args + wanted
             cfg.write_text(json.dumps(d, indent=1), encoding="utf-8")
-            print("strata: --vram-reserve-mib ${toString settings.strataVramReserveMiB}")
+            print("strata: " + " ".join(wanted))
   '';
 
-  patchReserve = "${pkgs.python3}/bin/python ${reserveConfig}";
+  patchArgs = "${pkgs.python3}/bin/python ${engineConfig}";
 
   runArgs = [
     "run"
@@ -165,8 +182,8 @@ in
         "${pkgs.bash}/bin/bash -c 'for i in {1..30}; do [ -S /run/user/${uid}/docker.sock ] && exit 0; sleep 2; done; echo \"rootless docker socket missing: /run/user/${uid}/docker.sock\" >&2; exit 1'"
         # Fail loudly here rather than having Docker try to pull a tag that has no registry.
         "${pkgs.docker}/bin/docker image inspect ${settings.strataImage} --format=image-present"
-        # The VRAM reserve, re-applied on every start.
-        patchReserve
+        # The engine arguments, re-applied on every start.
+        patchArgs
       ];
 
       ExecStart = "${pkgs.docker}/bin/docker ${lib.escapeShellArgs runArgs}";
@@ -174,7 +191,10 @@ in
       # The first start downloads the model; do not cut it off, and do not treat the download as
       # a slow start worth retrying.
       TimeoutStartSec = "infinity";
-      TimeoutStopSec = 60;
+      # Stopping is SIGTERM all the way down, and it has to be: the server turns it into a QUIT for
+      # the engine, which releases the ROCm context. Kill it instead and the driver keeps the model's
+      # GTT mappings - measured here as 15 GB of system RAM that nothing gets back but a GPU reset.
+      TimeoutStopSec = 150;
       Restart = "on-failure";
       RestartSec = 10;
       StartLimitBurst = 2;

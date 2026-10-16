@@ -92,9 +92,12 @@ groups, and comments that say *why*, since almost every odd value here is a work
   where those `/mnt` mounts come from.
 - **Strata (`nixos/services/strata`) is a second engine for the same card**, on port 51537, and the
   two units `Conflicts=` each other. Its image is built by hand from the `Dockerfile` in that
-  directory (like the ROCm toolbox), its ~65 GB of model files live under
-  `/mnt/NVMe/LLMs/strata` untracked, and so does the `--vram-reserve-mib` that keeps the desktop a
-  gigabyte of VRAM - the unit rewrites that one into Strata's own config on every start.
+  directory (like the ROCm toolbox), its ~65 GB of model files live under `/mnt/NVMe/LLMs/strata`
+  untracked, and so do the engine arguments it is tuned with (`settings.strataEngineArgs`) - the unit
+  rewrites those into Strata's own config on every start, since the entry point forwards only the
+  settings it has a variable for. **Stop it with SIGTERM, never `docker kill`**: the graceful path
+  tears the ROCm context down, a kill leaves the driver holding the model's GTT - measured as 15 GB
+  of system RAM unreclaimable until a GPU reset (`mem_info_gtt_used` shows it).
 - **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
   and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
   disables and the kernel parameter repeats.

@@ -45,9 +45,31 @@ rec {
   strataImage = "strata-hip-gfx1100:latest";
   # The model pack (~65 GB) and Strata's config, kept outside the container.
   strataDataPath = "${llamaModelsPath}/strata";
-  # Slim by intent. 32K rather than setup's 131072 for a 20 GB card: in the low-RAM mode the KV cache
-  # lives in VRAM, so every 32K of context costs ~1.4 GB that the experts would otherwise get.
-  strataContext = 32768;
+  # 131072, which is what setup picks. The KV cache normally lives in VRAM in the low-RAM mode and
+  # costs ~1.4 GB per 32K of it, so the full context is only affordable with the streaming in
+  # strataEngineArgs below, which keeps it in RAM and only its 32K window on the card.
+  strataContext = 131072;
+  # Engine arguments, kept in one list because the image's entry point forwards only the settings it
+  # knows (see strata.nix, which writes these into Strata's own config before every start).
+  #   --kv-resident      stream the KV cache: 32K of it on the card, the rest in RAM (~1.7 GB at this
+  #                      context). Reads the same values; measured here 55 -> 64 tokens/s at 22K.
+  #   --resident-cpu-experts  copy the experts the card does not hold into ordinary RAM - pageable,
+  #                      so unlike --resident-experts it never locks the desktop's memory. The bigger
+  #                      win: 64 -> 72 tokens/s, and no reading the pack mid-request.
+  #   --pool-workers     parallel SSD reads for the experts that still come from the file.
+  #   --adapt-every 0    no expert swaps while serving: the profile is fixed, so adapting is churn.
+  #   --pcie-frac 0      goes with STRATA_ARENA_MMAP: nothing is staged over the bus in the background.
+  strataEngineArgs = [
+    "--kv-resident"
+    "32768"
+    "--resident-cpu-experts"
+    "--pool-workers"
+    "15"
+    "--adapt-every"
+    "0"
+    "--pcie-frac"
+    "0"
+  ];
   # The VRAM the engine leaves for the desktop. The engine's own default is 700 MiB and it holds that
   # back only from the expert cache, so what it allocates afterwards (the KV cache, the verify windows)
   # spends it again: measured on this card, 700 left 131 MiB free and 2048 left 843 MiB.
