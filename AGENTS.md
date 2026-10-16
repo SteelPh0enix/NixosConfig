@@ -90,6 +90,11 @@ groups, and comments that say *why*, since almost every odd value here is a work
 - **The preset is `/mnt/NVMe/LLMs/llama-server.ini`, untracked.** A rebuild never deploys edits to it,
   and a change to the disk layout takes the server with it. `nixos/hardware-configuration.nix` is
   where those `/mnt` mounts come from.
+- **Strata (`nixos/services/strata`) is a second engine for the same card**, on port 51537, and the
+  two units `Conflicts=` each other. Its image is built by hand from the `Dockerfile` in that
+  directory (like the ROCm toolbox), its ~65 GB of model files live under
+  `/mnt/NVMe/LLMs/strata` untracked, and so does the `--vram-reserve-mib` that keeps the desktop a
+  gigabyte of VRAM - the unit rewrites that one into Strata's own config on every start.
 - **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
   and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
   disables and the kernel parameter repeats.

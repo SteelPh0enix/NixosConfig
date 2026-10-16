@@ -5,5 +5,6 @@
     ./llama-server-vulkan/llama-server-vulkan.nix
     ./llama-server-rocm/llama-server-rocm.nix
     ./llama-vulkan-logs/llama-vulkan-logs.nix
+    ./strata/strata.nix
   ];
 }

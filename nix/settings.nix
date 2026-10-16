@@ -37,4 +37,23 @@ rec {
   # Unit that owns the router port; the log viewer tails it.
   llamaRouterService = "llama-server-${llamaBackend}";
   llamaLogsPort = 51580;
+
+  # Strata (nixos/services/strata): Qwen3.8-Flash-Next Coder on Strata's own HIP engine, next to
+  # the llama.cpp router on its own port. Only one engine can hold the card, so the units conflict
+  # and Strata is not started at boot.
+  strataRev = "v0.1.44.1";
+  strataImage = "strata-hip-gfx1100:latest";
+  # The model pack (~65 GB) and Strata's config, kept outside the container.
+  strataDataPath = "${llamaModelsPath}/strata";
+  # Slim by intent. 32K rather than setup's 131072 for a 20 GB card: in the low-RAM mode the KV cache
+  # lives in VRAM, so every 32K of context costs ~1.4 GB that the experts would otherwise get.
+  strataContext = 32768;
+  # The VRAM the engine leaves for the desktop. The engine's own default is 700 MiB and it holds that
+  # back only from the expert cache, so what it allocates afterwards (the KV cache, the verify windows)
+  # spends it again: measured on this card, 700 left 131 MiB free and 2048 left 843 MiB.
+  strataVramReserveMiB = 2304;
+  # Hard ceiling for the container, and the reason it exists: without one, Strata filling the last of
+  # the RAM takes the desktop with it (it did). 31 GB of RAM here, so ~7 GB stay outside the box.
+  strataMemoryLimit = "24g";
+  strataPort = 51537;
 }

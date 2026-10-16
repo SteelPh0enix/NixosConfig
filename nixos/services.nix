@@ -51,10 +51,12 @@ in
 
   networking.firewall = {
     enable = true;
-    # llama.cpp router and its log viewer (nixos/services/llama-server-vulkan), used by the other box
+    # llama.cpp router and its log viewer (nixos/services/llama-server-vulkan), used by the other
+    # box, and Strata (nixos/services/strata). None of them carries an API key: the LAN is the ACL.
     allowedTCPPorts = [
       settings.llamaRouterPort
       settings.llamaLogsPort
+      settings.strataPort
     ];
     # Strict reverse path filtering. Use "loose" if asymmetric routing ever shows up (tunnels).
     checkReversePath = "strict";
