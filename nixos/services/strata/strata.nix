@@ -14,10 +14,13 @@
 # (nixos/users.nix) to be up at boot. Published ports, not host networking - under rootless Docker
 # host networking hides /sys/class/kfd and ROCr then reports no device.
 #
-# NOT wanted by multi-user.target: the model wants the card, and the llama.cpp router is what the
-# subagent fleet uses, so starting this is a deliberate
-#   systemctl start strata      (stops llama-server-vulkan; see Conflicts)
+# Never started at boot (wantedBy is empty): the model wants the card, and the llama.cpp router is
+# what pi and the subagent fleet use, so running this is a deliberate
+#   systemctl start strata      (stops llama-server-vulkan, see Conflicts)
 #   systemctl stop strata
+#   systemctl start llama-server-vulkan
+# That last one is needed: a Conflicts stop is one-way, so stopping Strata does not bring the router
+# back on its own.
 # The first start downloads ~65 GB to settings.strataDataPath and is resumable, then writes a 23 GB
 # expert pack next to it; loading the model takes a minute or two, during which the machine is slow.
 #
@@ -163,6 +166,9 @@ in
     ];
     wants = [ "network-online.target" ];
     requires = [ "user@${uid}.service" ];
+    # The default, spelled out because of what it guards: nothing pulls this in at boot, so the card
+    # stays with llama-server-vulkan and `systemctl start strata` is the whole enablement story.
+    wantedBy = [ ];
 
     # One card, one engine: whichever of them starts stops the others.
     conflicts = [

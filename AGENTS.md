@@ -91,7 +91,8 @@ groups, and comments that say *why*, since almost every odd value here is a work
   and a change to the disk layout takes the server with it. `nixos/hardware-configuration.nix` is
   where those `/mnt` mounts come from.
 - **Strata (`nixos/services/strata`) is a second engine for the same card**, on port 51537, and the
-  two units `Conflicts=` each other. Its image is built by hand from the `Dockerfile` in that
+  two units `Conflicts=` each other, and only llama-server-vulkan is wanted at boot - stopping Strata
+  does not start the router again. Its image is built by hand from the `Dockerfile` in that
   directory (like the ROCm toolbox), its ~65 GB of model files live under `/mnt/NVMe/LLMs/strata`
   untracked, and so do the engine arguments it is tuned with (`settings.strataEngineArgs`) - the unit
   rewrites those into Strata's own config on every start, since the entry point forwards only the
