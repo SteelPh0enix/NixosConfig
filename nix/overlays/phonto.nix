@@ -1,5 +1,5 @@
 inputs: final: _: {
-  # GPU-decoded video wallpaper daemon, used by home-manager/hyprland/phonto.nix.
+  # GPU-decoded video wallpaper daemon, used by home-manager/phonto.nix.
   #
   # Built here rather than taking `inputs.phonto.packages`: that flake pins a nixpkgs whose crate
   # fetcher still uses crates.io's retired `api/v1/.../download` endpoint, which now answers 403

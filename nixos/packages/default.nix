@@ -104,6 +104,6 @@
 
   programs.openlogi.enable = true;
 
-  # The Hyprland module enables xdg.portal itself and adds its own portal.
+  # The niri module enables xdg.portal itself and adds its own portal.
   xdg.portal.xdgOpenUsePortal = true;
 }

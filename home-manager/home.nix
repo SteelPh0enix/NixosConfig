@@ -13,7 +13,9 @@
     ./packages.nix
     ./fonts.nix
     ./nonfree-fonts.nix
-    ./hyprland
+    ./niri
+    ./noctalia.nix
+    ./phonto.nix
     ./nixvim
     ./pi
     ./theming.nix

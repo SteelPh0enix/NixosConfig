@@ -97,6 +97,10 @@ groups, and comments that say *why*, since almost every odd value here is a work
   list and no download-verification overrides, unlike the other branch — a package that needs an
   override over there may build plainly here, and backporting an override that references `badpkgs`
   fails to evaluate here.
+- **The palette include in `home-manager/niri/config.kdl`.** Noctalia's `niri` template writes
+  `~/.config/niri/noctalia.kdl` and greps the config for an include line before wiring it up; the
+  config here is a store symlink, so dropping `include optional=true "noctalia.kdl"` makes the
+  template try to append to a read-only file and the colours never reach the compositor.
 
 ## The subagent fleet lives here
 
@@ -139,10 +143,11 @@ directory:
 A new service is a file in `nixos/services/` listed in `nixos/services/default.nix` — but note that
 the network on this branch lives in `nixos/services.nix`, not a `nixos/networking.nix`, so firewall,
 `hosts` and ssh options are edited there. What only the user needs goes in `home-manager/packages.nix`;
-`nixos/packages/` is for the system. The desktop has two halves: `nixos/hyprland.nix` (greetd,
-pipewire, bluetooth, LACT, udev) and `home-manager/hyprland/` (Noctalia, dock, keybindings, the
-templates that generate things like pi's theme). Identity — user, host, ports, paths — comes from
-`nix/settings.nix` and is never repeated.
+`nixos/packages/` is for the system. The desktop has two halves: `nixos/desktop.nix` (niri, greetd
+and the Noctalia greeter, keyring, UPower) and the user side — `home-manager/niri/` for the
+compositor config, `home-manager/noctalia.nix` (whose theme templates generate things like pi's
+theme) and `home-manager/phonto.nix` for the shell and the wallpaper. Identity — user, host, ports,
+paths — comes from `nix/settings.nix` and is never repeated.
 
 ## Noise worth knowing
 

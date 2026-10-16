@@ -31,8 +31,8 @@ machine — runs on.
 | `nix/` | overlays (`llama-cpp`, `flashpoint`, `phonto`, `ltrace`, a rust toolchain), the shared dev-tool list, nixpkgs config |
 | `nixos/` | boot and kernel, hardware, users, packages, services — and the network: unlike the other branch there is no `nixos/networking.nix`, the firewall and hosts entries live in `nixos/services.nix` |
 | `nixos/services/` | only two modules, both for llama.cpp; everything else is a `services.*` option in `nixos/services.nix` |
-| `nixos/hyprland.nix` | the system half of the desktop: greetd, pipewire, bluetooth, LACT, udev rules |
-| `home-manager/` | the user: fish, packages, fonts, nixvim, `hyprland/` (Noctalia), theming, xdg, vesktop, flashpoint, pi |
+| `nixos/desktop.nix` | the system half of the desktop: niri, the Noctalia greeter on greetd, gnome-keyring, UPower, SSH askpass |
+| `home-manager/` | the user: fish, packages, fonts, nixvim, `niri/` (layout, keybinds, rules), `noctalia.nix` (shell + theme templates), `phonto.nix` (video wallpaper), theming, xdg, vesktop, flashpoint, pi |
 | `secrets/` | gitignored, copied in by hand; on this box it holds one file (see below) |
 
 ## Rebuild
@@ -85,7 +85,7 @@ the household is the Docker Compose stack on the framework box.
 
 ## Desktop
 
-Hyprland under greetd, with Noctalia v5: the community *Cyberpunk* palette, the dock, DDC/CI
+niri under greetd, with Noctalia v5: the community *Cyberpunk* palette, the dock, DDC/CI
 brightness, and `systemd.enable` so the session starts through systemd. wezterm is the terminal
 (Noctalia colours, Berkeley Mono, 120x30), phonto paints a video wallpaper through a user unit that
 stops after 15 minutes, and `home-manager/theming.nix` propagates the palette to the rest of the
@@ -93,6 +93,12 @@ user session. Hardware-specific pieces: LACT for the 7900 XT, a Coral Edge TPU u
 Dawn Pro 2 audio device owned by the user, low-latency PipeWire (48 kHz, quantum 32) and the full
 Bluetooth codec set. `amdgpu` gets `gpu_recovery`, `gfx_off=0`, `runpm=0` on the kernel command line,
 and tuned keeps audio power saving off (the `snd-hda-intel.power_save=0` parameter is belt braces).
+
+The session is `niri-session` (login shell, then `niri.service` through systemd), and uwsm is gone
+with Hyprland. `home-manager/niri/config.kdl` ends with `include optional=true "noctalia.kdl"`: the
+Noctalia palette lands through that file rather than by a theme template appending colours to a
+store-owned config. Noctalia provides the lock screen, idle, polkit agent and screenshots, so no
+`swaylock`/`swayidle`-style daemon is installed.
 
 ## pi
 

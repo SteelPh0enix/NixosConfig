@@ -24,7 +24,7 @@
           "btop"
           "gtk3"
           "gtk4"
-          "hyprland"
+          "niri"
           "qt"
           "wezterm"
         ]; # opt-in; list ids with `noctalia theme --list-templates`
@@ -56,15 +56,14 @@
           copy_to_clipboard = true;
         };
         # Declaring the list REPLACES the built-in five actions (lock, logout, lock_and_suspend,
-        # reboot, shutdown). `logout` defaults to the compositor-native exit, which must not happen
-        # under uwsm, so only its handler is replaced. `lock` stays out of the panel: SUPER+L
-        # covers it (hyprland/bindings.lua). A row `command` always runs via /bin/sh -c instead of
-        # the built-in handler; [shell.session.power] would override suspend/reboot/shutdown
-        # globally.
+        # reboot, shutdown). `lock` stays out of the panel: SUPER+L covers it (niri/config.kdl).
+        # A row `command` always runs via /bin/sh -c instead of the built-in handler;
+        # [shell.session.power] would override suspend/reboot/shutdown globally.
         session.actions = [
           {
             action = "logout";
-            command = "uwsm stop";
+            # Explicit rather than the built-in handler: niri asks for confirmation this way.
+            command = "niri msg action quit";
           }
           { action = "suspend"; }
           { action = "reboot"; }
@@ -76,7 +75,10 @@
         ];
       };
 
-      # phonto plays the animated wallpapers (hyprland/phonto.nix). Noctalia's wallpaper is a
+      # pkexec and removable-media prompts need a polkit agent; Noctalia's own is the only one here.
+      shell.polkit_agent = true;
+
+      # phonto plays the animated wallpapers (home-manager/phonto.nix). Noctalia's wallpaper is a
       # zwlr-layer-shell surface on the same layer, so exactly one of the two may be enabled.
       wallpaper.enabled = false;
 
@@ -111,8 +113,7 @@
       };
 
       # Idle: ext_idle_notifier_v1 with native actions (lock | screen_off | suspend |
-      # lock_and_suspend | command). screen_off goes through Hyprland's own DPMS dispatch and
-      # wakes the monitors back up.
+      # lock_and_suspend | command): screen_off turns the monitors off and any input wakes them.
       idle = {
         behavior_order = [
           "lock"

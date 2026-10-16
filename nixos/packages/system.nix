@@ -50,7 +50,7 @@
     unzip
     usbutils
     wayland-utils
-    wdisplays # GUI monitor layout (Hyprland implements wlr-output-management)
+    wdisplays # GUI monitor layout (niri implements wlr-output-management)
     wget
     wl-clipboard
     zip

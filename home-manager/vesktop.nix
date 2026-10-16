@@ -80,7 +80,7 @@ in
     settings = {
       discordBranch = "stable";
 
-      staticTitle = true; # one stable window title for the Hyprland rules
+      staticTitle = true; # one stable window title, so compositor window rules can match it
       enableMenu = false;
       disableMinSize = true;
       disableSmoothScroll = false;

@@ -90,7 +90,7 @@ in
 
   # pi's conventional agent-dir locations: APPEND_SYSTEM.md extends the system prompt, extensions/
   # loads .ts files and directories with an index.ts, prompts/ becomes slash commands.
-  # No themes: Noctalia's community `pi-agent` template (hyprland/noctalia.nix) writes
+  # No themes: Noctalia's community `pi-agent` template writes
   # ~/.pi/agent/themes/noctalia.json from the live palette, and a copy here would only collide on
   # the name `noctalia`.
   home.file = {

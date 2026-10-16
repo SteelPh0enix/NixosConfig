@@ -1,26 +1,22 @@
 {
   pkgs,
-  lib,
   settings,
   ...
 }:
 {
-  # uwsm owns graphical-session.target and the session environment,
-  # so the home-manager module must keep `systemd.enable = false`.
-  programs.hyprland = {
-    enable = true;
-    withUWSM = true;
-    xwayland.enable = true; # XWayland only; Xorg itself stays off
-  };
+  programs.niri.enable = true;
 
-  # Lock screen, idle and screen blanking belong to Noctalia (hyprland/noctalia.nix), so
-  # programs.hyprlock stays off - it would also force nixpkgs services.hypridle, i.e. a second
-  # idle daemon.
+  # niri starts XWayland on demand through xwayland-satellite (home-manager/niri), but its module
+  # deliberately leaves the Xwayland binary off, and Xorg itself stays off entirely.
+  programs.xwayland.enable = true;
+
+  # Lock screen, idle and screen blanking belong to Noctalia (home-manager/noctalia.nix), so no
+  # swaylock/hypridle-style daemon is installed beside it.
 
   services.displayManager = {
     # Inert under greetd (it uses initial_session / its own persisted choice),
     # but pinned and build-time asserted against the sessions the profile provides.
-    defaultSession = "hyprland-uwsm";
+    defaultSession = "niri";
 
     noctalia-greeter = {
       enable = true; # sets services.greetd.enable + default_session.command
@@ -35,12 +31,13 @@
     };
   };
 
-  # This greeter has no autoLogin support, so state it directly. Mirrors upstream
-  # hyprland-uwsm.desktop: `uwsm start -e -D Hyprland hyprland.desktop`.
+  # This greeter has no autoLogin support, so state it directly: the Exec of niri.desktop. Run
+  # through a login shell (so /etc/profile loads `environment.sessionVariables`) before starting
+  # niri.service, and import that environment into systemd and D-Bus on the way.
   # Presence of initial_session also makes services.greetd.restart default to false.
   services.greetd.settings.initial_session = {
     user = settings.userName;
-    command = "${lib.getExe pkgs.uwsm} start -e -D Hyprland hyprland.desktop";
+    command = "${pkgs.niri}/bin/niri-session";
   };
 
   # Electron (discord, element, obsidian, teams, drawio, heroic, jellyfin-desktop)

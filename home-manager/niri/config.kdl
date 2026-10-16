@@ -1,0 +1,224 @@
+// The niri config, from home-manager/niri/default.nix.
+// niri watches it (following the store symlink) and live-reloads it on change.
+
+input {
+    keyboard {
+        xkb {
+            // Binds resolve against the first layout, and digits need no shift on `pl`.
+            layout "pl"
+        }
+    }
+
+    // Flat pointer acceleration at half speed.
+    mouse {
+        accel-profile "flat"
+        accel-speed -0.5
+    }
+    // Focus whatever the cursor sits on. With max-scroll-amount="0%" a partly-visible column would
+    // stop focusing on hover; no `warp-mouse-to-focus`, so the pointer never jumps to a window.
+    focus-follows-mouse
+
+    // SUPER+1 twice returns to the workspace you came from.
+    workspace-auto-back-and-forth
+}
+
+// Two 1440p panels at scale 1, DP-2 to the left of DP-1.
+// A mode without a refresh rate takes the highest one available, which is 144 Hz on DP-1
+// and 75 Hz on DP-2 (its preferred mode is 60 Hz).
+// VRR stays off; add `variable-refresh-rate` to an output to arm it.
+output "DP-1" {
+    mode "2560x1440"
+    position x=0 y=0
+}
+
+output "DP-2" {
+    mode "2560x1440"
+    position x=-2560 y=0
+}
+
+layout {
+    // gaps apply inside and outside, struts only outside: 4 px between windows, 8 px at the edges.
+    gaps 4
+
+    struts {
+        left 4
+        right 4
+        top 4
+        bottom 4
+    }
+
+    // niri's default is 0.5 (half the screen); 1.0 lets a lone window fill the output.
+    // Shrink afterwards with Mod+R / Mod+Minus.
+    default-column-width { proportion 1.0; }
+
+    // A border on every window; the focus ring would draw a second line around the active one.
+    focus-ring {
+        off
+    }
+
+    border {
+        width 1
+        // Colors come from the Noctalia palette (see the include at the bottom).
+    }
+
+    // phonto plays the wallpaper on the background layer (home-manager/phonto.nix), so niri must
+    // not paint an opaque workspace over it. Noctalia's own wallpaper stays off for the same reason.
+    background-color "transparent"
+}
+
+// Blur behind the translucent Noctalia surfaces (needs niri >= 26.04); values from Noctalia's docs.
+blur {
+    passes 2
+    offset 3.0
+    noise 0.03
+    saturation 1.0
+}
+
+// Rounded corners for every window, clipped so nothing bleeds past them.
+window-rule {
+    geometry-corner-radius 4
+    clip-to-geometry true
+}
+
+// Noctalia's surfaces are translucent, so they need the compositor to blur what is behind them.
+window-rule {
+    background-effect { blur true; xray false; }
+}
+
+layer-rule {
+    match namespace="^noctalia-(bar-[^\"]+|notification|dock|panel|attached-panel|osd)$"
+    background-effect { xray false; }
+}
+
+layer-rule {
+    match namespace="noctalia-window-switcher"
+    background-effect { blur true; xray false; }
+}
+
+// Noctalia's Settings window (the rule from Noctalia's niri docs).
+window-rule {
+    match app-id="dev.noctalia.Noctalia"
+    open-floating true
+    default-column-width { fixed 1080; }
+    default-window-height { fixed 920; }
+}
+
+// Noctalia needs this for notification actions and for activating windows from the launcher.
+debug {
+    honor-xdg-activation-with-invalid-serial
+}
+
+// Declarative box: no "Important Hotkeys" popup on first start.
+hotkey-overlay {
+    skip-at-startup
+}
+
+// Mod is Super in a session on a TTY. Dragging to move (Mod + left mouse) and to resize
+// (Mod + right mouse) are niri built-ins and need no binds.
+binds {
+    // Applications and shell surfaces (Noctalia drives bar, launcher, lock, screenshots).
+    // hotkey-overlay-title is what the Super+Shift+/ cheat sheet shows; null hides a bind there.
+    Mod+Return hotkey-overlay-title="Terminal" { spawn "wezterm"; }
+    Mod+Space allow-when-locked=true hotkey-overlay-title="Launcher" { spawn-sh "noctalia msg panel-toggle launcher"; }
+    Mod+E hotkey-overlay-title="File Manager" { spawn "thunar"; }
+    Mod+S allow-when-locked=true hotkey-overlay-title="Control Centre" { spawn-sh "noctalia msg panel-toggle control-center"; }
+    Mod+Shift+V allow-when-locked=true hotkey-overlay-title="Clipboard History" { spawn-sh "noctalia msg panel-toggle clipboard"; }
+    Mod+Tab allow-when-locked=true hotkey-overlay-title="Window Switcher" { spawn-sh "noctalia msg window-switcher"; }
+    Mod+Comma hotkey-overlay-title="Noctalia Settings" { spawn-sh "noctalia msg settings-toggle"; }
+    // Noctalia's own lock screen; there is no hyprlock/swaylock here.
+    Mod+L allow-when-locked=true hotkey-overlay-title="Lock Screen" { spawn-sh "noctalia msg session lock"; }
+    // No compositor-native exit to call: niri runs as a systemd session, so `quit` ends it.
+    Mod+Shift+E { quit; }
+
+    // Window
+    Mod+Q { close-window; }
+    Mod+V { toggle-window-floating; }
+    // Jump focus between the floating layer and the tiling one (SUPER+SHIFT+V is the clipboard).
+    Mod+Shift+T { switch-focus-between-floating-and-tiling; }
+    Mod+W { toggle-column-tabbed-display; }
+    Mod+R { switch-preset-column-width; }
+    // maximize-column keeps the gaps and the border; maximize-window-to-edges goes edge to edge.
+    Mod+F { maximize-column; }
+    Mod+M { maximize-window-to-edges; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+    // niri has no split toggle: windows stack in a column, tabs turn that column into a stack.
+    Mod+BracketLeft { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+
+    // Focus: columns left/right, windows up/down inside a column.
+    Mod+Left { focus-column-left; }
+    Mod+Down { focus-window-down; }
+    Mod+Up { focus-window-up; }
+    Mod+Right { focus-column-right; }
+    Mod+Ctrl+Left { move-column-left; }
+    Mod+Ctrl+Right { move-column-right; }
+    // Workspaces are shared across outputs, so reaching the other panel is its own action.
+    Mod+Shift+Left { focus-monitor-left; }
+    Mod+Shift+Right { focus-monitor-right; }
+
+    // Workspaces 1-10 (Mod+0 = 10), Mod+Shift = move the column there.
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }
+    Mod+Shift+1 { move-column-to-workspace 1; }
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+    Mod+Shift+6 { move-column-to-workspace 6; }
+    Mod+Shift+7 { move-column-to-workspace 7; }
+    Mod+Shift+8 { move-column-to-workspace 8; }
+    Mod+Shift+9 { move-column-to-workspace 9; }
+    Mod+Shift+0 { move-column-to-workspace 10; }
+
+    // Wheel through the workspaces; the cooldown stops a fast spin flying past.
+    Mod+WheelScrollDown cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp cooldown-ms=150 { focus-workspace-up; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp cooldown-ms=150 { move-column-to-workspace-up; }
+
+    Mod+O repeat=false { toggle-overview; }
+    Mod+Shift+Slash { show-hotkey-overlay; }
+    // Escape hatch: an app that grabs all shortcuts cannot hold the session hostage.
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+
+    // Audio / media / brightness (PipeWire and DDC/CI stay inside the shell).
+    // allow-when-locked: these keys must reach the shell on the lock screen.
+    XF86AudioRaiseVolume allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg volume-up"; }
+    XF86AudioLowerVolume allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg volume-down"; }
+    XF86AudioMute allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg volume-mute"; }
+    XF86AudioMicMute allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg mic-mute"; }
+    XF86AudioPlay allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg media toggle"; }
+    XF86AudioNext allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg media next"; }
+    XF86AudioPrev allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg media previous"; }
+    XF86MonBrightnessUp allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg brightness-up"; }
+    XF86MonBrightnessDown allow-when-locked=true hotkey-overlay-title=null { spawn-sh "noctalia msg brightness-down"; }
+
+    // Screenshots: Noctalia captures over wlr-screencopy, which niri implements.
+    Print hotkey-overlay-title="Screenshot: Region" { spawn-sh "noctalia msg screenshot-region"; }
+    Shift+Print hotkey-overlay-title="Screenshot: Monitor" { spawn-sh "noctalia msg screenshot-fullscreen"; }
+    Ctrl+Print hotkey-overlay-title="Screenshot: Pick Monitor" { spawn-sh "noctalia msg screenshot-fullscreen pick"; }
+
+    // Colour picker; -a copies the picked colour to the clipboard.
+    Mod+Ctrl+P hotkey-overlay-title="Pick Colour" { spawn-sh "hyprpicker -a"; }
+
+    // Powers off the monitors; any input wakes them (Noctalia's idle timer drives the same thing
+    // over ext-idle-notifier, which niri implements).
+    Mod+Shift+P { power-off-monitors; }
+}
+
+// Noctalia's `niri` theme template writes the palette to ~/.config/niri/noctalia.kdl and greps for
+// an include line before touching the config, so declaring it here keeps it from appending to the
+// read-only store file. Relative, so it follows $XDG_CONFIG_HOME, and `optional` because the file
+// appears only after a theme is applied for the first time. It is watched, so the colors land as
+// soon as it exists.
+include optional=true "noctalia.kdl"
