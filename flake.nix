@@ -53,6 +53,13 @@
     # digits here).
     gufo.url = "github:gufo-org/gufo";
 
+    # oh-my-pi (`omp`), a pi fork, run side by side with it: omp reads and writes only ~/.omp, so
+    # nothing overlaps the ~/.pi/agent files home-manager/pi installs. Its flake does ship a
+    # home-manager module (programs.omp), which home-manager/omp uses. Do not make its nixpkgs
+    # follow ours: the package builds against its own pin (bun2nix, rust-overlay, a pinned rust).
+    # Built from source with no public binary cache, so the first build costs a while.
+    omp.url = "github:can1357/oh-my-pi";
+
     # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
     # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
     berkeleyMono = {

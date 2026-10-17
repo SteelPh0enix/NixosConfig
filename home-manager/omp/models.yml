@@ -1,0 +1,86 @@
+# oh-my-pi's model catalog: the same servers and presets as home-manager/pi/models.json, ported to
+# omp's format. The two files are kept in step by hand - pi reads models.json, omp reads models.yml.
+#
+# `thinking.efforts` is omp's form of pi's `thinkingLevelMap`: the rungs a preset really accepts,
+# lowest first. omp clamps any level above the top rung down to it, which is what keeps the default
+# xhigh off the two small presets. omp derives a ladder from the model id on its own, and these
+# preset names (cyber-tiel-coder, sharp-spark, ...) say nothing about the model behind them, so the
+# ladders are stated here rather than guessed.
+#
+# Not ported yet, and worth a look once omp runs against these servers: omp's own llama.cpp wire
+# rules (packages/catalog/.../providers/llama.cpp.kdl) key on the provider being literally named
+# `llama.cpp`, so these providers get omp's plain-openai defaults instead - no thinking-format or
+# named-tool-choice downgrades. Both are per-model `compat:` keys if a preset rejects a request.
+providers:
+  # The framework box's gufo router. gufo answers no n_ctx and no launch args, so the window stays
+  # hand-written here, exactly as in pi. The `!` command reads the key at request time - the same
+  # convention pi uses, so the secret stays out of git and out of this file.
+  llama-main:
+    baseUrl: http://steelph0enix.framework:33333/v1
+    api: openai-completions
+    apiKey: "!cat /home/steelph0enix/nixos-config/secrets/llama-strix-api-key"
+    models:
+      - id: "Qwen 3.8 Flash Next"
+        name: qwen-next
+        contextWindow: 262144
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [low, medium, xhigh]
+
+  # This box's llama.cpp router. The window is what one slot gets: a --kv-unified preset shares one
+  # KV pool across its slots, so the pool is divided by the slot count - otherwise two parallel
+  # requests would each claim the whole pool. A preset without it keeps its window whole. Numbers
+  # read off /v1/models on this box, matching what pi's llama-compat extension computes at startup.
+  llama-pc:
+    baseUrl: http://steelph0enix.pc:51536/v1
+    api: openai-completions
+    auth: none
+    models:
+      - id: cyber-tiel-coder
+        contextWindow: 131072 # 262144 over 2 slots
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [low, medium, xhigh]
+      - id: occult-nail
+        contextWindow: 262144
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [low, medium, xhigh]
+      - id: qwen-27B
+        contextWindow: 262144
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [low, medium, xhigh]
+      # The two small presets take no xhigh, so the default thinking level clamps down to high.
+      - id: lfm
+        contextWindow: 128000
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [minimal, low, medium, high]
+      - id: sharp-spark
+        contextWindow: 262144 # 1048576 over 4 slots
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [minimal, low, medium, high]
+
+  # The framework box's own llama.cpp router. pi lists no models for it and lets the router's
+  # /v1/models be the list; omp's llama.cpp discovery does the same, and reads each loaded preset's
+  # context window from the server.
+  llama-fwpc-vulkan:
+    baseUrl: http://steelph0enix.framework:51536/v1
+    api: openai-completions
+    auth: none
+    discovery:
+      type: llama.cpp

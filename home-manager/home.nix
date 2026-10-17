@@ -15,5 +15,6 @@
     ./nonfree-fonts.nix
     ./nixvim
     ./pi
+    ./omp
   ];
 }
