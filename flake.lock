@@ -95,11 +95,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1792188253,
-        "narHash": "sha256-nijYj1fDSMMSyloOuTX2aRDbp/Gkzj26X5/EKXQy6X0=",
+        "lastModified": 1792240436,
+        "narHash": "sha256-vMoOqLwhep7KJ5TZytUiwZrqK1mC23X7yJ/XGKNR4qc=",
         "owner": "gufo-org",
         "repo": "gufo",
-        "rev": "78248de23cc279b1a5d4443cef816a6059bde189",
+        "rev": "3389a585ef9eb59f8226e177455820c4d8390f46",
         "type": "github"
       },
       "original": {
@@ -135,8 +135,8 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1792228915,
-        "narHash": "sha256-k+b8EbAcIJ/MUQOARLOPWrTOkcnkeZOU68EPw0qFOZo=",
+        "lastModified": 1792243074,
+        "narHash": "sha256-kOY8QB8/PCgJ+3NZXuCkHKHDRUrCW9x6Yjaw1OZOFdM=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
