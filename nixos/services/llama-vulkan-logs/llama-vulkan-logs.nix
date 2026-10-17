@@ -26,15 +26,12 @@ in
 
   systemd.services.llama-vulkan-logs = {
     description = "Web interface for llama-server-vulkan logs (${toString settings.llamaLogsPort})";
-    wantedBy = [ "multi-user.target" ];
+    # Starts only by hand, with the server it follows.
     after = [
       "llama-server-vulkan.service"
       "network-online.target"
     ];
-    wants = [
-      "llama-server-vulkan.service"
-      "network-online.target"
-    ];
+    wants = [ "network-online.target" ];
 
     serviceConfig = {
       ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service llama-server-vulkan --port ${toString settings.llamaLogsPort}";

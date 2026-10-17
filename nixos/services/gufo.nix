@@ -24,6 +24,8 @@ let
       --mtp-model ${settings.gufoMtpPath} \
       --context ${toString settings.gufoContext} \
       --sessions ${toString settings.gufoSessions} \
+      --cache-ram-bytes ${toString settings.gufoCacheRamBytes} \
+      --stall-timeout-ms ${toString settings.gufoStallTimeoutMs} \
       --served-model-name ${lib.escapeShellArg settings.gufoServedModelName}
   '';
 in

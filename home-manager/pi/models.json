@@ -10,7 +10,6 @@
           "name": "qwen-next",
           "contextWindow": 262144,
           "reasoning": true,
-          "contextWindow": 262144,
           "maxTokens": 32768,
           "thinkingLevelMap": {
             "minimal": null,

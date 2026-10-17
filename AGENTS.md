@@ -42,7 +42,8 @@ groups, and the file's own comment style, which explains *why* rather than *what
   (see the README). The kernel is `linuxPackages_xanmod_latest` from cache.nixos.org, so a `nixpkgs`
   bump normally just substitutes it; the `nix-cachyos-kernel` flake is gone because its author's
   cache and Hydra were compromised. If a kernel must be frozen, the pin goes in `flake.nix` with the
-  reasoning, not quietly in `flake.lock`.
+  reasoning, not quietly in `flake.lock`. `gufo` is pinned that way for the same reason: its URL
+  without a ref tracks `main`, which already moved past the revision that served 2x262k at 40+ tok/s.
 - Hand-edit `~/.pi/agent/settings.json` to change a managed setting. Edit `home-manager/pi/default.nix`
   and re-activate; a hand-edit in the live file only gets shadowed by the managed key again.
 
@@ -55,6 +56,8 @@ AVX512 extensions here), LTO — running as the `llama` user with
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).
+It no longer starts at boot: gufo's two 262144-token sessions fill the unified memory pool, so a model
+loaded here on top would OOM the box. Start it (and `llama-vulkan-logs`) by hand when needed.
 
 Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `llama` and cannot
 traverse a 0700 home. The checkout keeps a **symlink** to `llama-server.ini`, so editing presets is an
@@ -64,7 +67,13 @@ The one on **33333** is a NixOS unit: Gufo (`nixos/services/gufo.nix`) built fro
 input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It replaced the rootless-Docker
 llama.cpp router, whose Compose/INI in `~/LLMs/` is kept only as manual rollback. Gufo has no binary
 cache, so a `gufo` bump is a long local build. The API key is `secrets/llama-strix-api-key` (the
-retired `.env` kept it as `STRIX_API_KEY`).
+retired `.env` kept it as `STRIX_API_KEY`); gufo takes it only as `--api-key`, so it is visible in
+the process command line and there is no env or file alternative. Its continuation cache is capped
+with `--cache-ram-bytes` (the automatic budget is half of `MemAvailable` and throws the host into
+swap), and `--stall-timeout-ms` exits a generation that stops progressing as `device_lost` so
+systemd restarts the engine. The flake input is pinned to the `0604e9e` revision (see `flake.nix`):
+main's 0.17.0 plus PR #626 cut prefill/decode attention cost in gufo's own benchmarks, but on this box
+they drop long-context decode to single digits past ~150k tokens.
 
 ## Restarting by hand instead of rebuilding
 

@@ -42,6 +42,14 @@ rec {
   gufoContext = 262144;
   # ~6.3 GB of KV/recurrent/indexer/MTP state per session at this context (gufo's measured figure).
   gufoSessions = 2;
+  # The Flash-Next continuation cache pins host pages on top of model and session state. Left on auto
+  # it sized itself to ~12-16 GB against transient free RAM; cap it explicitly so a restart cannot grow
+  # it past what the desktop shares. 12 GB is the retained budget the pre-0.17.0 engine carried at 195k
+  # tokens (an ~11.5 GB ledger) and still stayed responsive.
+  gufoCacheRamBytes = 12884901888;
+  # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
+  # engine rather than the request hanging forever.
+  gufoStallTimeoutMs = 120000;
   # Same key the Docker router served; external clients must not have to change it.
   gufoApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
 }

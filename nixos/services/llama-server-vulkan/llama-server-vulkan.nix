@@ -39,7 +39,9 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    wantedBy = [ "multi-user.target" ];
+    # Starts only by hand: gufo's two 262144-token sessions fill the unified memory pool, and a model
+    # loaded here on top of them OOMs the box. `systemctl start llama-server-vulkan` still works.
+    wantedBy = [ ];
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
 
