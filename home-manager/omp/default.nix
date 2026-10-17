@@ -13,8 +13,9 @@ in
     enable = true;
 
     # omp writes config.yml itself (/settings, /model, onboarding) and this activation replaces the
-    # file outright, so a change made in the TUI returns to these values on the next switch. Keep it
-    # to what must hold, and leave the rest for omp to own.
+    # file outright, so the whole tuned surface is declared here: a value changed in /settings
+    # reverts to one of these on the next switch unless it is re-declared below. Only runtime
+    # state (sessions/, last-changelog-version, the *.db files) is left for omp to own.
     settings = {
       # The presets that take no xhigh clamp down to their top rung (see models.yml).
       defaultThinkingLevel = "xhigh";
@@ -27,20 +28,77 @@ in
       # features make (and for `judge`, which resolves through @tiny then @smol).
       modelRoles.smol = "llama-pc/sharp-spark";
       modelRoles.tiny = "llama-pc/sharp-spark";
-      # Local GPUs do the work, so token counts are the only way to notice a compaction storm or a
-      # runaway subagent; there is no bill to read instead.
-      display.showTokenUsage = true;
-      # The wizard gate: omp records finished onboarding as setupVersion in config.yml, and the
-      # activation above wipes that key on every switch, so the next launch sees version 0 and
-      # replays the wizard. Nothing it offers (sign-in, theme, model pick) is undeclared here, so
-      # keep it off rather than re-declaring a version number that has to be bumped per release.
-      startup.setupWizard = false;
       # Search goes to the SearXNG on the framework box rather than through the default chain, which
       # would reach Parallel's keyless MCP and Exa first. Same instance and local name as pi's
       # searxng extension uses via SEARXNG_URL (home-manager/pi/default.nix): the hosts entry in
       # nixos/services.nix answers search.framework, and plain HTTP skips the TLS hop.
       modelRoles.web = "web/searxng";
       searxng.endpoint = "http://search.framework:7777";
+      # No Exa key on this box, so the other half of that default chain stays off.
+      exa.enabled = false;
+
+      # Local GPUs do the work, so token counts are the only way to notice a compaction storm or a
+      # runaway subagent; there is no bill to read instead.
+      display.showTokenUsage = true;
+      display.shimmer = "kitt";
+      display.pinnedAgents = "collapsed";
+      display.subagentLivePreview = true;
+      display.showTurnTime = true;
+      display.cacheMissMarker = true;
+
+      # The wizard gate: omp records finished onboarding as setupVersion in config.yml, and the
+      # activation above wipes that key on every switch, so the next launch sees version 0 and
+      # replays the wizard. Nothing it offers (sign-in, theme, model pick) is undeclared here, so
+      # keep it off rather than re-declaring a version number that has to be bumped per release.
+      startup.setupWizard = false;
+      # The flake pins the revision; nix decides when omp updates, not the TUI.
+      startup.checkUpdate = false;
+
+      composer.shape = "box";
+      composer.tokenRate = true;
+
+      statusLine.preset = "nerd";
+      statusLine.separator = "powerline";
+      statusLine.contextLine = "annotated";
+      statusLine.sessionAccent = true;
+      statusLine.transparent = false;
+      statusLine.compactThinkingLevel = false;
+      statusLine.showHookStatus = true;
+
+      tui.resizeScrollback = "rebuild";
+      tui.titleSpinner = "braille";
+      tui.tight = false;
+      tui.vimMode = true;
+      tui.vimModeDisplay = "text";
+
+      terminal.showProgress = true;
+      readLineNumbers = true;
+      personality = "pragmatic";
+      treeFilterMode = "default";
+
+      task.showResolvedModelBadge = true;
+      # One task at a time: the local router keeps a single preset resident, so a second parallel
+      # task costs a model swap before it costs a token.
+      task.maxConcurrency = 1;
+
+      contextPromotion.enabled = false;
+      compaction.methodOrder = [
+        "remote"
+        "shake"
+        "soft"
+        "handoff"
+      ];
+      compaction.idleEnabled = false;
+
+      edit.mode = "hashline";
+      read.renderMarkdown = true;
+      lsp.formatOnWrite = true;
+      lsp.diagnosticsOnEdit = true;
+      astGrep.enabled = true;
+      checkpoint.enabled = true;
+      plan.autosave = false;
+
+      providers.tinyModelDevice = "default";
     };
   };
 
