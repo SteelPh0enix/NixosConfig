@@ -14,7 +14,9 @@ let
   settings = {
     defaultProvider = "llama-main";
     defaultModel = "Qwen 3.8 Flash Next";
-    defaultThinkingLevel = "medium";
+    # xhigh where the preset has a rung for it; a model whose `thinkingLevelMap` maps xhigh to null
+    # (lfm, sharp-spark) just gets no effort sent. Same choice as home-manager/omp for omp.
+    defaultThinkingLevel = "xhigh";
     theme = "noctalia";
     transport = "auto";
     treeFilterMode = "default";
