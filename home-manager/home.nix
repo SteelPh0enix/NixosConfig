@@ -18,6 +18,7 @@
     ./phonto.nix
     ./nixvim
     ./pi
+    ./omp
     ./theming.nix
     ./flashpoint.nix
     ./vesktop.nix
