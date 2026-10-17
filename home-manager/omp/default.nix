@@ -30,6 +30,11 @@ in
       # Local GPUs do the work, so token counts are the only way to notice a compaction storm or a
       # runaway subagent; there is no bill to read instead.
       display.showTokenUsage = true;
+      # The wizard gate: omp records finished onboarding as setupVersion in config.yml, and the
+      # activation above wipes that key on every switch, so the next launch sees version 0 and
+      # replays the wizard. Nothing it offers (sign-in, theme, model pick) is undeclared here, so
+      # keep it off rather than re-declaring a version number that has to be bumped per release.
+      startup.setupWizard = false;
       # Search goes to the SearXNG on the framework box rather than through the default chain, which
       # would reach Parallel's keyless MCP and Exa first. Same instance and local name as pi's
       # searxng extension uses via SEARXNG_URL (home-manager/pi/default.nix): the hosts entry in
