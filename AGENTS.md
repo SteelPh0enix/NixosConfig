@@ -42,8 +42,7 @@ groups, and the file's own comment style, which explains *why* rather than *what
   (see the README). The kernel is `linuxPackages_xanmod_latest` from cache.nixos.org, so a `nixpkgs`
   bump normally just substitutes it; the `nix-cachyos-kernel` flake is gone because its author's
   cache and Hydra were compromised. If a kernel must be frozen, the pin goes in `flake.nix` with the
-  reasoning, not quietly in `flake.lock`. `gufo` is pinned that way for the same reason: its URL
-  without a ref tracks `main`, which already moved past the revision that served 2x262k at 40+ tok/s.
+  reasoning, not quietly in `flake.lock`. `gufo` has no cache either, so it is the expensive input.
 - Hand-edit `~/.pi/agent/settings.json` to change a managed setting. Edit `home-manager/pi/default.nix`
   and re-activate; a hand-edit in the live file only gets shadowed by the managed key again.
 
@@ -71,9 +70,9 @@ retired `.env` kept it as `STRIX_API_KEY`); gufo takes it only as `--api-key`, s
 the process command line and there is no env or file alternative. Its continuation cache is capped
 with `--cache-ram-bytes` (the automatic budget is half of `MemAvailable` and throws the host into
 swap), and `--stall-timeout-ms` exits a generation that stops progressing as `device_lost` so
-systemd restarts the engine. The flake input is pinned to the `0604e9e` revision (see `flake.nix`):
-main's 0.17.0 plus PR #626 cut prefill/decode attention cost in gufo's own benchmarks, but on this box
-they drop long-context decode to single digits past ~150k tokens.
+systemd restarts the engine. Its input tracks `main`, so before activating a bumped version measure
+decode at 150k+ tokens: 0.17.0 plus PR #626 cut attention cost in gufo's own benchmarks but dropped
+long-context decode to single digits on this box.
 
 ## Restarting by hand instead of rebuilding
 

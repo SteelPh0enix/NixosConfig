@@ -48,11 +48,10 @@
 
     # Gufo engine for Strix Halo, built from its flake. It ships only packages, so nix/overlays.nix
     # maps `release` onto pkgs.gufo for nixos/services/gufo.nix. No binary cache: a bump is a long
-    # local build. Pinned to the last revision that served 2x262144 at 40+ tok/s: main moved past it
-    # to 0.17.0 plus PR #626 ("cut prefill and decode attention cost at depth"), which on this box
-    # drops long-context decode to single digits once a conversation is past ~150k tokens. Update the
-    # pin only after re-measuring decode at 150k+ tokens, not on a bare `nix flake update`.
-    gufo.url = "github:gufo-org/gufo/0604e9ebc41388ab610ed0bed198e49ef96a6a82";
+    # local build, so measure before activating a new version: re-check decode throughput at 150k+
+    # tokens (0.17.0 plus PR #626, "cut prefill and decode attention cost at depth", served single
+    # digits here).
+    gufo.url = "github:gufo-org/gufo";
 
     # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
     # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
