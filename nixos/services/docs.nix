@@ -9,7 +9,7 @@
 #   <project>/  (rustdoc site: index.html, <crate>/, ...)
 #
 # Browse at http://steelph0enix.framework:6971/
-{ ... }:
+_:
 
 {
   # Publish target for the CI docs job (steelph0enix writes via SSH deploy key)

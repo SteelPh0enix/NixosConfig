@@ -8,7 +8,7 @@
 #   <project>/{html,lcov.info}
 #
 # Browse at http://steelph0enix.framework:6970/
-{ ... }:
+_:
 
 {
   # Publish target for the CI coverage job (steelph0enix writes via SSH deploy key)

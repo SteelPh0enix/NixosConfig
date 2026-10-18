@@ -1,7 +1,4 @@
-{
-  ...
-}:
-{
+_: {
   boot.initrd.kernelModules = [ "amdgpu" ];
   boot.kernelModules = [ "kvm-amd" ];
 

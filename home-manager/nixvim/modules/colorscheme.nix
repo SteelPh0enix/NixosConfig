@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # ---- Colourscheme ----
   colorschemes.cyberdream = {
     enable = true;

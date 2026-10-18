@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # NixVim's autocmd options are `autoCmd`/`autoGroups`; each entry maps to
   # `nvim_create_autocmd` with either `callback` (raw Lua) or `command` (viml).
   autoCmd = [

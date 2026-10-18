@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # ---- fzf-lua ----
   plugins.fzf-lua = {
     enable = true;

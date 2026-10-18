@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # Upstream defaults kept (nixvim matches todo-comments 1.5.0 1:1): colon-after-keyword is
   # required by both the highlight and the search pattern, which is the form used here;
   # `signs = true` is safe because `signcolumn = "yes"`.

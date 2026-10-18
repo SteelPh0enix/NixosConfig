@@ -8,7 +8,7 @@
 # Use stateDirectoryMode = "0750" and join that group if you want direct access.
 { pkgs, inputs, ... }:
 let
-  mcserver = inputs.mcserver;
+  inherit (inputs) mcserver;
   createplus = import (mcserver + /packs/createplus/pack.nix) { };
 in
 {
