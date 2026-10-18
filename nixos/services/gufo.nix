@@ -56,9 +56,21 @@ in
       # HIP locks model pages; the non-privileged default is 8 KiB.
       LimitMEMLOCK = "infinity";
 
+      # Only the host-side half of the footprint is visible to the cgroup: the weights live in amdgpu GTT
+      # buffer objects, allocated in the kernel, charged to no unit and reclaimable by nobody (measured
+      # 89 GiB in mem_info_gtt_used against 6 GiB of process RSS). These bound the half that does grow -
+      # session state plus the continuation cache, ~6 GiB measured - so a runaway cache costs gufo a cgroup
+      # kill instead of taking the machine down with a global OOM.
+      MemoryHigh = "14G";
+      MemoryMax = "16G";
+
+      # A reload reads ~100 GiB from disk, so do not start one into the pressure an OOM just left behind.
+      # Stop gets 120s rather than 30: a shutdown that exceeded the old timeout was SIGKILLed with device
+      # memory still attached, and the next load had to work around the leftovers.
+      OOMPolicy = "stop";
       Restart = "on-failure";
-      RestartSec = 5;
-      TimeoutStopSec = 30;
+      RestartSec = 60;
+      TimeoutStopSec = 120;
 
       # Weights live under /home, so home is exposed read-only rather than masked.
       ProtectSystem = "strict";

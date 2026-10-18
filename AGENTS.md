@@ -55,7 +55,7 @@ AVX512 extensions here), LTO — running as the `llama` user with
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).
-It no longer starts at boot: gufo's two 262144-token sessions fill the unified memory pool, so a model
+It no longer starts at boot: gufo's 262144-token session fills the unified memory pool, so a model
 loaded here on top would OOM the box. Start it (and `llama-vulkan-logs`) by hand when needed.
 
 Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `llama` and cannot
@@ -69,8 +69,17 @@ cache, so a `gufo` bump is a long local build. The API key is `secrets/llama-str
 retired `.env` kept it as `STRIX_API_KEY`); gufo takes it only as `--api-key`, so it is visible in
 the process command line and there is no env or file alternative. Its continuation cache is capped
 with `--cache-ram-bytes` (the automatic budget is half of `MemAvailable` and throws the host into
-swap), and `--stall-timeout-ms` exits a generation that stops progressing as `device_lost` so
-systemd restarts the engine. Its input tracks `main`, so before activating a bumped version measure
+swap, gufo-org/gufo#387), and `--stall-timeout-ms` exits a generation that stops progressing as
+`device_lost` so systemd restarts the engine.
+
+Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
+rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
+RSS and to every cgroup (89 GiB of GTT against 6 GiB of `gufo` RSS), `MemAvailable` counts GTT pages that
+cannot be reclaimed, and `MemoryMax=` on the unit can only bound the host-side half. A load that finds GTT
+still held by a SIGKILLed predecessor puts the weights in host anonymous memory instead - 85 GiB of RSS,
+then tens of GiB squeezed into zram, then a *global* OOM kill - which is what `TimeoutStopSec` and
+`RestartSec` on the unit are for, together with `vm.min_free_kbytes` and the 10% zram in
+`nixos/hardware.nix`. Its input tracks `main`, so before activating a bumped version measure
 decode at 150k+ tokens: 0.17.0 plus PR #626 cut attention cost in gufo's own benchmarks but dropped
 long-context decode to single digits on this box.
 

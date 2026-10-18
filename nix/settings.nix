@@ -41,11 +41,15 @@ rec {
   gufoServedModelName = "Qwen 3.8 Flash Next";
   gufoContext = 262144;
   # ~6.3 GB of KV/recurrent/indexer/MTP state per session at this context (gufo's measured figure).
-  gufoSessions = 2;
-  # The Flash-Next continuation cache pins host pages on top of model and session state. Left on auto
-  # it sized itself to ~12-16 GB against transient free RAM; cap it explicitly so a restart cannot grow
-  # it past what the desktop shares.
-  gufoCacheRamBytes = 8589934592;
+  # One session only: the weights are ~104 GiB of the 124 GiB unified pool, so each extra session comes
+  # straight out of the RAM the desktop and the CLI agents run on.
+  gufoSessions = 1;
+  # The Flash-Next continuation cache pins host pages on top of model and session state, and gufo sizes
+  # it once from the free RAM at startup without ever re-checking it (gufo-org/gufo#387) - whatever it
+  # reserves here stays reserved after other processes have taken the memory. 8 GiB let MemAvailable
+  # fall to 18 GiB, and the next process had only swap left; 2 GiB keeps prefix reuse for agent loops.
+  # MemoryMax in nixos/services/gufo.nix fences the growth this budget does not cover.
+  gufoCacheRamBytes = 2147483648;
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;

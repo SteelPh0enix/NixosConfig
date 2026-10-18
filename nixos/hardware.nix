@@ -109,6 +109,17 @@ _: {
   boot.kernel.sysctl = {
     "vm.swappiness" = 10;
     "vm.vfs_cache_pressure" = 50;
+    # Almost the whole unified pool is committed by the inference engine and most of it is amdgpu GTT,
+    # which sits on no LRU, so there is little to reclaim and it must start early. The default reserve is
+    # 66 MiB: the kernel ran to zero free and failed allocations inside its own swap path. Waking kswapd
+    # a percent earlier keeps that reclaim off the allocating process, which is where a stall becomes a
+    # hang. Both are pinned so a kernel swap cannot move them back.
+    #
+    # overcommit_memory stays at the `1` the redis module asks for: heuristic (0) is still optimistic and
+    # would not have refused anything here, while strict (2) counts address space and no engine that
+    # reserves 240 GiB of it could load at all.
+    "vm.min_free_kbytes" = 2097152;
+    "vm.watermark_scale_factor" = 100;
     "kernel.sched_cfs_bandwidth_slice_us" = 3000;
     "net.core.netdev_max_backlog" = 65536;
     "net.ipv4.tcp_fastopen" = 3;
@@ -118,7 +129,10 @@ _: {
 
   zramSwap = {
     enable = true;
-    memoryPercent = 50;
+    # Half of RAM let the kernel accept ~60 GiB of compression instead of failing: minutes of engine
+    # pages being squeezed while zram needed RAM it no longer had, then a global OOM kill. 10 GiB covers
+    # genuine outliers and turns the rest into a fast, visible failure.
+    memoryPercent = 10;
   };
 
   services.irqbalance.enable = true;
