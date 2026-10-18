@@ -3,8 +3,8 @@
 #
 # `thinking.efforts` is omp's form of pi's `thinkingLevelMap`: the rungs a preset really accepts,
 # lowest first. omp clamps any level above the top rung down to it, which is what keeps the default
-# xhigh off the two small presets. omp derives a ladder from the model id on its own, and these
-# preset names (cyber-tiel-coder, sharp-spark, ...) say nothing about the model behind them, so the
+# xhigh off the small presets. omp derives a ladder from the model id on its own, and these
+# preset names (cyber-tiel-coder, occult-nail, ...) say nothing about the model behind them, so the
 # ladders are stated here rather than guessed.
 #
 # Not ported yet, and worth a look once omp runs against these servers: omp's own llama.cpp wire
@@ -29,17 +29,18 @@ providers:
           mode: effort
           efforts: [low, medium, xhigh]
 
-  # This box's llama.cpp router. The window is what one slot gets: a --kv-unified preset shares one
-  # KV pool across its slots, so the pool is divided by the slot count - otherwise two parallel
-  # requests would each claim the whole pool. A preset without it keeps its window whole. Numbers
-  # read off /v1/models on this box, matching what pi's llama-compat extension computes at startup.
+  # This box's llama.cpp router. A --kv-unified preset shares one KV pool across its slots, so the
+  # window is stated per request: a lone request has the whole pool, parallel ones divide it. It
+  # is declared whole here because omp only ever overlaps the advisor with one subagent (see the
+  # slot notes in default.nix). Numbers read off /v1/models on this box, matching what pi's
+  # llama-compat extension computes at startup.
   llama-pc:
     baseUrl: http://steelph0enix.pc:51536/v1
     api: openai-completions
     auth: none
     models:
       - id: cyber-tiel-coder
-        contextWindow: 131072 # 262144 over 2 slots
+        contextWindow: 262144 # whole unified pool; its 2 slots divide it only when both run
         maxTokens: 32768
         reasoning: true
         thinking:
@@ -67,6 +68,8 @@ providers:
         thinking:
           mode: effort
           efforts: [minimal, low, medium, high]
+      # No omp role points here anymore - the side work moved to cyber-tiel-coder - but the row
+      # stays so the catalog matches pi's models.json and /model can still reach it.
       - id: sharp-spark
         contextWindow: 262144 # 1048576 over 4 slots
         maxTokens: 32768
