@@ -23,22 +23,22 @@ in
       modelRoles.default = "llama-main/Qwen 3.8 Flash Next";
       # The built-in smol/tiny chains are cloud models, and this box has no cloud credential for
       # any of them: unset, they resolve to nothing, so session titles, the tool-issue judge and
-      # speculative compaction all fall back to the session model. sharp-spark is this router's
-      # 4-slot preset - fast, and roomy enough for the parallel side requests those features make
+      # speculative compaction all fall back to the session model. minicpm is this router's 3-slot
+      # preset - a 35B-A3B MoE, so roomy enough for the parallel side requests those features make
       # (and for `judge`, which resolves through @tiny then @smol). Its slots run on one unified
       # KV pool: the advisor and the quick requests take a slot or two, one task takes one, and
       # the rest stays free for the pi fleet on the same router.
-      modelRoles.smol = "llama-pc/sharp-spark";
-      modelRoles.tiny = "llama-pc/sharp-spark";
+      modelRoles.smol = "llama-pc/minicpm";
+      modelRoles.tiny = "llama-pc/minicpm";
       # Subagents follow the same shift: the bundled task/sonic/scout agents (@task, @smol) run
-      # on sharp-spark; the reviewer agents take @slow, which falls back to the configured
+      # on minicpm; the reviewer agents take @slow, which falls back to the configured
       # default - qwen-next has two slots on its router, so one can hold a subagent while the
       # session keeps working. No explicit `slow` needed.
-      modelRoles.task = "llama-pc/sharp-spark";
-      # A second pair of eyes: sharp-spark passively reviews each turn from its own context with
+      modelRoles.task = "llama-pc/minicpm";
+      # A second pair of eyes: minicpm passively reviews each turn from its own context with
       # read/grep/glob, steering on concerns and blockers. No effort suffix, so it reviews at
       # medium - quick reviews, no xhigh sprawl.
-      modelRoles.advisor = "llama-pc/sharp-spark";
+      modelRoles.advisor = "llama-pc/minicpm";
       advisor.enabled = true;
       # Search goes to the SearXNG on the framework box rather than through the default chain, which
       # would reach Parallel's keyless MCP and Exa first. Same instance and local name as pi's
@@ -89,10 +89,10 @@ in
       treeFilterMode = "default";
 
       task.showResolvedModelBadge = true;
-      # One task at a time: sharp-spark's 4-slot pool covers the advisor, the quick smol/tiny
+      # One task at a time: minicpm's 3-slot pool covers the advisor, the quick smol/tiny
       # requests and one task without contention, and its unified pool only shrinks per request
-      # the more slots run - a second concurrent task trades the long context that makes this
-      # preset worth having for nothing the 4B can't do just as slowly.
+      # the more slots run - a second concurrent task halves what the first can hold for no
+      # throughput the reviewer and titles don't need anyway.
       task.maxConcurrency = 1;
 
       contextPromotion.enabled = false;
