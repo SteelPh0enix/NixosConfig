@@ -112,13 +112,7 @@ in
       checkpoint.enabled = true;
       plan.autosave = false;
 
-      # Mnemopi's local SQLite bank rather than the default off, with project-local writes still
-      # tagged into the global bank so recall crosses checkouts. Its own auto-recall/auto-retain
-      # stay at their defaults; autolearn layers the stop-time nudge (capture lessons, cut managed
-      # skills) on top. autoContinue stays off: no extra billed capture turn at stop.
-      memory.backend = "mnemopi";
-      mnemopi.scoping = "per-project-tagged";
-      autolearn.enabled = true;
+      memory.backend = "off";
 
       providers.tinyModelDevice = "default";
     };

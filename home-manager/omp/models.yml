@@ -46,13 +46,6 @@ providers:
         thinking:
           mode: effort
           efforts: [low, medium, xhigh]
-      - id: occult-nail
-        contextWindow: 262144
-        maxTokens: 32768
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [low, medium, xhigh]
       - id: qwen-27B
         contextWindow: 262144
         maxTokens: 32768
@@ -86,13 +79,3 @@ providers:
         thinking:
           mode: effort
           efforts: [minimal, low, medium, high]
-
-  # The framework box's own llama.cpp router. pi lists no models for it and lets the router's
-  # /v1/models be the list; omp's llama.cpp discovery does the same, and reads each loaded preset's
-  # context window from the server.
-  llama-fwpc-vulkan:
-    baseUrl: http://steelph0enix.framework:51536/v1
-    api: openai-completions
-    auth: none
-    discovery:
-      type: llama.cpp
