@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # CLI formatters with LSP fallback (`lsp_format = "fallback"`), which is what makes
   # `<leader>cf` work in filetypes no formatting client covers (fish, JSON, ...).
   # `autoInstall` resolves every name in `formatters_by_ft` to a nix package on the wrapper

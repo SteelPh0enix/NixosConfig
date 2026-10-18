@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # Must be a literal " ": `vim.g.mapleader = '<Space>'` does not expand keycodes in Lua.
   # `globals` is emitted in extraConfigLuaPre, i.e. before keymaps and plugin setup.
   globals = {

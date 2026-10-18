@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   plugins.nvim-tree = {
     enable = true;
 

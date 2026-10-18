@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # VS Code-style icons for the `kind` column of the completion menu. nixvim plugs
   # lspkind into `plugins.cmp.settings.formatting.format` automatically.
   plugins.lspkind.enable = true;

@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # ---- Neovim options ----
   opts = {
     tabstop = 2;

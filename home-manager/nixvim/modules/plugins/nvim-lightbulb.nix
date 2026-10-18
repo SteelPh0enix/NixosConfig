@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # Indicator only - code actions run through Neovim's own `gra`/`grn`/`grr`/... defaults
   # (:help lsp-defaults). `<C-S>` signature help is shadowed by the `<C-s>` save mapping,
   # which is why plugins.lsp-signature is enabled in lsp.nix instead.

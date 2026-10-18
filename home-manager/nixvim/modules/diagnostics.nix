@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # ---- Diagnostics ----
   diagnostic.settings = {
     severity_sort = true;
