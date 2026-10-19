@@ -1,4 +1,14 @@
 {
+  systemd.timers."gitea-runner-cache-prune" = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      RandomizedDelaySec = "1h";
+      Persistent = true;
+      Unit = "gitea-runner-cache-prune.service";
+    };
+  };
+
   systemd.timers."rust-motd" = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
