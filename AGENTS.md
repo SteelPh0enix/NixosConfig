@@ -83,6 +83,12 @@ then tens of GiB squeezed into zram, then a *global* OOM kill - which is what `T
 decode at 150k+ tokens: 0.17.0 plus PR #626 cut attention cost in gufo's own benchmarks but dropped
 long-context decode to single digits on this box.
 
+**The CI runner is on this box, so a global OOM takes a CI job with it.** On 2026-10-20 01:00 the
+kernel's OOM killer went through the process table and the Forgejo Actions job died as collateral:
+its nix build was SIGKILLed (exit 137) and the run went red for a reason that is nowhere in the
+job's log. The workflows cache the nix store (`actions/cache` on `/nix`), which is what keeps a job
+from building the toolchain at all - a cold store is the memory spike that tips a loaded box over.
+
 ## Restarting by hand instead of rebuilding
 
 `llama-server-vulkan` after editing `/home/LLMs/llama-server.ini`, `adguardhome` to force a filter-list
