@@ -11,6 +11,13 @@
 # rules (packages/catalog/.../providers/llama.cpp.kdl) key on the provider being literally named
 # `llama.cpp`, so these providers get omp's plain-openai defaults instead - no thinking-format or
 # named-tool-choice downgrades. Both are per-model `compat:` keys if a preset rejects a request.
+#
+# The one default that costs real context: omp only replays a model's own reasoning to a "local"
+# backend (llama.cpp, LM Studio, vLLM, Ollama, or a loopback/RFC1918/.local baseUrl). These
+# hostnames are none of those, so the reasoning was dropped from every request while omp kept
+# counting it - the context estimate ran about twice the prompt the server actually saw, and
+# compaction fired at half the configured threshold. `replayReasoningContent` puts the reasoning
+# back on the wire, which is what these servers have always rendered.
 providers:
   # The framework box's gufo router. gufo answers no n_ctx and no launch args, so the window stays
   # hand-written here, exactly as in pi. The `!` command reads the key at request time - the same
@@ -19,6 +26,11 @@ providers:
     baseUrl: http://steelph0enix.framework:33333/v1
     api: openai-completions
     apiKey: "!cat /home/steelph0enix/nixos-config/secrets/llama-strix-api-key"
+    compat:
+      replayReasoningContent: true
+      # Emits preserve_thinking, so the Qwen 3.8 template renders the replayed reasoning of older
+      # turns as <think> instead of dropping it.
+      qwenPreserveThinking: true
     models:
       - id: "Qwen 3.8 Flash Next"
         name: qwen-next
@@ -38,6 +50,12 @@ providers:
     baseUrl: http://steelph0enix.pc:51536/v1
     api: openai-completions
     auth: none
+    compat:
+      replayReasoningContent: true
+      # The Qwen template renders the replayed reasoning of older turns as <think> instead of
+      # dropping it. The other presets on this router have no Qwen template, and the field is
+      # inert for them.
+      qwenPreserveThinking: true
     models:
       - id: cyber-tiel-coder
         contextWindow: 262144 # whole unified pool; its 2 slots divide it only when both run
