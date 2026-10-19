@@ -31,7 +31,7 @@ providers:
 
   # This box's llama.cpp router. A --kv-unified preset shares one KV pool across its slots, so the
   # window is stated per request: a lone request has the whole pool, parallel ones divide it. It
-  # is declared whole here because omp only ever overlaps the advisor with one subagent (see the
+  # is declared whole here because omp keeps at most one resident user of a slot at a time (see the
   # slot notes in default.nix). Numbers read off /v1/models on this box, matching what pi's
   # llama-compat extension computes at startup.
   llama-pc:

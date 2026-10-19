@@ -26,20 +26,20 @@ in
       # speculative compaction all fall back to the session model. cyber-tiel-coder is this
       # router's fast coder, abliterated, and on the pc rather than the framework box, so the side
       # requests those features make never contend with the primary. Its two slots run on one
-      # unified KV pool: one holds the advisor plus the quick smol/tiny requests, one the single
-      # concurrent subagent.
+      # unified KV pool: one holds the quick smol/tiny requests, one the single subagent that
+      # `task.maxConcurrency` allows.
       modelRoles.smol = "llama-pc/cyber-tiel-coder";
       modelRoles.tiny = "llama-pc/cyber-tiel-coder";
-      # Subagents follow the same split: the bundled task/sonic/scout agents (@task, @smol) run
-      # on cyber-tiel; the reviewer agents take @slow, which falls back to the configured
-      # default - qwen-next has two slots on its router, so one can hold a subagent while the
-      # session keeps working. No explicit `slow` needed.
+      # The generic task/sonic/scout agents share that free cyber-tiel slot. `agents/` pins its
+      # own two agents explicitly - coder on cyber-tiel, reviewer on qwen-next - so they hold
+      # their slot whichever model the session happens to be on. `slow` stays unset, so anything
+      # asking for it gets the configured default, which is the second qwen-next slot.
       modelRoles.task = "llama-pc/cyber-tiel-coder";
-      # A second pair of eyes: cyber-tiel passively reviews each turn from its own context with
-      # read/grep/glob, steering on concerns and blockers. No effort suffix, so it reviews at
-      # medium - quick reviews, no xhigh sprawl.
-      modelRoles.advisor = "llama-pc/cyber-tiel-coder";
-      advisor.enabled = true;
+      # No advisor: it keeps a model resident to re-read every turn, which on a two-slot unified
+      # pool is a whole slot spent on a passive second opinion. Reviewing happens on purpose
+      # instead, as a `reviewer` spawn that reads the tree itself. `omp --advisor` or `/advisor on`
+      # turns the subsystem on for one session.
+      advisor.enabled = false;
       # Search goes to the SearXNG on the framework box rather than through the default chain, which
       # would reach Parallel's keyless MCP and Exa first. Same instance and local name as pi's
       # searxng extension uses via SEARXNG_URL (home-manager/pi/default.nix): the hosts entry in
@@ -125,4 +125,8 @@ in
   # writes a models.yml solely to migrate an old models.json, which we do not ship), so unlike
   # config.yml a store symlink is fine.
   home.file."${agentDir}/models.yml".source = ./models.yml;
+  # Task agents discovered from the agent dir (`omp://task-agent-discovery.md`), so the fleet is
+  # these files plus the bundled ones. Read at spawn, so an edit needs no rebuild once deployed -
+  # but deployment is a switch. Read-only, so the store symlink is fine here too.
+  home.file."${agentDir}/agents".source = ./agents;
 }
