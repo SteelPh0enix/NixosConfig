@@ -2,9 +2,10 @@
 # only ~/.omp, so nothing here touches the ~/.pi/agent files home-manager/pi owns. Its own flake
 # ships a home-manager module, so unlike pi this is mostly upstream options. No extensions are
 # installed - pi's are written against pi's API, and omp's own tool set covers most of them.
-{ omp, ... }:
+{ omp, pkgs, ... }:
 let
   agentDir = ".omp/agent";
+  ompBin = "${omp.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/omp";
 in
 {
   imports = [ omp.homeManagerModules.default ];
@@ -102,6 +103,12 @@ in
         "handoff"
       ];
       compaction.idleEnabled = false;
+      # 75% of the model's window instead of the reserve-based default (85%). omp-vcc owns the
+      # compaction itself, so this is the point at which its summary replaces the history.
+      compaction.thresholdPercent = 75;
+      # Only bites on models that also declare maxContextWindow (models.yml); a plain contextWindow
+      # stays fixed in both modes.
+      extendedContext = true;
 
       edit.mode = "hashline";
       read.renderMarkdown = true;
@@ -129,4 +136,19 @@ in
   # these files plus the bundled ones. Read at spawn, so an edit needs no rebuild once deployed -
   # but deployment is a switch. Read-only, so the store symlink is fine here too.
   home.file."${agentDir}/agents".source = ./agents;
+
+  # omp-vcc is the omp-native port of sting8k/pi-vcc: compaction becomes a deterministic
+  # extraction instead of an LLM summary, and the history it drops stays searchable through
+  # vcc_recall. The upstream module has no plugin option and ~/.omp/plugins is runtime state it
+  # never touches, so the install is declared here. The check keeps the activation offline once
+  # the plugin is in place.
+  home.activation.ompVccPlugin = {
+    before = [ ];
+    after = [ "installPackages" ];
+    data = ''
+      if ! ${ompBin} plugin list --json 2>/dev/null | grep -q '"name": "omp-vcc"'; then
+        ${ompBin} plugin install omp-vcc || echo "omp-vcc: install failed, run 'omp plugin install omp-vcc' by hand" >&2
+      fi
+    '';
+  };
 }
