@@ -53,7 +53,7 @@ rec {
   # so 2 GiB retains the latest long checkpoint (the next turn restores it) and evicts older branches.
   # A larger cap left too little for the desktop and pushed two long prompts into zram swap;
   # MemoryMax fences whatever the budget does not cover.
-  gufoCacheRamBytes = 2 * 1024 * 1024 * 1024;
+  gufoCacheRamBytes = 4 * 1024 * 1024 * 1024;
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;
