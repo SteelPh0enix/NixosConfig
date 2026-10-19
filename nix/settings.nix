@@ -38,18 +38,22 @@ rec {
   # not implement), so it cannot be used here.
   gufoModelPath = "${llamaModelsPath}/models/qwen/3.8-Flash-Next/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf";
   gufoMtpPath = "${llamaModelsPath}/models/qwen/3.8-Flash-Next/UD-Q4_K_XL/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf";
+  # Vision is not used: the Qwen projector files live in ../vision/, outside the directory gufo
+  # auto-discovers. Do not move them back unless image requests are wanted.
   gufoServedModelName = "Qwen 3.8 Flash Next";
   gufoContext = 262144;
   # ~6.3 GB of KV/recurrent/indexer/MTP state per session at this context (gufo's measured figure).
-  # One session only: the weights are ~104 GiB of the 124 GiB unified pool, so each extra session comes
-  # straight out of the RAM the desktop and the CLI agents run on.
-  gufoSessions = 1;
+  # Two sessions: the main agent holds one at 262k, the second lets a -smart subagent run alongside.
+  # The weights plus both sessions measure ~100 GiB of the 124 GiB unified pool (gufo logs
+  # gpu_device_used_mib); the rest is shared with the desktop and the CLI agents.
+  gufoSessions = 2;
   # The Flash-Next continuation cache pins host pages on top of model and session state, and gufo sizes
-  # it once from the free RAM at startup without ever re-checking it (gufo-org/gufo#387) - whatever it
-  # reserves here stays reserved after other processes have taken the memory. 8 GiB let MemAvailable
-  # fall to 18 GiB, and the next process had only swap left; 2 GiB keeps prefix reuse for agent loops.
-  # MemoryMax in nixos/services/gufo.nix fences the growth this budget does not cover.
-  gufoCacheRamBytes = 2147483648;
+  # it once from the free RAM at startup without ever re-checking it (gufo-org/gufo#387). Two sessions
+  # leave ~15 GiB host-available at load; snapshots measured 0.5 GiB at 9k tokens and 0.8 GiB at 116k,
+  # so 2 GiB retains the latest long checkpoint (the next turn restores it) and evicts older branches.
+  # A larger cap left too little for the desktop and pushed two long prompts into zram swap;
+  # MemoryMax fences whatever the budget does not cover.
+  gufoCacheRamBytes = 2 * 1024 * 1024 * 1024;
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;

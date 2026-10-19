@@ -63,6 +63,10 @@ in
       # kill instead of taking the machine down with a global OOM.
       MemoryHigh = "14G";
       MemoryMax = "16G";
+      # The cache and session state are the pages whose swap-in stalls decode. The kernel may still
+      # swap the desktop and agents, which do not hold a GPU session; gufo itself gets a contained
+      # memcg kill instead of minutes of zram churn.
+      MemorySwapMax = "0";
 
       # A reload reads ~100 GiB from disk, so do not start one into the pressure an OOM just left behind.
       # Stop gets 120s rather than 30: a shutdown that exceeded the old timeout was SIGKILLed with device
