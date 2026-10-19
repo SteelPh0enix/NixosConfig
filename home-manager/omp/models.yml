@@ -61,17 +61,8 @@ providers:
         thinking:
           mode: effort
           efforts: [minimal, low, medium, high]
-      # All omp's llama-pc roles point here now (smol, tiny, task, advisor). omp-only: pi's
-      # models.json has no minicpm yet, on purpose.
-      - id: minicpm
-        contextWindow: 262144 # whole unified pool over 3 slots
-        maxTokens: 32768
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [minimal, low, medium, high]
-      # No omp role points here anymore - the side work moved to minicpm - but the row stays so
-      # the catalog matches pi's models.json and /model can still reach it.
+      # No omp role points here anymore - the side work runs on cyber-tiel-coder - but the row
+      # stays so the catalog matches pi's models.json and /model can still reach it.
       - id: sharp-spark
         contextWindow: 262144 # 1048576 over 4 slots
         maxTokens: 32768
