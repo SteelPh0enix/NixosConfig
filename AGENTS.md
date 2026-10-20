@@ -118,8 +118,9 @@ model at a time. So a live test of an extension, or a big model swap, is felt on
 and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
 `assistant-smart`) is the exception: it runs on the framework box's gufo server, the model the main
 session itself uses (provider `llama-main`), through the `framework` group, also one model at a time.
-That server has 2 slots of 262k and the main agent permanently holds one, so `subagents.json` gives the
-subagents 1 slot: one `-smart` task at a time, and it is the slowest and the most capable thing here.
+That server holds a single 262k slot - the box has no memory for a second one - and the main agent
+permanently sits on it, so the 1 slot `subagents.json` gives the subagents queues on the same one:
+one `-smart` task at a time, the slowest and the most capable thing here.
 
 `models.json` pins `Qwen 3.8 Flash Next` at `contextWindow: 262144`, the one hand-written window in the
 catalog: gufo reports no `n_ctx` in `/models` and no launch args, so `llama-compat` has nothing to read

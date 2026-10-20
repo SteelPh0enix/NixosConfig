@@ -32,10 +32,12 @@ in
       modelRoles.smol = "llama-pc/cyber-tiel-coder";
       modelRoles.tiny = "llama-pc/cyber-tiel-coder";
       # The generic task/sonic/scout agents share that free cyber-tiel slot. `agents/` pins its
-      # own two agents explicitly - coder on cyber-tiel, reviewer on qwen-next - so they hold
-      # their slot whichever model the session happens to be on. `slow` stays unset, so anything
-      # asking for it gets the configured default, which is the second qwen-next slot.
+      # own two agents explicitly - coder and reviewer both on cyber-tiel - so they hold their
+      # slot whichever model the session happens to be on. `slow` is pinned to the same coder:
+      # the framework box is single-slot qwen-next, the main session holds that one slot, so
+      # nothing routed through a role may fall back onto it.
       modelRoles.task = "llama-pc/cyber-tiel-coder";
+      modelRoles.slow = "llama-pc/cyber-tiel-coder";
       # No advisor: it keeps a model resident to re-read every turn, which on a two-slot unified
       # pool is a whole slot spent on a passive second opinion. Reviewing happens on purpose
       # instead, as a `reviewer` spawn that reads the tree itself. `omp --advisor` or `/advisor on`
@@ -90,11 +92,10 @@ in
       treeFilterMode = "default";
 
       task.showResolvedModelBadge = true;
-      # One task at a time: the slot math above leaves exactly one free slot per 2-slot preset
-      # (cyber-tiel's second and qwen-next's second), and the pc router keeps a single preset
-      # resident, so a second parallel task costs a model swap before it costs a token.
+      # One task at a time: every subagent runs on cyber-tiel-coder, whose two-slot unified
+      # pool leaves exactly one slot free of the smol/tiny traffic, and the pc router keeps a
+      # single preset resident, so a second parallel task costs a model swap before a token.
       task.maxConcurrency = 1;
-
       contextPromotion.enabled = false;
       compaction.methodOrder = [
         "remote"
