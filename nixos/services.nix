@@ -129,7 +129,14 @@ in
     startWhenNeeded = true;
     drivers = with pkgs; [
       gutenprint
-      hplip
+      # hplip 3.26.4 hands the gapps wrapper args to the C wrapper generator, and
+      # the dconf GIO path among them is not an argument it knows: the build dies
+      # with "makeCWrapper: Unknown argument .../dconf-.../lib/gio/modules".
+      # Upstream fixed it in 3.26.6 (nixpkgs commit 950cb897); drop this override
+      # once the nixos-unstable branch carries that.
+      (hplip.override {
+        wrapGAppsHook3 = wrapGAppsHook3.override { withDconf = false; };
+      })
       splix
     ];
     browsed.enable = false; # would otherwise default to services.avahi.enable
