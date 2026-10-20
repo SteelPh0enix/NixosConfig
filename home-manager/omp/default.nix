@@ -136,6 +136,12 @@ in
   # these files plus the bundled ones. Read at spawn, so an edit needs no rebuild once deployed -
   # but deployment is a switch. Read-only, so the store symlink is fine here too.
   home.file."${agentDir}/agents".source = ./agents;
+  # omp-vcc's own config, the source of truth for how it compacts: with
+  # overrideDefaultCompaction set, VCC replaces the host's LLM summary on threshold and
+  # overflow instead of falling back to it. The plugin writes this file itself when it is
+  # missing, so it is declared here to keep the copy in the repo authoritative; the keys it
+  # leaves out come from the plugin's own defaults.
+  home.file.".omp/omp-vcc/config.json".source = ./omp-vcc-config.json;
 
   # omp-vcc is the omp-native port of sting8k/pi-vcc: compaction becomes a deterministic
   # extraction instead of an LLM summary, and the history it drops stays searchable through
