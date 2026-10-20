@@ -1,5 +1,4 @@
 {
-  config,
   lib,
   pkgs,
   inputs,
@@ -18,7 +17,7 @@ let
             service display-name="AdGuard Home" unit="adguardhome"
             service display-name="Jellyfin" unit="jellyfin"
             service display-name="Forgejo" unit="forgejo"
-            service display-name="Forgejo runner" unit="gitea-runner-framework"
+            service display-name="Forgejo runner" unit="forgejo-runner-framework"
             service display-name="XRDP" unit="xrdp"
             service display-name="SearXNG" unit="searx"
         }
@@ -195,7 +194,7 @@ in
     recommendedTlsSettings = true;
   };
 
-  # --- Forgejo (replaces Gitea) ---
+  # --- Forgejo ---
   services.forgejo = {
     enable = true;
     package = pkgs.forgejo; # 16.0.2
@@ -237,89 +236,6 @@ in
       };
     };
   };
-
-  # --- Forgejo Actions runner ---
-  # Since Forgejo 15 the one-time "runner registration token" flow is
-  # deprecated (forgejo/forgejo#11516, #11650): the WebUI now creates the
-  # runner directly and issues a persistent uuid + token pair that belongs
-  # in the runner's config file (server.connections). The nixpkgs
-  # gitea-actions-runner module still tries the deprecated
-  # `forgejo-runner register --token` flow in its ExecStartPre, which fails
-  # with "runner registration token not found". We therefore replace
-  # ExecStartPre/ExecStart with a config-based setup that reads UUID= and
-  # TOKEN= from the token file (kept out of git / the nix store).
-  services.gitea-actions-runner = {
-    package = pkgs.forgejo-runner;
-    instances.framework = {
-      name = "framework";
-      enable = true;
-      url = "http://steelph0enix.framework:6969/";
-      tokenFile = "/home/forgejo-runner/runner-token";
-      labels = [
-        "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-        "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-      ];
-      settings = {
-        runner = {
-          labels = [
-            "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-            "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-          ];
-        };
-        container = {
-          # MOUNT THE HOST DOCKER SOCKET
-          # This allows the 'docker' command inside the container
-          # to talk to the actual Docker daemon on NixOS.
-          valid_volumes = [ "/var/run/docker.sock" ];
-          docker_host = "-";
-          network = "host";
-        };
-      };
-    };
-  };
-
-  systemd.services."gitea-runner-framework" =
-    let
-      frameworkCfg = config.services.gitea-actions-runner.instances.framework;
-      # Same base config the module would generate (everything except the
-      # server connection, which is appended at runtime from the token file).
-      baseConfig = (pkgs.formats.yaml { }).generate "config.yaml" frameworkCfg.settings;
-    in
-    {
-      wants = [
-        "dns-ready.target"
-        "forgejo.service"
-      ];
-      after = [
-        "dns-ready.target"
-        "forgejo.service"
-      ];
-      serviceConfig = {
-        SupplementaryGroups = [ "docker" ];
-        Restart = lib.mkForce "no";
-        # Replaces the module's deprecated registration step.
-        ExecStartPre = lib.mkForce [
-          (pkgs.writeShellScript "forgejo-runner-prepare-config" ''
-                        set -euo pipefail
-                        # File must contain: UUID=<runner uuid> and TOKEN=<runner token>
-                        source /home/forgejo-runner/runner-token
-                        mkdir -p /var/lib/gitea-runner/framework
-                        {
-                          cat ${baseConfig}
-                          cat <<EOF
-            server:
-              connections:
-                framework:
-                  url: ${frameworkCfg.url}
-                  uuid: ${"$" + "{UUID}"}
-                  token: ${"$" + "{TOKEN}"}
-            EOF
-                        } > /var/lib/gitea-runner/framework/config.yaml
-          '')
-        ];
-        ExecStart = lib.mkForce "${pkgs.forgejo-runner}/bin/forgejo-runner daemon --config /var/lib/gitea-runner/framework/config.yaml";
-      };
-    };
 
   services.xrdp = {
     enable = true;

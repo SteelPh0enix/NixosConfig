@@ -59,4 +59,8 @@ rec {
   gufoStallTimeoutMs = 120000;
   # Same key the Docker router served; external clients must not have to change it.
   gufoApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
+
+  # The CI runner's token, handed to the runner as a systemd credential. The runner's uuid is
+  # an identifier rather than a credential, so it lives in nixos/services/ci-runner.nix.
+  ciRunnerTokenFile = "${repoPath}/secrets/ci-runner-token";
 }

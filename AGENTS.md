@@ -89,6 +89,17 @@ its nix build was SIGKILLed (exit 137) and the run went red for a reason that is
 job's log. The workflows cache the nix store (`actions/cache` on `/nix`), which is what keeps a job
 from building the toolchain at all - a cold store is the memory spike that tips a loaded box over.
 
+## The CI runner
+
+`nixos/services/ci-runner.nix` runs the Forgejo Actions runner as `forgejo-runner-framework.service`
+(the unit name is fixed by nixpkgs' `services.forgejo-runner`; nixpkgs refuses to run forgejo-runner
+through the old `services.gitea-actions-runner`, so that module breaks the build). Its state lives in
+`/var/lib/ci-runner/framework` and the token is `secrets/ci-runner-token`, handed over as a systemd
+credential. The runner's **uuid** is in the nix file rather than in `secrets/`: it is an identifier, not
+a credential - but the two go together, so re-creating the runner in the WebUI means replacing the uuid
+*and* the token. The `framework:` label is what routes a job to this box, and the label set is what the
+server matches on, so changing it means re-registering.
+
 ## Restarting by hand instead of rebuilding
 
 `llama-server-vulkan` after editing `/home/LLMs/llama-server.ini`, `adguardhome` to force a filter-list

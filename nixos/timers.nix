@@ -1,11 +1,11 @@
 {
-  systemd.timers."gitea-runner-cache-prune" = {
+  systemd.timers."ci-runner-cache-prune" = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "daily";
       RandomizedDelaySec = "1h";
       Persistent = true;
-      Unit = "gitea-runner-cache-prune.service";
+      Unit = "ci-runner-cache-prune.service";
     };
   };
 

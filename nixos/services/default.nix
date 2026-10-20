@@ -4,7 +4,7 @@
   imports = [
     ./coverage.nix
     ./docs.nix
-    ./gitea-runner-cache-prune.nix
+    ./ci-runner.nix
     ./minecraft.nix
     ./llama-server-vulkan/llama-server-vulkan.nix
     ./llama-vulkan-logs/llama-vulkan-logs.nix

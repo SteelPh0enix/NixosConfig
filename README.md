@@ -118,3 +118,4 @@ them. Each is read by path, as a boot-time credential or an env file.
 | `tailscale-authkey` | tailscaled, re-applied on every boot |
 | `searxng.env` | SearXNG (`SEARXNG_SECRET`, optional Brave/Kagi keys) |
 | `llama-strix-api-key` | the Gufo engine (`LoadCredential` in `nixos/services/gufo.nix`) and pi's `models.json` through an `apiKey: "!command"` |
+| `ci-runner-token` | the CI runner for Forgejo Actions (`LoadCredential` in `nixos/services/ci-runner.nix`) |
