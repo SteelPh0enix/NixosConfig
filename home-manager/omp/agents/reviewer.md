@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Review a diff or audit files and report ranked findings; no edit or write, but it can read upstream docs off the web. qwen-next, the most capable model here: slower than coder, use it where judgement matters more than speed. One slot; the other is the main session's."
+description: "Review a diff or audit files and report ranked findings; no edit or write, but it can read upstream docs off the web. Runs on the pc's cyber-tiel-coder beside the task agents; the framework box's single qwen-next slot stays with the main session."
 tools: [read, grep, glob, bash, lsp, web_search]
 model: llama-pc/cyber-tiel-coder
 ---

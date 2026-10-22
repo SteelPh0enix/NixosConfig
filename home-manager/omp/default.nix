@@ -34,9 +34,9 @@ in
       modelRoles.smol = "llama-pc/cyber-tiel-coder";
       modelRoles.tiny = "llama-pc/cyber-tiel-coder";
       # The generic task/sonic/scout agents share that free cyber-tiel slot. `agents/` pins its
-      # own two agents explicitly - coder on cyber-tiel, reviewer on qwen-next - so they hold
-      # their slot whichever model the session happens to be on. `slow` stays unset, so anything
-      # asking for it gets the configured default, which is the second qwen-next slot.
+      # own two agents explicitly - coder and reviewer both on cyber-tiel - so they hold their
+      # slot whichever model the session happens to be on. `slow` stays unset, so anything asking
+      # for it gets the configured default, which is the slot the main session holds.
       modelRoles.task = "llama-pc/cyber-tiel-coder";
       # No advisor: it keeps a model resident to re-read every turn, which on a two-slot unified
       # pool is a whole slot spent on a passive second opinion. Reviewing happens on purpose
