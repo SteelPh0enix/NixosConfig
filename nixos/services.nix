@@ -121,7 +121,6 @@ in
   services.avahi = {
     enable = true;
     openFirewall = false;
-    publish.enable = false;
   };
   services.system-config-printer.enable = true;
   services.printing = {
