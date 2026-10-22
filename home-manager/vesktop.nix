@@ -132,9 +132,11 @@ in
 
       # Noctalia's community "discord" template renders exactly this file
       # (~/.config/vesktop/themes/noctalia.theme.css). Until it exists, Discord's own dark theme stays.
-      enabledThemes = [ "noctalia.theme.css" ];
+      enabledThemes = [ "noctalia-material.theme.css" ];
 
-      plugins = lib.genAttrs enabledPlugins (_: { enabled = true; });
+      plugins = lib.genAttrs enabledPlugins (_: {
+        enabled = true;
+      });
     };
   };
 }
