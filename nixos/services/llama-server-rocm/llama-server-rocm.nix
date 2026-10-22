@@ -32,14 +32,14 @@ let
   uid = toString settings.userUid;
   socket = "unix:///run/user/${uid}/docker.sock";
 
-  # The container listens on its own 33333; -p maps the host port onto it.
+  # The container listens on the router port itself, so -p maps it one to one.
   serverArgs = [
     "--models-preset"
     settings.llamaRocmPresetsPath
     "--host"
-    "0.0.0.0"
+    settings.llmHost
     "--port"
-    "33333"
+    (toString settings.llmPort)
     "--models-max"
     (toString settings.llamaModelsMax)
     # /slots, /props, /metrics: how n_ctx, the chat-template caps and the loaded preset get inspected.
@@ -76,7 +76,7 @@ let
     "--volume"
     "${settings.llamaModelsPath}:${settings.llamaModelsPath}:ro"
     "--publish"
-    "${toString settings.llamaRouterPort}:33333"
+    "${toString settings.llmPort}:${toString settings.llmPort}"
     settings.llamaRocmImage
     "/usr/local/bin/llama-server"
   ]
@@ -85,7 +85,7 @@ in
 {
   systemd.services.llama-server-rocm = {
     enable = settings.llamaBackend == "rocm";
-    description = "llama.cpp router server, ROCm container (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
+    description = "llama.cpp router server, ROCm container (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/kyuz0/amd-strix-halo-toolboxes/blob/main/docs/rocm-10.1-gfx1100.md" ];
     wantedBy = [ "multi-user.target" ];
     after = [

@@ -1,7 +1,7 @@
 {
   "providers": {
-    "llama-main": {
-      "baseUrl": "http://steelph0enix.framework:33333/v1",
+    "framework": {
+      "baseUrl": "http://steelph0enix.framework:51536/v1",
       "api": "openai-completions",
       "apiKey": "!cat /home/steelph0enix/nixos-config/secrets/llama-strix-api-key",
       "models": [
@@ -78,12 +78,6 @@
           }
         }
       ]
-    },
-    "llama-fwpc-vulkan": {
-      "baseUrl": "http://steelph0enix.framework:51536/v1",
-      "api": "openai-completions",
-      "apiKey": "none",
-      "models": []
     }
   }
 }

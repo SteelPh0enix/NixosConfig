@@ -22,11 +22,11 @@ None of its own. It reads the llama.cpp providers in `~/.pi/agent/models.json`, 
 
 ```jsonc
 // a provider you pin models on ...
-"llama-main":        { "baseUrl": "http://host:33333/v1", "api": "openai-completions", "apiKey": "none",
-                       "models": [{ "id": "Qwen 3.8 Flash Next", "name": "qwen-next" }] },
+"framework":    { "baseUrl": "http://host:51536/v1", "api": "openai-completions", "apiKey": "none",
+                  "models": [{ "id": "Qwen 3.8 Flash Next", "name": "qwen-next" }] },
 // ... and one that takes whatever the router advertises
-"llama-fwpc-vulkan": { "baseUrl": "http://host:51536/v1", "api": "openai-completions", "apiKey": "none",
-                       "models": [] }
+"local-router": { "baseUrl": "http://host:51537/v1", "api": "openai-completions", "apiKey": "none",
+                  "models": [] }
 ```
 
 With `"models": []` the presets the router advertises become the model list, so adding a preset server-side needs no

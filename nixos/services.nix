@@ -54,7 +54,7 @@ in
     # llama.cpp router and its log viewer (nixos/services/llama-server-vulkan), used by the other
     # box, and Strata (nixos/services/strata). None of them carries an API key: the LAN is the ACL.
     allowedTCPPorts = [
-      settings.llamaRouterPort
+      settings.llmPort
       settings.llamaLogsPort
       settings.strataPort
     ];

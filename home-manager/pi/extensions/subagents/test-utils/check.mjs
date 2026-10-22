@@ -495,7 +495,7 @@ if (!nodeModules) {
     ["coder", { provider: "llama-pc", model: "cyber-tiel-coder", groups: ["pc"] }],
     ["reviewer", { provider: "llama-pc", model: "cyber-tiel-coder", groups: ["pc"] }],
     ["summarizer", { provider: "llama-pc", model: "sharp-spark", groups: ["pc"] }],
-    ["coder-smart", { provider: "llama-main", model: "Qwen 3.8 Flash Next", groups: ["framework"] }],
+    ["coder-smart", { provider: "framework", model: "Qwen 3.8 Flash Next", groups: ["framework"] }],
   ]);
   const promptText = subagentPromptSection(
     cfg,

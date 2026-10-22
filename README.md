@@ -16,8 +16,7 @@ is the exception — it is kept identical on purpose.
 | thing | where it actually is |
 |---|---|
 | DNS, and the LAN names | AdGuard on `192.168.0.185`; `steelph0enix.framework` and `search.framework` are also written into `nixos/services.nix` as `hosts` entries, so they resolve even without it |
-| pi's default provider `llama-main` | `steelph0enix.framework:33333` — the ROCm STRIX router there, API key read from `secrets/` at request time |
-| `llama-fwpc-vulkan` | `steelph0enix.framework:51536` — that box's Vulkan server, empty until a preset is named |
+| pi's default provider `framework` | `steelph0enix.framework:51536` — that box's one LLM endpoint: gufo's qwen-next, or its Vulkan server once a preset is named. API key read from `secrets/` at request time |
 | SearXNG for pi's web search | `search.framework:7777`, set as `SEARXNG_URL` |
 
 What this box gives back: `llama-pc` (`steelph0enix.pc:51536`), the server every subagent — on either

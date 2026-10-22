@@ -83,10 +83,12 @@ groups, and comments that say *why*, since almost every odd value here is a work
   its default provider and every lookup that isn't in `hosts`. The `resolvconf` options there
   (`timeout:2 attempts:3 single-request-reopen`) are a mitigation for AdGuard dropping about one UDP
   reply in twenty, and at glibc's defaults a lost reply costs five seconds; don't remove them as noise.
-- **Ports.** `nix/settings.nix` holds `llamaRouterPort` and `llamaLogsPort`, and `nixos/services.nix`
-  opens them; there is no separate firewall file to remember. The opened 51580 is currently pointless
-  because the log viewer binds `127.0.0.1` — if you open something, check what it actually binds
-  (`ss -tulpn`).
+- **Ports.** `nix/settings.nix` holds `llmPort`, `llamaLogsPort` and `strataPort`, and
+  `nixos/services.nix` opens them; there is no separate firewall file to remember. `llmPort` is the
+  router endpoint and `llamaBackend` decides which unit listens on it, so only one ever does; Strata
+  has a port of its own. The log viewer binds every interface (`server.py --host` defaults to the
+  IPv4 wildcard address), so 51580 is what makes it reachable; if you open something, check what it
+  actually binds (`ss -tulpn`).
 - **The preset is `/mnt/NVMe/LLMs/llama-server.ini`, untracked.** A rebuild never deploys edits to it,
   and a change to the disk layout takes the server with it. `nixos/hardware-configuration.nix` is
   where those `/mnt` mounts come from.
@@ -117,7 +119,7 @@ Most subagents run on this box's server (provider `llama-pc`), through the `pc` 
 model at a time. So a live test of an extension, or a big model swap, is felt on the other machine too,
 and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
 `assistant-smart`) is the exception: it runs on the framework box's gufo server, the model the main
-session itself uses (provider `llama-main`), through the `framework` group, also one model at a time.
+session itself uses (provider `framework`), through the `framework` group, also one model at a time.
 That server holds a single 262k slot - the box has no memory for a second one - and the main agent
 permanently sits on it, so the 1 slot `subagents.json` gives the subagents queues on the same one:
 one `-smart` task at a time, the slowest and the most capable thing here.
@@ -128,8 +130,8 @@ for it and would otherwise fall back to pi's 128K default.
 
 Before testing:
 
-- name an explicit instance instead of the default (`llama-main` is the framework box's ROCm router and
-  pi's default provider — that's the session someone is working in), e.g.
+- name an explicit instance instead of the default (`framework` is the framework box's gufo endpoint
+  and pi's default provider — that's the session someone is working in), e.g.
   `--provider llama-pc --model qwen-27B`;
 - check what's resident and what's queued before loading anything:
   `curl -s http://steelph0enix.pc:51536/slots`;

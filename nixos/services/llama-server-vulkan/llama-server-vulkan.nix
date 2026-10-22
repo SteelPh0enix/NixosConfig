@@ -10,9 +10,9 @@
 let
   args = [
     "--host"
-    settings.llamaRouterHost
+    settings.llmHost
     "--port"
-    (toString settings.llamaRouterPort)
+    (toString settings.llmPort)
     # /slots, /props, /metrics: how n_ctx, the chat-template caps and the loaded preset get inspected.
     "--slots"
     "--props"
@@ -40,7 +40,7 @@ in
     # Kept configured, but only one backend may own the router port. Pick it with
     # settings.llamaBackend; see nixos/services/llama-server-rocm.
     enable = settings.llamaBackend == "vulkan";
-    description = "llama.cpp router server, Vulkan (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
+    description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];

@@ -67,7 +67,7 @@ export function serverRoot(baseUrl: string): string | undefined {
   }
 }
 
-/** Which machine this is, short enough for a detail cell: `pc:51536`, `local:33333`. */
+/** Which machine this is, short enough for a detail cell: `pc:51536`, `local:51536`. */
 export const shortHost = (root: string): string => {
   try {
     const url = new URL(root);

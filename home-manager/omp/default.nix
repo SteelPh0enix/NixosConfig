@@ -23,7 +23,7 @@ in
       # The presets that take no xhigh clamp down to their top rung (see models.yml).
       defaultThinkingLevel = "xhigh";
       # Same default as pi: the framework box's router. Quote a selector holding spaces.
-      modelRoles.default = "llama-main/Qwen 3.8 Flash Next";
+      modelRoles.default = "framework/Qwen 3.8 Flash Next";
       # The built-in smol/tiny chains are cloud models, and this box has no cloud credential for
       # any of them: unset, they resolve to nothing, so session titles, the tool-issue judge and
       # speculative compaction all fall back to the session model. cyber-tiel-coder is this

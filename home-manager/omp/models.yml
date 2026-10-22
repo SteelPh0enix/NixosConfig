@@ -22,8 +22,8 @@ providers:
   # The framework box's gufo router. gufo answers no n_ctx and no launch args, so the window stays
   # hand-written here, exactly as in pi. The `!` command reads the key at request time - the same
   # convention pi uses, so the secret stays out of git and out of this file.
-  llama-main:
-    baseUrl: http://steelph0enix.framework:33333/v1
+  framework:
+    baseUrl: http://steelph0enix.framework:51536/v1
     api: openai-completions
     apiKey: "!cat /home/steelph0enix/nixos-config/secrets/llama-strix-api-key"
     compat:

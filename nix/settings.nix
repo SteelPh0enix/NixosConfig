@@ -28,8 +28,10 @@ rec {
   llamaModelsMax = 1;
   # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
   # used to reach the machine. The ports live here so the firewall rules cannot drift apart.
-  llamaRouterHost = "0.0.0.0";
-  llamaRouterPort = 51536;
+  llmHost = "0.0.0.0";
+  # The router endpoint: whichever backend settings.llamaBackend picks listens here, and only one of
+  # them is ever enabled. Strata is the other engine on the card and has its own port below.
+  llmPort = 51536;
   # Which engine owns the router port: "rocm" (the gfx1100 toolbox container) or
   # "vulkan" (the llama-cpp package). Both units stay configured; the other one is off.
   # ROCm is on hold - the gfx1100 toolbox container kept crashing the router.
