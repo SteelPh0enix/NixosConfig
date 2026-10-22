@@ -137,7 +137,7 @@ try {
 console.log("\nresident conflict");
 const busy = [
   { provider: "llama-pc", model: "cyber-tiel-coder" },
-  { provider: "llama-main", model: "qwen-next" },
+  { provider: "framework", model: "qwen-next" },
 ];
 ok("another model on the summarizer's provider blocks delegation", conflictingModel(busy, "llama-pc", "sharp-spark") === "cyber-tiel-coder");
 ok("a task on the summarizer's own model does not", conflictingModel([{ provider: "llama-pc", model: "sharp-spark" }], "llama-pc", "sharp-spark") === undefined);

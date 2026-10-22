@@ -7,6 +7,9 @@
   # Only groups no NixOS module creates (normal users already get `users` as their primary group).
   users.groups.samba = { };
 
+  # Shared by the GPU engines: gufo and llama-server-vulkan both run as this account.
+  users.groups.llm = { };
+
   users.users = {
     ${settings.userName} = {
       isNormalUser = true;
@@ -38,6 +41,12 @@
         "render"
         "video"
       ];
+    };
+
+    # The GPU engines' account. Only one engine loads at a time, so both units share it.
+    llm = {
+      group = "llm";
+      isSystemUser = true;
     };
 
     qbittorrent = {

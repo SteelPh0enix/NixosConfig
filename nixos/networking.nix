@@ -17,9 +17,8 @@
       6971 # Docs viewer (nginx, /srv/docs)
       22137 # Forgejo (SSH)
 
-      settings.llamaRouterPort # llama.cpp router (Vulkan)
+      settings.llmPort # primary LLM endpoint (gufo or llama.cpp)
       settings.llamaLogsPort # its log web interface
-      settings.llamaStrixPort # Gufo engine (Qwen3.8-Flash-Next); LAN only, the tunnel dials it out
 
       # Few generic ports for one-shot/test stuff
       11111

@@ -56,7 +56,7 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 | SearXNG | 7777 | LAN, and `search.steelph0enix.dev` through the tunnel |
 | llama.cpp server (Vulkan) | 51536 | LAN |
 | its log viewer | 51580 | LAN |
-| Gufo engine (Qwen3.8-Flash-Next) | 33333 | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
+| Gufo engine (Qwen3.8-Flash-Next) | 51536, shared with llama.cpp (only one runs) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
 | nginx vhosts | 6970 coverage reports, 6971 docs | LAN |
 | Samba + wsdd | 137–139, 445 | LAN only (`hosts allow`) |
 | XRDP | 3389 | LAN |
@@ -65,13 +65,15 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 
 ## The LLM stack
 
-One Vulkan llama.cpp server and one native Gufo engine answer on this box, both OpenAI-compatible.
+One Vulkan llama.cpp server and one native Gufo engine answer on this box's `51536`, both
+OpenAI-compatible, one at a time.
 
-- **51536** — the Vulkan llama.cpp server. Its presets are listed in `llama-server.ini`: one loads on
-  the first request that names it, and up to four stay resident.
-- **33333** — Gufo serving Qwen3.8-Flash-Next with its shared MTP sidecar (`nixos/services/gufo.nix`),
-  which is also what `clanker.steelph0enix.dev` reaches, behind the same API key as before. Gufo is
-  built from its flake, so a version bump is a local build.
+- **51536** — the primary LLM endpoint, shared by both engines because only one runs at a time. It is
+  either the Vulkan llama.cpp server (its presets are listed in `llama-server.ini`: one loads on the
+  first request that names it, and up to four stay resident) or Gufo serving Qwen3.8-Flash-Next with
+  its shared MTP sidecar (`nixos/services/gufo.nix`), which is also what `clanker.steelph0enix.dev`
+  reaches, behind the same API key as before. Gufo is built from its flake, so a version bump is a
+  local build.
 
 Vulkan weights and its preset sit under `/home/LLMs`, outside the repo; editing a preset is an edit
 plus a service restart, never a rebuild; `AGENTS.md` has the details. SearXNG on 7777 is the instance
@@ -80,7 +82,7 @@ pi's web search talks to.
 ## pi
 
 pi, the coding agent, is configured with the rest of the user config: `home-manager/pi/` holds its
-settings, `models.json` (three llama.cpp providers: this box's two servers and the other machine's),
+settings, `models.json` (two providers: this box's shared LLM endpoint and the other machine's router),
 the prompt templates in `prompts/`, and its extensions — six directories, each documented as a
 `README.md` for use and an `AGENTS.md` for its internals:
 

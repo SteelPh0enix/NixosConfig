@@ -1,4 +1,4 @@
-# Cloudflare Tunnel: https://clanker.steelph0enix.dev/ -> the Gufo engine on :33333.
+# Cloudflare Tunnel: https://clanker.steelph0enix.dev/ -> the Gufo engine on :51536.
 # A second tunnel ("search") proxies the SearXNG metasearch engine to https://search.steelph0enix.dev/.
 #
 # Both tunnels are locally managed (routing declared below, not in the dashboard) and dial out to
@@ -9,7 +9,7 @@
 # listens, no NAT rule exists and the machine stays behind the firewall. TLS terminates at the edge
 # with Cloudflare's own Universal SSL certificate, which already covers *.steelph0enix.dev - so the
 # public side is the standard 443 with no cert to issue or renew, and the hop to the container is
-# plain HTTP on loopback. The LAN keeps using :33333 directly (networking.nix).
+# plain HTTP on loopback. The LAN keeps using :51536 directly (networking.nix).
 #
 # Authentication is Gufo's own `--api-key` (nixos/services/gufo.nix): one `Authorization: Bearer
 # <key>` guards the tunnel and the LAN port alike, and every OpenAI-compatible client already sends
@@ -32,8 +32,8 @@
   ...
 }:
 let
-  # Gufo binds IPv4 explicitly (`--host`); `localhost` would be a coin toss against ::1.
-  router = "http://127.0.0.1:${toString settings.llamaStrixPort}";
+  # The engines bind IPv4 explicitly (`--host`); `localhost` would be a coin toss against ::1.
+  router = "http://${settings.llmHost}:${toString settings.llmPort}";
 
   # Before dialing out, cloudflared looks up the edge (SRV at region1.v2.argotunnel.com) exactly
   # once and quits with status 1 if the answer fails - no retry, no backoff (cloudflare/cloudflared
@@ -65,9 +65,9 @@ in
       # file never ends up world-readable in the store.
       credentialsFile = "${settings.repoPath}/secrets/cloudflare-clanker-credentials.json";
 
-      # The whole hostname goes to the router: the API key already guards every endpoint except
-      # /health and the UI assets. If a narrower public surface is ever wanted, add a `path` regex to
-      # the entry below and the leftover requests fall through to `default`.
+      # The whole hostname goes to the router: the API key guards every endpoint, /health included
+      # (an unkeyed request gets 401). If a narrower public surface is ever wanted, add a `path` regex
+      # to the entry below and the leftover requests fall through to `default`.
       ingress = {
         "clanker.steelph0enix.dev" = router;
       };

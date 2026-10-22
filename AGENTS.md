@@ -50,19 +50,20 @@ groups, and the file's own comment style, which explains *why* rather than *what
 
 The one on **51536** is a NixOS unit (`llama-server-vulkan`), built from the `llama-cpp` flake input
 by `nix/overlays/llama-cpp.nix` — Vulkan only, `-march=znver5` (x86-64-v4 is not enough for the
-AVX512 extensions here), LTO — running as the `llama` user with
+AVX512 extensions here), LTO — running as the `llm` user with
 `--slots --props --metrics --models-max 4 --webui`. Keep autoload on: with it off the server answers
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).
-It no longer starts at boot: gufo's 262144-token session fills the unified memory pool, so a model
-loaded here on top would OOM the box. Start it (and `llama-vulkan-logs`) by hand when needed.
+It no longer starts at boot: gufo's 262144-token session fills the unified memory pool. Starting it
+by hand stops gufo first (`Conflicts=`/`After=`), so a model loaded here does not land on top of it;
+`llama-vulkan-logs` starts by hand alongside it.
 
-Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `llama` and cannot
+Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `llm` and cannot
 traverse a 0700 home. The checkout keeps a **symlink** to `llama-server.ini`, so editing presets is an
 edit plus a restart of the unit, and no rebuild.
 
-The one on **33333** is a NixOS unit: Gufo (`nixos/services/gufo.nix`) built from the `gufo` flake
+Gufo (`nixos/services/gufo.nix`) is the other engine on the same **51536**: built from the `gufo` flake
 input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It replaced the rootless-Docker
 llama.cpp router, whose Compose/INI in `~/LLMs/` is kept only as manual rollback. Gufo has no binary
 cache, so a `gufo` bump is a long local build. The API key is `secrets/llama-strix-api-key` (the
@@ -70,7 +71,9 @@ retired `.env` kept it as `STRIX_API_KEY`); gufo takes it only as `--api-key`, s
 the process command line and there is no env or file alternative. Its continuation cache is capped
 with `--cache-ram-bytes` (the automatic budget is half of `MemAvailable` and throws the host into
 swap, gufo-org/gufo#387), and `--stall-timeout-ms` exits a generation that stops progressing as
-`device_lost` so systemd restarts the engine.
+`device_lost` so systemd restarts the engine. It runs as `llm`, the same account as the Vulkan
+server (`nixos/users.nix`), and on the same `llmPort` (51536); the units conflict, so only one
+engine is up at a time.
 
 Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
 rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
@@ -117,13 +120,14 @@ module of this flake, which exports no `homeConfigurations`.
   its default provider and every lookup that isn't in `hosts`. The `resolvconf` options there
   (`timeout:2 attempts:3 single-request-reopen`) are a mitigation for AdGuard dropping about one UDP
   reply in twenty, and at glibc's defaults a lost reply costs five seconds; don't remove them as noise.
-- **Ports.** `nix/settings.nix` holds `llamaRouterPort` and `llamaLogsPort`, and `nixos/services.nix`
-  opens them; there is no separate firewall file to remember. The opened 51580 is currently pointless
-  because the log viewer binds `127.0.0.1` — if you open something, check what it actually binds
-  (`ss -tulpn`).
-- **The preset is `/mnt/NVMe/LLMs/llama-server.ini`, untracked.** A rebuild never deploys edits to it,
-  and a change to the disk layout takes the server with it. `nixos/hardware-configuration.nix` is
-  where those `/mnt` mounts come from.
+- **Ports.** `nix/settings.nix` holds `llmPort` and `llamaLogsPort`, and `nixos/services.nix`
+  opens them; there is no separate firewall file to remember. Every inference engine binds `llmPort`
+  and the units conflict, so only one listener is ever on it. The log viewer binds every interface
+  (`server.py --host` defaults to the IPv4 wildcard address), so 51580 is what makes it reachable; if
+  you open something, check what it actually binds (`ss -tulpn`).
+- **The preset is `/home/LLMs/llama-server.ini`, and the checkout only symlinks it.** A rebuild never
+  deploys edits to it, so edit the file and restart the unit. The weights sit on the filesystem
+  mounted at `/home` (`nixos/hardware-configuration.nix`), so a layout change takes the server with it.
 - **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
   and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
   disables and the kernel parameter repeats.
@@ -138,7 +142,7 @@ Most subagents run on this box's server (provider `llama-pc`), through the `pc` 
 model at a time. So a live test of an extension, or a big model swap, is felt on the other machine too,
 and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
 `assistant-smart`) is the exception: it runs on the framework box's gufo server, the model the main
-session itself uses (provider `llama-main`), through the `framework` group, also one model at a time.
+session itself uses (provider `framework`), through the `framework` group, also one model at a time.
 That server holds a single 262k slot - the box has no memory for a second one - and the main agent
 permanently sits on it, so the 1 slot `subagents.json` gives the subagents queues on the same one:
 one `-smart` task at a time, the slowest and the most capable thing here.
@@ -149,8 +153,8 @@ for it and would otherwise fall back to pi's 128K default.
 
 Before testing:
 
-- name an explicit instance instead of the default (`llama-main` is the framework box's ROCm router and
-  pi's default provider — that's the session someone is working in), e.g.
+- name an explicit instance instead of the default (`framework` is the framework box's gufo endpoint
+  and pi's default provider — that's the session someone is working in), e.g.
   `--provider llama-pc --model qwen-27B`;
 - check what's resident and what's queued before loading anything:
   `curl -s http://steelph0enix.pc:51536/slots`;
@@ -168,7 +172,7 @@ the extension's own directory:
   compaction in an isolated agent dir without touching the live one.
 - `llama-dx/`: `preview.mjs --check` for the layout, `check.mjs` for everything else, `harness.mjs`
   for one real request; `TESTING.md` has the commands and the `tsc` invocation.
-- A live test never runs on pi's default model (provider `llama-main` on this box): that is the
+- A live test never runs on pi's default model (provider `framework` on this box): that is the
   instance serving whoever is doing the work, and the request eats its KV cache. Name the testing
   instance — `--provider llama-pc --model qwen-27B`.
 

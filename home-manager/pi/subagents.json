@@ -55,7 +55,7 @@
       "groups": ["pc"]
     },
     "coder-smart": {
-      "provider": "llama-main",
+      "provider": "framework",
       "model": "Qwen 3.8 Flash Next",
       "description": "Implement or fix code with pi's own model behind it: noticeably more capable than coder, and the slowest thing here, so keep it for changes that need real judgement. It works beside the session that spawned it, on that session's own model. qwen-next, 1 slot - the one the main agent sits on; the two wait on each other.",
       "prompt": "subagents/coder.md",
@@ -63,7 +63,7 @@
       "groups": ["framework"]
     },
     "reviewer-smart": {
-      "provider": "llama-main",
+      "provider": "framework",
       "model": "Qwen 3.8 Flash Next",
       "description": "Review a diff or audit files with pi's own model behind it: noticeably sharper than reviewer and reviewer-dense, and the slowest here. No edit/write, but it can read upstream docs on the web. qwen-next, 1 slot - the one the main agent sits on; the two wait on each other.",
       "prompt": "subagents/reviewer.md",
@@ -71,7 +71,7 @@
       "groups": ["framework"]
     },
     "assistant-smart": {
-      "provider": "llama-main",
+      "provider": "framework",
       "model": "Qwen 3.8 Flash Next",
       "description": "Generic helper with the main agent's whole tool set, on pi's own model: noticeably the most capable here and the slowest, for when no narrower subagent fits and the answer matters. qwen-next, 1 slot - the one the main agent sits on; the two wait on each other.",
       "prompt": "subagents/assistant.md",
@@ -107,7 +107,7 @@
     "framework": 1
   },
   "slots": {
-    "llama-main/Qwen 3.8 Flash Next": 1,
+    "framework/Qwen 3.8 Flash Next": 1,
     "llama-pc/cyber-tiel-coder": 2,
     "llama-pc/occult-nail": 1,
     "llama-pc/qwen-27B": 1,

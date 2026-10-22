@@ -1,7 +1,8 @@
-# Gufo engine serving Qwen3.8-Flash-Next with its shared MTP sidecar. This replaced the rootless
-# Docker llama.cpp router on this port: gufo is the Strix Halo native engine, built from its flake
-# input for gfx1151 (nix/overlays.nix). The LAN and the Cloudflare Tunnel reach it through the same
-# port and the same API key, so external clients did not change.
+# Gufo engine serving Qwen3.8-Flash-Next with its shared MTP sidecar. It is the Strix Halo native
+# engine, built from its flake input for gfx1151 (nix/overlays.nix). It listens on the shared
+# endpoint (settings.llmPort) and conflicts with llama-server-vulkan, so only one engine is bound
+# at a time; the LAN and the Cloudflare Tunnel (https://clanker.steelph0enix.dev/) reach it with the
+# same API key.
 {
   pkgs,
   lib,
@@ -15,8 +16,8 @@ let
   serve = pkgs.writeShellScript "gufo-serve" ''
     set -euo pipefail
     exec ${lib.getExe pkgs.gufo} serve \
-      --host ${settings.llamaRouterHost} \
-      --port ${toString settings.llamaStrixPort} \
+      --host ${settings.llmHost} \
+      --port ${toString settings.llmPort} \
       --api-key "$(cat "$CREDENTIALS_DIRECTORY/api-key")" \
       llm \
       --model ${settings.gufoModelPath} \
@@ -31,11 +32,17 @@ let
 in
 {
   systemd.services.gufo = {
-    description = "Gufo engine, Qwen3.8-Flash-Next (${settings.llamaRouterHost}:${toString settings.llamaStrixPort})";
+    description = "Gufo engine, Qwen3.8-Flash-Next (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
     wantedBy = [ "multi-user.target" ];
-    after = [ "network-online.target" ];
+    # One engine at a time: a start of gufo stops the Vulkan server first, and the ordering keeps
+    # that stop ahead of the start so the memory is free before the weights load.
+    after = [
+      "llama-server-vulkan.service"
+      "network-online.target"
+    ];
     wants = [ "network-online.target" ];
+    conflicts = [ "llama-server-vulkan.service" ];
 
     serviceConfig = {
       ExecStart = serve;
@@ -46,9 +53,10 @@ in
       CacheDirectory = "gufo";
       Environment = [ "XDG_CACHE_HOME=%C" ];
 
-      # `llama` is declared by the Vulkan llama.cpp service; both are GPU services on one user.
-      User = "llama";
-      Group = "llama";
+      # Shared account declared in nixos/users.nix; the Vulkan llama.cpp server runs as the same
+      # user.
+      User = "llm";
+      Group = "llm";
       SupplementaryGroups = [
         "video"
         "render"

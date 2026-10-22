@@ -1,6 +1,6 @@
 # llama.cpp router server: one process, presets from settings.llamaPresetsPath, models swapped in
 # on request. It serves the LAN (pi runs on the other box), so it stays a sandboxed system service
-# on its own user instead of something started from a terminal session.
+# instead of something started from a terminal session, on the `llm` account gufo also runs as.
 {
   pkgs,
   lib,
@@ -10,9 +10,9 @@
 let
   args = [
     "--host"
-    settings.llamaRouterHost
+    settings.llmHost
     "--port"
-    (toString settings.llamaRouterPort)
+    (toString settings.llmPort)
     # /slots, /props, /metrics: how n_ctx, the chat-template caps and the loaded preset get inspected.
     "--slots"
     "--props"
@@ -30,20 +30,18 @@ let
   ];
 in
 {
-  users.groups.llama = { };
-  users.users.llama = {
-    group = "llama";
-    isSystemUser = true;
-  };
-
   systemd.services.llama-server-vulkan = {
-    description = "llama.cpp router server, Vulkan (${settings.llamaRouterHost}:${toString settings.llamaRouterPort})";
+    description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # Starts only by hand: gufo's two 262144-token sessions fill the unified memory pool, and a model
-    # loaded here on top of them OOMs the box. `systemctl start llama-server-vulkan` still works.
+    # Starts only by hand: gufo's 262144-token session fills the unified memory pool. A start
+    # stops gufo first (Conflicts=/After= below), so a model loaded here does not land on top of it.
     wantedBy = [ ];
-    after = [ "network-online.target" ];
+    after = [
+      "gufo.service"
+      "network-online.target"
+    ];
     wants = [ "network-online.target" ];
+    conflicts = [ "gufo.service" ];
 
     # Pin the real GPU: llvmpipe is enumerated as a second Vulkan device.
     environment = {
@@ -53,14 +51,16 @@ in
 
     serviceConfig = {
       ExecStart = "${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args}";
-      User = "llama";
-      Group = "llama";
+      # Shared account declared in nixos/users.nix; gufo runs as the same user.
+      User = "llm";
+      Group = "llm";
       # Vulkan wants renderD128, the DRM card node sits in video.
       SupplementaryGroups = [
         "video"
         "render"
       ];
-      # `load-mode = mmap+mlock` in the presets needs far more than the non-privileged 8 KiB.
+      # The presets live outside the repo and a `load-mode = mmap+mlock` one needs far more than the
+      # non-privileged 8 KiB, so the limit stays raised even though the current presets do not use it.
       LimitMEMLOCK = "infinity";
 
       # A crash should not wedge the port.
