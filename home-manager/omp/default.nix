@@ -17,6 +17,8 @@ in
     # file outright, so the whole tuned surface is declared here: a value changed in /settings
     # reverts to one of these on the next switch unless it is re-declared below. Only runtime
     # state (sessions/, last-changelog-version, the *.db files) is left for omp to own.
+    # The values below are the ones the live instance runs with, so a switch reproduces that
+    # configuration instead of omp's own defaults.
     settings = {
       # The presets that take no xhigh clamp down to their top rung (see models.yml).
       defaultThinkingLevel = "xhigh";
@@ -54,7 +56,8 @@ in
       # runaway subagent; there is no bill to read instead.
       display.showTokenUsage = true;
       display.shimmer = "kitt";
-      display.pinnedAgents = "collapsed";
+      # The fleet is one slot wide, so a collapsed list hides which agent is busy: list them all.
+      display.pinnedAgents = "full";
       display.subagentLivePreview = true;
       display.showTurnTime = true;
       display.cacheMissMarker = true;
@@ -67,22 +70,35 @@ in
       # The flake pins the revision; nix decides when omp updates, not the TUI.
       startup.checkUpdate = false;
 
-      composer.shape = "box";
+      # The band composer: the status band sits above the prompt instead of a bottom bar.
+      composer.shape = "band";
       composer.tokenRate = true;
 
-      statusLine.preset = "nerd";
+      # The full preset: model, path, git, the token counters, cost and the clock.
+      statusLine.preset = "full";
       statusLine.separator = "powerline";
       statusLine.contextLine = "annotated";
       statusLine.sessionAccent = true;
-      statusLine.transparent = false;
+      # The terminal's own background instead of the theme's, so the line paints no bar of its own.
+      statusLine.transparent = true;
       statusLine.compactThinkingLevel = false;
       statusLine.showHookStatus = true;
 
-      tui.resizeScrollback = "rebuild";
+      # The retro theme pair, and nerd glyphs for the icons that have them.
+      theme.dark = "dark-retro";
+      theme.light = "light-retro";
+      symbolPreset = "nerd";
+
+      tui.resizeScrollback = "append";
       tui.titleSpinner = "braille";
       tui.tight = false;
       tui.vimMode = true;
       tui.vimModeDisplay = "text";
+      # Clicks focus the agent rows, and paths and URLs become clickable links.
+      tui.mouse = true;
+      tui.hyperlinks = "always";
+      # Rows pushed off by the HUD go to the scrollback instead of being dropped.
+      tui.completeScrollback = true;
 
       terminal.showProgress = true;
       readLineNumbers = true;
@@ -94,6 +110,17 @@ in
       # (cyber-tiel's second and qwen-next's second), and the pc router keeps a single preset
       # resident, so a second parallel task costs a model swap before it costs a token.
       task.maxConcurrency = 1;
+      # Always delegate: the fleet is one slot wide, so the main session is the one that talks to
+      # the user.
+      task.eager = "always";
+      # Subagent results come back validated against the caller's schema instead of as prose.
+      task.structured = true;
+      # Subagents pick their own reasoning effort, and may use the lsp tool as well.
+      task.enableEffort = true;
+      task.enableLsp = true;
+      # A subagent that asks for isolation gets a worktree of its own, so it never writes into
+      # the checkout the main session works in.
+      task.isolation.enabled = true;
 
       contextPromotion.enabled = false;
       compaction.methodOrder = [
@@ -116,9 +143,24 @@ in
       lsp.diagnosticsOnEdit = true;
       astGrep.enabled = true;
       checkpoint.enabled = true;
+      # Every session opens in plan mode, so nothing is written before the plan is approved.
+      plan.defaultOnStartup = true;
+      # The approved plan stays in the session rather than becoming a file in the tree.
       plan.autosave = false;
 
       memory.backend = "off";
+
+      # The interceptor blocks shell calls that a dedicated tool covers, and names the tool.
+      bashInterceptor.enabled = true;
+      # The github tool reads issues, PRs and Actions.
+      github.enabled = true;
+      # A failed turn notifies, like a finished one does.
+      error.notify = "on";
+
+      # Nothing goes to omp's cloud: /collab, /share and /stream stay on this box.
+      collab.relayUrl = "none";
+      share.serverUrl = "none";
+      stream.serverUrl = "none";
 
       providers.tinyModelDevice = "default";
     };
