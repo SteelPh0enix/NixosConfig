@@ -24,10 +24,10 @@ in
       defaultThinkingLevel = "xhigh";
       # Same default as pi: the framework box's router. Quote a selector holding spaces.
       modelRoles.default = "framework/Qwen 3.8 Flash Next";
-      # The built-in smol/tiny chains are cloud models, and this box has no cloud credential for
-      # any of them: unset, they resolve to nothing, so session titles, the tool-issue judge and
-      # speculative compaction all fall back to the session model. cyber-tiel-coder is this
-      # router's fast coder, abliterated, and on the pc rather than the framework box, so the side
+      # Session titles, the tool-issue judge and speculative compaction ride the smol/tiny
+      # roles; unset, they would resolve through the built-in cloud chains (pinned off at the
+      # bottom of this file), so they point at cyber-tiel-coder instead: this router's fast
+      # coder, abliterated, and on the pc rather than the framework box, so the side
       # requests those features make never contend with the primary. Its two slots run on one
       # unified KV pool: one holds the quick smol/tiny requests, one the single subagent that
       # `task.maxConcurrency` allows.
@@ -51,6 +51,31 @@ in
       searxng.endpoint = "http://search.framework:7777";
       # No Exa key on this box, so the other half of that default chain stays off.
       exa.enabled = false;
+      # Nothing leaves the box unless a selector says so explicitly. Every role resolves
+      # through its fallback chain, and OpenRouter - the only cloud provider with a key here -
+      # sits in the built-in chain of all of them: the unassigned vision role sent an image
+      # question out that way. Pinning each chain that can fire passively to [] stops
+      # resolution on this box: roles with a local primary fail visibly when their router
+      # fails instead of retrying on the cloud, roles without one resolve to nothing and their
+      # callers use the session model. Reaching an external model stays possible explicitly,
+      # through modelRoles or by editing a chain. web is included so a keyless cloud search
+      # cannot take over when the local SearXNG is down; advisor, image, speech and dictation
+      # stay unpinned - their subsystems are off, so enabling one is the opt-in.
+      retry.fallbackChains.default = [];
+      retry.fallbackChains.smol = [];
+      retry.fallbackChains.task = [];
+      retry.fallbackChains.tiny = [];
+      retry.fallbackChains.slow = [];
+      retry.fallbackChains.plan = [];
+      retry.fallbackChains.commit = [];
+      retry.fallbackChains.memory = [];
+      retry.fallbackChains.widget = [];
+      retry.fallbackChains.vision = [];
+      retry.fallbackChains.judge = [];
+      retry.fallbackChains.web = [];
+      # Attached-image descriptions ride the vision role; off rather than failing on every
+      # attach.
+      images.describeForTextModels = false;
 
       # Local GPUs do the work, so token counts are the only way to notice a compaction storm or a
       # runaway subagent; there is no bill to read instead.
