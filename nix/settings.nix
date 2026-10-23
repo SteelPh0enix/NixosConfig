@@ -56,8 +56,8 @@ rec {
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;
-  # Same key the Docker router served; external clients must not have to change it.
-  gufoApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
+  # The API key both engines on llmPort authenticate with, and what external clients already send.
+  llmApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
 
   # The CI runner's token, handed to the runner as a systemd credential. The runner's uuid is
   # an identifier rather than a credential, so it lives in nixos/services/ci-runner.nix.

@@ -34,7 +34,11 @@ in
   systemd.services.gufo = {
     description = "Gufo engine, Qwen3.8-Flash-Next (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
-    wantedBy = [ "multi-user.target" ];
+    # Starts by hand: its 262144-token session permanently fills the unified memory pool, so the
+    # boot engine is the one that idles empty (llama-server-vulkan). The after/conflicts lines
+    # below govern the manual `systemctl start gufo`: they stop the Vulkan server first so the
+    # weights load into a free pool.
+    wantedBy = [ ];
     # One engine at a time: a start of gufo stops the Vulkan server first, and the ordering keeps
     # that stop ahead of the start so the memory is free before the weights load.
     after = [
@@ -46,7 +50,7 @@ in
 
     serviceConfig = {
       ExecStart = serve;
-      LoadCredential = "api-key:${settings.gufoApiKeyFile}";
+      LoadCredential = "api-key:${settings.llmApiKeyFile}";
 
       # gufo keeps its GGUF fingerprint cache under $XDG_CACHE_HOME/gufo, so point that at a
       # writable directory rather than a read-only home.

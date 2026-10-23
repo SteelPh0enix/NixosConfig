@@ -33,9 +33,10 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # Starts only by hand: gufo's 262144-token session fills the unified memory pool. A start
-    # stops gufo first (Conflicts=/After= below), so a model loaded here does not land on top of it.
-    wantedBy = [ ];
+    # The boot engine: autoload reads a preset only when a request names one, so it comes up with
+    # nothing loaded and an idle server holds none of the unified memory pool. A start still stops
+    # gufo first (Conflicts=/After= below), so a model loaded here does not land on top of it.
+    wantedBy = [ "multi-user.target" ];
     after = [
       "gufo.service"
       "network-online.target"
@@ -50,7 +51,13 @@ in
     };
 
     serviceConfig = {
-      ExecStart = "${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args}";
+      # The rotation script writes one key per line and --api-key-file reads exactly that shape.
+      # The credential path stays outside the quoted args so systemd expands
+      # $CREDENTIALS_DIRECTORY at exec time; LoadCredential below is required, so a missing secret
+      # fails the unit at start instead of booting an unauthenticated engine.
+      ExecStart = "${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args} --api-key-file $CREDENTIALS_DIRECTORY/api-key";
+      LoadCredential = "api-key:${settings.llmApiKeyFile}";
+
       # Shared account declared in nixos/users.nix; gufo runs as the same user.
       User = "llm";
       Group = "llm";

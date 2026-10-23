@@ -55,25 +55,27 @@ AVX512 extensions here), LTO — running as the `llm` user with
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).
-It no longer starts at boot: gufo's 262144-token session fills the unified memory pool. Starting it
-by hand stops gufo first (`Conflicts=`/`After=`), so a model loaded here does not land on top of it;
-`llama-vulkan-logs` starts by hand alongside it.
+It is the boot engine: autoload loads nothing until a request names a preset, so an idle server
+holds none of the unified memory pool, and a start stops gufo first (`Conflicts=`/`After=`) so a
+model loaded here does not land on top of it. `llama-vulkan-logs` boots alongside it. It
+authenticates with `secrets/llama-strix-api-key` via `--api-key-file`, fed by a systemd credential.
 
 Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `llm` and cannot
 traverse a 0700 home. The checkout keeps a **symlink** to `llama-server.ini`, so editing presets is an
 edit plus a restart of the unit, and no rebuild.
 
-Gufo (`nixos/services/gufo.nix`) is the other engine on the same **51536**: built from the `gufo` flake
-input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It replaced the rootless-Docker
-llama.cpp router, whose Compose/INI in `~/LLMs/` is kept only as manual rollback. Gufo has no binary
-cache, so a `gufo` bump is a long local build. The API key is `secrets/llama-strix-api-key` (the
-retired `.env` kept it as `STRIX_API_KEY`); gufo takes it only as `--api-key`, so it is visible in
-the process command line and there is no env or file alternative. Its continuation cache is capped
-with `--cache-ram-bytes` (the automatic budget is half of `MemAvailable` and throws the host into
-swap, gufo-org/gufo#387), and `--stall-timeout-ms` exits a generation that stops progressing as
-`device_lost` so systemd restarts the engine. It runs as `llm`, the same account as the Vulkan
-server (`nixos/users.nix`), and on the same `llmPort` (51536); the units conflict, so only one
-engine is up at a time.
+Gufo (`nixos/services/gufo.nix`) is the other engine on the same **51536**: built from the `gufo`
+flake input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It starts by hand, and its
+262144-token session permanently filling the unified pool is why it is not the boot engine. It
+replaced the rootless-Docker llama.cpp router, whose Compose/INI in `~/LLMs/` is kept only as manual
+rollback. Gufo has no binary cache, so a `gufo` bump is a long local build. The API key is
+`secrets/llama-strix-api-key`, the same one llama.cpp serves with (the retired `.env` kept it as
+`STRIX_API_KEY`); gufo takes it only as `--api-key`, so it is visible in the process command line
+and there is no env or file alternative. Its continuation cache is capped with `--cache-ram-bytes`
+(the automatic budget is half of `MemAvailable` and throws the host into swap, gufo-org/gufo#387),
+and `--stall-timeout-ms` exits a generation that stops progressing as `device_lost` so systemd
+restarts the engine. It runs as `llm`, the same account as the Vulkan server (`nixos/users.nix`),
+and on the same `llmPort` (51536); the units conflict, so only one engine is up at a time.
 
 Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
 rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
@@ -145,7 +147,9 @@ and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `rev
 session itself uses (provider `framework`), through the `framework` group, also one model at a time.
 That server holds a single 262k slot - the box has no memory for a second one - and the main agent
 permanently sits on it, so the 1 slot `subagents.json` gives the subagents queues on the same one:
-one `-smart` task at a time, the slowest and the most capable thing here.
+one `-smart` task at a time, the slowest and the most capable thing here. The `framework` endpoint is
+whichever engine is up: gufo - and the `Qwen 3.8 Flash Next` model it serves under that exact name -
+only while it has been started by hand; after a plain reboot it is llama.cpp's preset catalog.
 
 `models.json` pins `Qwen 3.8 Flash Next` at `contextWindow: 262144`, the one hand-written window in the
 catalog: gufo reports no `n_ctx` in `/models` and no launch args, so `llama-compat` has nothing to read

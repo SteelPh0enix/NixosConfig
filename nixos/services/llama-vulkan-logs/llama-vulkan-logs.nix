@@ -26,7 +26,8 @@ in
 
   systemd.services.llama-vulkan-logs = {
     description = "Web interface for llama-server-vulkan logs (${toString settings.llamaLogsPort})";
-    # Starts only by hand, with the server it follows.
+    # Boots with the server it follows.
+    wantedBy = [ "multi-user.target" ];
     after = [
       "llama-server-vulkan.service"
       "network-online.target"
