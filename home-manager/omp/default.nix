@@ -35,11 +35,9 @@ in
       modelRoles.tiny = "llama-pc/cyber-tiel-coder";
       # The generic task/sonic/scout agents share that free cyber-tiel slot. `agents/` pins its
       # own two agents explicitly - coder and reviewer both on cyber-tiel - so they hold their
-      # slot whichever model the session happens to be on. `slow` is pinned to the same coder:
-      # the framework box is single-slot qwen-next, the main session holds that one slot, so
-      # nothing routed through a role may fall back onto it.
+      # slot whichever model the session happens to be on. `slow` stays unset, so anything asking
+      # for it gets the configured default, which is the slot the main session holds.
       modelRoles.task = "llama-pc/cyber-tiel-coder";
-      modelRoles.slow = "llama-pc/cyber-tiel-coder";
       # No advisor: it keeps a model resident to re-read every turn, which on a two-slot unified
       # pool is a whole slot spent on a passive second opinion. Reviewing happens on purpose
       # instead, as a `reviewer` spawn that reads the tree itself. `omp --advisor` or `/advisor on`
