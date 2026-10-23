@@ -185,11 +185,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792668857,
-        "narHash": "sha256-chUrnAqBhBLvXBUsLFxFYBIl8c0GWp06wdjmAMS8l+U=",
+        "lastModified": 1792703141,
+        "narHash": "sha256-3X34FaSeMJXMx8CK/BN6sZ9knwNauuiJXQhLM+bQQuI=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "cb7de2c7e589afe7531d4832c71ad4df144624ea",
+        "rev": "6750249c69969d09d952efaf3fab88a2bdac7ec6",
         "type": "github"
       },
       "original": {
@@ -205,8 +205,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1792677962,
-        "narHash": "sha256-KHmv0fXW9+eOvwOOPVp2oqxA63WoGHhatfGeBoGrcug=",
+        "lastModified": 1792751131,
+        "narHash": "sha256-6JXuWg2aSrHWOS18H3nRl57x2DJYLPTYc8sl7mZEqqE=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -433,14 +433,14 @@
         "nixpkgs": [
           "nixpkgs"
         ],
-        "rust-overlay": "rust-overlay_2"
+        "openlogi": "openlogi_2"
       },
       "locked": {
-        "lastModified": 1792677806,
-        "narHash": "sha256-ae0etv9qnhWiWIpJHDrljJza86KJ4o/yZmaMVxnNack=",
+        "lastModified": 1792750559,
+        "narHash": "sha256-YI9e5spKN0lpiMBh/c1HI0EyKUW1EECu/vNscKKMRmY=",
         "owner": "AprilNEA",
         "repo": "OpenLogi",
-        "rev": "a678918dafaa7573bdb198f29d74bfe6801f2441",
+        "rev": "2ac50ad501030fd1837a2de6f52da25f7137eb55",
         "type": "github"
       },
       "original": {
@@ -448,6 +448,26 @@
         "repo": "OpenLogi",
         "type": "github"
       }
+    },
+    "openlogi_2": {
+      "inputs": {
+        "nixpkgs": [
+          "openlogi",
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay_2"
+      },
+      "locked": {
+        "path": "./packaging",
+        "type": "path"
+      },
+      "original": {
+        "path": "./packaging",
+        "type": "path"
+      },
+      "parent": [
+        "openlogi"
+      ]
     },
     "phonto": {
       "inputs": {
@@ -530,6 +550,7 @@
       "inputs": {
         "nixpkgs": [
           "openlogi",
+          "openlogi",
           "nixpkgs"
         ]
       },
@@ -575,11 +596,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792653800,
-        "narHash": "sha256-E8zFJilWlORqzIUJizyhZ/0WKBOizuM6s1nRSgPRomo=",
+        "lastModified": 1792739799,
+        "narHash": "sha256-M2rr/yPbTHvgAzCyZ+zHJHflFM0XU7t42Sw2skA3TQM=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "5f267b7f323a4d6df0b9c0e3eaa043cbe85386f2",
+        "rev": "b0829a2cc9f7b596583331d78a942c1e5170d8a0",
         "type": "github"
       },
       "original": {
