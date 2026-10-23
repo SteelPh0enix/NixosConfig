@@ -20,7 +20,7 @@ rec {
   llamaModelsPath = "/home/LLMs";
   llamaPresetsPath = "${llamaModelsPath}/llama-server.ini";
   # Models kept resident at once (see nixos/services/llama-server-vulkan).
-  llamaModelsMax = 4;
+  llamaModelsMax = 1;
   # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
   # used to reach the machine. The ports live here so the firewall rules cannot drift apart.
   llmHost = "0.0.0.0";
