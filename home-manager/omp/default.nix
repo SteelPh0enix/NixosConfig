@@ -200,10 +200,6 @@ in
   # writes a models.yml solely to migrate an old models.json, which we do not ship), so unlike
   # config.yml a store symlink is fine.
   home.file."${agentDir}/models.yml".source = ./models.yml;
-  # Task agents discovered from the agent dir (`omp://task-agent-discovery.md`), so the fleet is
-  # these files plus the bundled ones. Read at spawn, so an edit needs no rebuild once deployed -
-  # but deployment is a switch. Read-only, so the store symlink is fine here too.
-  home.file."${agentDir}/agents".source = ./agents;
   # omp-vcc's own config, the source of truth for how it compacts: with
   # overrideDefaultCompaction set, VCC replaces the host's LLM summary on threshold and
   # overflow instead of falling back to it. The plugin writes this file itself when it is
