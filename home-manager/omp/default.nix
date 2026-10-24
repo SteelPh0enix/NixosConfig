@@ -61,18 +61,18 @@ in
       # through modelRoles or by editing a chain. web is included so a keyless cloud search
       # cannot take over when the local SearXNG is down; advisor, image, speech and dictation
       # stay unpinned - their subsystems are off, so enabling one is the opt-in.
-      retry.fallbackChains.default = [];
-      retry.fallbackChains.smol = [];
-      retry.fallbackChains.task = [];
-      retry.fallbackChains.tiny = [];
-      retry.fallbackChains.slow = [];
-      retry.fallbackChains.plan = [];
-      retry.fallbackChains.commit = [];
-      retry.fallbackChains.memory = [];
-      retry.fallbackChains.widget = [];
-      retry.fallbackChains.vision = [];
-      retry.fallbackChains.judge = [];
-      retry.fallbackChains.web = [];
+      retry.fallbackChains.default = [ ];
+      retry.fallbackChains.smol = [ ];
+      retry.fallbackChains.task = [ ];
+      retry.fallbackChains.tiny = [ ];
+      retry.fallbackChains.slow = [ ];
+      retry.fallbackChains.plan = [ ];
+      retry.fallbackChains.commit = [ ];
+      retry.fallbackChains.memory = [ ];
+      retry.fallbackChains.widget = [ ];
+      retry.fallbackChains.vision = [ ];
+      retry.fallbackChains.judge = [ ];
+      retry.fallbackChains.web = [ ];
       # Attached-image descriptions ride the vision role; off rather than failing on every
       # attach.
       images.describeForTextModels = false;
@@ -129,6 +129,7 @@ in
       readLineNumbers = true;
       personality = "pragmatic";
       treeFilterMode = "default";
+      todo.eager = "always";
 
       task.showResolvedModelBadge = true;
       # One task at a time: every subagent runs on cyber-tiel-coder, whose two-slot unified
@@ -137,7 +138,7 @@ in
       task.maxConcurrency = 1;
       # Always delegate: the fleet is one slot wide, so the main session is the one that talks to
       # the user.
-      task.eager = "always";
+      task.eager = "preferred";
       # Subagent results come back validated against the caller's schema instead of as prose.
       task.structured = true;
       # Subagents pick their own reasoning effort, and may use the lsp tool as well.
