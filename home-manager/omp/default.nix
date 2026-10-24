@@ -23,7 +23,7 @@ in
       # The presets that take no xhigh clamp down to their top rung (see models.yml).
       defaultThinkingLevel = "xhigh";
       # Same default as pi: the framework box's router. Quote a selector holding spaces.
-      modelRoles.default = "framework/Qwen 3.8 Flash Next";
+      modelRoles.default = "framework/qwen-next";
       # Session titles, the tool-issue judge and speculative compaction ride the smol/tiny
       # roles; unset, they would resolve through the built-in cloud chains (pinned off at the
       # bottom of this file), so they point at cyber-tiel-coder instead: this router's fast
