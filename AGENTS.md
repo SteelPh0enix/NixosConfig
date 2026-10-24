@@ -38,7 +38,8 @@ groups, and the file's own comment style, which explains *why* rather than *what
   shape is always: a path in the config, the value in `secrets/` (or pi's `apiKey: "!command"`). A new
   secret is created by hand at mode 0600, and the commit records the path, never the value.
 - Run `nix flake update` casually. `pi` has no binary cache, so it costs minutes of local building;
-  `llama-cpp`, `mcserver` and `berkeleyMono` are `path:` inputs where an update does nothing at all
+  `llama-cpp`, `mcserver` and `berkeleyMono` are `path:` inputs pinned by narHash in `flake.lock`, so
+  `nix flake update <input>` re-pins the current directory - `llama-cpp-update` does that for llama.cpp
   (see the README). The kernel is `linuxPackages_xanmod_latest` from cache.nixos.org, so a `nixpkgs`
   bump normally just substitutes it; the `nix-cachyos-kernel` flake is gone because its author's
   cache and Hydra were compromised. If a kernel must be frozen, the pin goes in `flake.nix` with the

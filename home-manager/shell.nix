@@ -24,6 +24,7 @@ let
       runtimeInputs = [
         pkgs.nh
         pkgs.git
+        pkgs.nix
       ];
       meta.description = description;
     };
@@ -143,6 +144,9 @@ in
         fi
         ${info "Pulling llama.cpp updates..."}
         git -C "$dir" pull
+        # flake.lock pins the path input by narHash, so a pull alone leaves builds on the old snapshot.
+        ${info "Re-pinning the llama-cpp flake input..."}
+        nix flake update llama-cpp --flake ${repoPath}
         ${success "llama.cpp updated."}
       '';
     in

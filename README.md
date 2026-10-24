@@ -105,7 +105,7 @@ Three flake inputs are `path:` checkouts living elsewhere, not managed by this f
 
 | input | path | refresh |
 |---|---|---|
-| `llama-cpp` | `~/llama.cpp` | `llama-cpp-update` pulls it; `nix flake update llama-cpp` is a no-op because the working tree *is* the input |
+| `llama-cpp` | `~/llama.cpp` | `llama-cpp-update` pulls it and re-pins it with `nix flake update llama-cpp`; a plain rebuild keeps whatever the lock pinned |
 | `mcserver` | `~/Projects/mcserver-nix` | `nix flake update mcserver` after the pack is regenerated there |
 | `berkeleyMono` | `~/nixos-nonfree/berkeley-mono` | licensed, non-redistributable TTFs, mode 700 |
 

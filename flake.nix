@@ -21,9 +21,9 @@
     };
 
     # Externally managed checkout (updated by the `llama-cpp-update` script).
-    # Deliberately unpinned: the working tree *is* the input, `nix flake update llama-cpp` is a no-op.
-    # Literal path required here - flake input URLs are read syntactically. Keep in sync with
-    # settings.llamaCppPath.
+    # flake.lock records the path input's narHash, so a plain rebuild keeps the old snapshot;
+    # `llama-cpp-update` re-pins it. Literal path required here - flake input URLs are read
+    # syntactically. Keep in sync with settings.llamaCppPath.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
     # Create+ (Minecraft 1.19.2 / Forge 43.5.1) server: launcher module and package plus the

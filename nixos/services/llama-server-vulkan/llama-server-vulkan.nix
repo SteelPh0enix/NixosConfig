@@ -51,11 +51,15 @@ in
     };
 
     serviceConfig = {
-      # The rotation script writes one key per line and --api-key-file reads exactly that shape.
-      # The credential path stays outside the quoted args so systemd expands
-      # $CREDENTIALS_DIRECTORY at exec time; LoadCredential below is required, so a missing secret
-      # fails the unit at start instead of booting an unauthenticated engine.
-      ExecStart = "${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args} --api-key-file $CREDENTIALS_DIRECTORY/api-key";
+      # The credential is expanded in a shell wrapper rather than on ExecStart: systemd's own
+      # expansion of $CREDENTIALS_DIRECTORY there ate it as an empty variable, which left
+      # --api-key-file without a value. LoadCredential is required, so a missing secret fails the
+      # unit at start instead of booting an unauthenticated engine; the key stays out of the
+      # process cmdline, and the rotation script's one-key-per-line file needs no trimming.
+      ExecStart = pkgs.writeShellScript "llama-server-vulkan-serve" ''
+        exec ${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args} \
+          --api-key-file "$CREDENTIALS_DIRECTORY/api-key"
+      '';
       LoadCredential = "api-key:${settings.llmApiKeyFile}";
 
       # Shared account declared in nixos/users.nix; gufo runs as the same user.
