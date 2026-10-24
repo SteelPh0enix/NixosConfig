@@ -90,12 +90,7 @@
       # in ~/.local/state/noctalia/settings.toml.
       calendar.enabled = true;
 
-      dock = {
-        enabled = true;
-        reserve_space = false; # overlay the dock instead of reserving a gap
-        show_dots = true; # running-app indicator dots
-        smart_auto_hide = true; # visible while the workspace is empty, hidden once it has windows
-      };
+      dock.enabled = false;
 
       # DisplayPort panels expose nothing under /sys/class/backlight, so the brightness keys and the
       # bar widget need DDC/CI: Noctalia shells out to `ddcutil` (systemPackages) over /dev/i2c-*
