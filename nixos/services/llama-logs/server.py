@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Simple HTTP server with SSE endpoint for streaming journalctl logs.
-Run as: python3 nixos/services/llama-vulkan-logs/server.py [--service <unit>] [--port <port>]
+Run as: python3 nixos/services/llama-logs/server.py [--service <unit>]... [--port <port>]
 Then visit: http://localhost:51580
 """
 
@@ -18,15 +18,23 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(SCRIPT_DIR, "index.html")
 
 LOG_QUEUE: queue.Queue[str] = queue.Queue()
-SERVICE_NAME = "llama-server-vulkan"
+SERVICES: list[str] = ["llama-server-rocm"]
 PORT = 51580
+
+
+def unit_args() -> list[str]:
+    """-u <unit> for every followed engine, in the order given."""
+    args: list[str] = []
+    for service in SERVICES:
+        args += ["-u", service]
+    return args
 
 
 def stream_logs() -> None:
     """Continuously stream logs from journalctl via subprocess."""
     try:
         proc = subprocess.Popen(
-            ["journalctl", "-fu", SERVICE_NAME, "--no-pager"],
+            ["journalctl", "-f", *unit_args(), "--no-pager"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -62,8 +70,11 @@ class LogHandler(BaseHTTPRequestHandler):
             self.send_error(500, "HTML template not found")
             return
 
-        # Substitute the service label into the template so the page names the unit it follows.
-        label = SERVICE_NAME.replace("_", " ").replace("-", " ").upper()
+        # Substitute the service label into the template so the page names the units it follows.
+        label = " / ".join(
+            service.removesuffix(".service").replace("_", " ").replace("-", " ").upper()
+            for service in SERVICES
+        )
         html = html.replace("__SERVICE_LABEL__", label)
 
         self.send_response(200)
@@ -85,8 +96,7 @@ class LogHandler(BaseHTTPRequestHandler):
             proc = subprocess.Popen(
                 [
                     "journalctl",
-                    "-u",
-                    SERVICE_NAME,
+                    *unit_args(),
                     "--no-pager",
                     "-n",
                     "100",
@@ -131,12 +141,13 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Stream systemd journal logs for llama-server-vulkan over SSE."
+        description="Stream the systemd journal of every LLM engine over SSE."
     )
     parser.add_argument(
         "--service",
-        default="llama-server-vulkan",
-        help="systemd unit name to follow (default: llama-server-vulkan).",
+        dest="services",
+        action="append",
+        help="systemd unit to follow; repeat for several (default: llama-server-rocm).",
     )
     parser.add_argument(
         "--port",
@@ -151,12 +162,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    global SERVICE_NAME, PORT
-    SERVICE_NAME = args.service
+    global SERVICES, PORT
+    SERVICES = args.services or ["llama-server-rocm"]
     PORT = args.port
 
-    print(f"☤ {SERVICE_NAME} Log Server")
-    print(f"  Starting journalctl stream for '{SERVICE_NAME}' service...")
+    units = ", ".join(SERVICES)
+    print(f"☤ {units} Log Server")
+    print(f"  Starting journalctl stream for {units}...")
 
     thread = threading.Thread(target=stream_logs, daemon=True)
     thread.start()

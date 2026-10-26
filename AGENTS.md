@@ -49,27 +49,29 @@ groups, and the file's own comment style, which explains *why* rather than *what
 
 ## The llama.cpp servers
 
-The one on **51536** is a NixOS unit (`llama-server-vulkan`), built from the `llama-cpp` flake input
+The Vulkan engine is a NixOS unit (`llama-server-vulkan`), built from the `llama-cpp` flake input
 by `nix/overlays/llama-cpp.nix` — Vulkan only, `-march=znver5` (x86-64-v4 is not enough for the
 AVX512 extensions here), LTO — running as the `llm` user with
-`--slots --props --metrics --models-max 4 --webui`. Keep autoload on: with it off the server answers
+`--slots --props --metrics --models-max 4 --webui`. It starts by hand like gufo; the ROCm container
+is the boot engine. Keep autoload on: with it off the server answers
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).
-It is the boot engine: autoload loads nothing until a request names a preset, so an idle server
-holds none of the unified memory pool, and a start stops gufo first (`Conflicts=`/`After=`) so a
-model loaded here does not land on top of it. `llama-vulkan-logs` boots alongside it. It
-authenticates with `secrets/llama-strix-api-key` via `--api-key-file`, fed by a systemd credential.
+A start stops the other two engines first (`Conflicts=`/`After=`) so a model loaded here does not
+land on top of theirs. It authenticates with `secrets/llama-strix-api-key` via `--api-key-file`,
+fed by a systemd credential.
 
-Weights and the preset live in `/home/LLMs` for that reason: the unit runs as `llm` and cannot
-traverse a 0700 home. The checkout keeps a **symlink** to `llama-server.ini`, so editing presets is an
+Weights and the presets live in `/home/LLMs` for that reason: the unit runs as `llm` and cannot
+traverse a 0700 home. The checkout keeps a **symlink** to each preset, so editing presets is an
 edit plus a restart of the unit, and no rebuild.
 
-Gufo (`nixos/services/gufo.nix`) is the other engine on the same **51536**: built from the `gufo`
+Gufo (`nixos/services/gufo.nix`) is the second engine on the same **51536**: built from the `gufo`
 flake input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It starts by hand, and its
-262144-token session permanently filling the unified pool is why it is not the boot engine. It
-replaced the rootless-Docker llama.cpp router, whose Compose/INI in `~/LLMs/` is kept only as manual
-rollback. Gufo has no binary cache, so a `gufo` bump is a long local build. The API key is
+262144-token session permanently filling the unified pool is why it is not the boot engine. The
+rootless-Docker llama.cpp router it replaced now lives in the repo as
+`nixos/services/llama-server-rocm/` (below); `~/LLMs/llm-router-docker-compose.yml` is kept only as
+the manual rollback copy, on the human account and port 44444. Gufo has no binary cache, so a `gufo`
+bump is a long local build. The API key is
 `secrets/llama-strix-api-key`, the same one llama.cpp serves with (the retired `.env` kept it as
 `STRIX_API_KEY`); gufo takes it only as `--api-key`, so it is visible in the process command line
 and there is no env or file alternative. Its continuation cache is capped with `--cache-ram-bytes`
@@ -77,6 +79,20 @@ and there is no env or file alternative. Its continuation cache is capped with `
 and `--stall-timeout-ms` exits a generation that stops progressing as `device_lost` so systemd
 restarts the engine. It runs as `llm`, the same account as the Vulkan server (`nixos/users.nix`),
 and on the same `llmPort` (51536); the units conflict, so only one engine is up at a time.
+
+The third engine is the ROCm container (`nixos/services/llama-server-rocm/`), the retained-PM4
+HALO build from halo-box/strix-llama.cpp and the fastest of the three on this APU. Its image
+`llama-rocm-10.1-strix-llama` has no registry: `llama-rocm-image-update` clones or pulls
+`/home/LLMs/amd-strix-halo-toolboxes`, runs the toolboxes `docker build --no-cache`, and loads the
+result into `llm`'s own rootless Docker daemon (`linger` plus the subuid range in
+`nixos/users.nix`). The unit reads its compose from the store (that account cannot read the 0700
+home), publishes `llmPort` and mounts `/home/LLMs` read-only; its preset is
+`llama-server-rocm.ini`. It conflicts with both other engines; the
+same key reaches it, copied out of the systemd credential into
+`/var/lib/llama-server-rocm/api-key` and passed as `--api-key-file`. It is the boot engine: the
+router loads nothing until a request names a preset, so an idle container costs little, and it is
+the fastest engine when a request does arrive. `llama-logs` boots with it and follows all three
+engines' journals.
 
 Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
 rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
@@ -108,11 +124,14 @@ server matches on, so changing it means re-registering.
 
 ## Restarting by hand instead of rebuilding
 
-`llama-server-vulkan` after editing `/home/LLMs/llama-server.ini`, `adguardhome` to force a filter-list
-update (the merge drops `last_updated`, so the lists re-download), and the cloudflared tunnels when the
-boot-minute DNS race got them. `home-manager/pi/subagents.json` and `models.json` are read at pi's
-startup, so they need `nh os switch` *and* a pi restart. There is no `nh home switch` here: home-manager is a NixOS
-module of this flake, which exports no `homeConfigurations`.
+`llama-server-vulkan` after editing `/home/LLMs/llama-server.ini`, `llama-server-rocm` after editing
+`/home/LLMs/llama-server-rocm.ini` (the compose copy comes from the store, so that one needs a
+rebuild), `adguardhome` to force a filter-list update (the merge drops `last_updated`, so the lists
+re-download), and the cloudflared tunnels when the boot-minute DNS race got them.
+`llama-rocm-image-update` rebuilds the container image, reloads it into `llm`'s daemon, and then
+`llama-server-rocm` needs a restart to run it. `home-manager/pi/subagents.json` and `models.json` are
+read at pi's startup, so they need `nh os switch` *and* a pi restart. There is no `nh home switch`
+here: home-manager is a NixOS module of this flake, which exports no `homeConfigurations`.
 
 ## Couplings that break quietly
 
@@ -128,9 +147,10 @@ module of this flake, which exports no `homeConfigurations`.
   and the units conflict, so only one listener is ever on it. The log viewer binds every interface
   (`server.py --host` defaults to the IPv4 wildcard address), so 51580 is what makes it reachable; if
   you open something, check what it actually binds (`ss -tulpn`).
-- **The preset is `/home/LLMs/llama-server.ini`, and the checkout only symlinks it.** A rebuild never
-  deploys edits to it, so edit the file and restart the unit. The weights sit on the filesystem
-  mounted at `/home` (`nixos/hardware-configuration.nix`), so a layout change takes the server with it.
+- **The presets are `/home/LLMs/llama-server.ini` and `/home/LLMs/llama-server-rocm.ini`, and the
+  checkout only symlinks them.** A rebuild never deploys edits to them, so edit the file and restart
+  the owning unit. The weights sit on the filesystem mounted at `/home`
+  (`nixos/hardware-configuration.nix`), so a layout change takes the servers with it.
 - **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
   and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
   disables and the kernel parameter repeats.

@@ -54,9 +54,10 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 | Jellyfin | 8096 | LAN |
 | qBittorrent · Jackett · FlaResolverr | 8888 · 8889 · 8890 | LAN |
 | SearXNG | 7777 | LAN, and `search.steelph0enix.dev` through the tunnel |
-| llama.cpp server (Vulkan) | 51536 (boot engine) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
-| its log viewer | 51580 | LAN |
-| Gufo engine (Qwen3.8-Flash-Next) | 51536, shared with llama.cpp (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
+| llama.cpp server (ROCm container) | 51536 (boot engine) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
+| llama.cpp server (Vulkan) | 51536, shared with the others (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
+| Gufo engine (Qwen3.8-Flash-Next) | 51536, shared with the others (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
+| LLM engine logs (web viewer) | 51580 | LAN |
 | nginx vhosts | 6970 coverage reports, 6971 docs | LAN |
 | Samba + wsdd | 137–139, 445 | LAN only (`hosts allow`) |
 | XRDP | 3389 | LAN |
@@ -65,18 +66,24 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 
 ## The LLM stack
 
-One Vulkan llama.cpp server and one native Gufo engine answer on this box's `51536`, both
-OpenAI-compatible, one at a time.
+Three engines answer on this box's `51536`, all OpenAI-compatible, one at a time.
 
-- **51536** — the primary LLM endpoint, shared by both engines because only one runs at a time. The
-  boot engine is the Vulkan llama.cpp server (its presets are listed in `llama-server.ini`: one loads
-  on the first request that names it, and up to four stay resident); Gufo serving
-  Qwen3.8-Flash-Next with its shared MTP sidecar (`nixos/services/gufo.nix`) is started by hand, and
-  a start of either stops the other first. `clanker.steelph0enix.dev` reaches whichever engine is up,
-  and both authenticate with the same API key. Gufo is built from its flake, so a version bump is a
-  local build.
+- **51536** — the primary LLM endpoint, shared by all three because only one runs at a time. The
+  boot engine is the ROCm container (next bullet); the Vulkan llama.cpp server (its presets are
+  listed in `llama-server.ini`: one loads on the first request that names it, and up to four stay
+  resident) and Gufo serving Qwen3.8-Flash-Next with its shared MTP sidecar
+  (`nixos/services/gufo.nix`) start by hand. A start of any engine stops the others first.
+  `clanker.steelph0enix.dev` reaches whichever engine is up, and all three authenticate with the same
+  API key. Gufo is built from its flake, so a version bump is a local build.
+- **The ROCm container** (`nixos/services/llama-server-rocm/`) is the retained-PM4 ROCm/HIP build
+  from halo-box/strix-llama.cpp, the fastest of the three on this APU, and the one that boots: like
+  the Vulkan router it loads nothing until a request names its preset. Its image
+  `llama-rocm-10.1-strix-llama` is built locally by the `llama-rocm-image-update` script (toolboxes
+  checkout in `/home/LLMs/`, `--no-cache`) and loaded into `llm`'s own rootless Docker daemon, where
+  the unit runs it as that account; the compose file in the repo carries `pull_policy: never`
+  because there is no registry to pull from. Its preset is `llama-server-rocm.ini`.
 
-Vulkan weights and its preset sit under `/home/LLMs`, outside the repo; editing a preset is an edit
+The weights and both presets sit under `/home/LLMs`, outside the repo; editing a preset is an edit
 plus a service restart, never a rebuild; `AGENTS.md` has the details. SearXNG on 7777 is the instance
 pi's web search talks to.
 
@@ -120,5 +127,5 @@ them. Each is read by path, as a boot-time credential or an env file.
 | `cloudflare-search-credentials.json` | cloudflared, the `search` tunnel |
 | `tailscale-authkey` | tailscaled, re-applied on every boot |
 | `searxng.env` | SearXNG (`SEARXNG_SECRET`, optional Brave/Kagi keys) |
-| `llama-strix-api-key` | both engines on 51536 (`LoadCredential` in `nixos/services/gufo.nix` and `nixos/services/llama-server-vulkan/llama-server-vulkan.nix`) and pi's `models.json` through an `apiKey: "!command"` |
+| `llama-strix-api-key` | all three engines on 51536 (`LoadCredential` in `nixos/services/gufo.nix`, `nixos/services/llama-server-vulkan/llama-server-vulkan.nix` and `nixos/services/llama-server-rocm/llama-server-rocm.nix`, which copies it into `/var/lib/llama-server-rocm` for the container's `--api-key-file`) and pi's `models.json` through an `apiKey: "!command"` |
 | `ci-runner-token` | the CI runner for Forgejo Actions (`LoadCredential` in `nixos/services/ci-runner.nix`) |

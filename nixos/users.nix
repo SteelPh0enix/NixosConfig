@@ -43,10 +43,29 @@
       ];
     };
 
-    # The GPU engines' account. Only one engine loads at a time, so both units share it.
+    # The GPU engines' account. Only one engine loads at a time, so the units share it. It also owns
+    # the rootless Docker daemon the ROCm container runs on (nixos/services/llama-server-rocm), which
+    # is why the uid is pinned: the unit names /run/user/<uid>/docker.sock and user@<uid>.service.
     llm = {
       group = "llm";
       isSystemUser = true;
+      uid = 978;
+      home = "/var/lib/llm";
+      createHome = true;
+      # Rootless Docker starts with the user manager, not with a login session.
+      linger = true;
+      subUidRanges = [
+        {
+          startUid = 200000;
+          count = 65536;
+        }
+      ];
+      subGidRanges = [
+        {
+          startGid = 200000;
+          count = 65536;
+        }
+      ];
     };
 
     qbittorrent = {

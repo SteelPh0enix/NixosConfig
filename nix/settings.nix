@@ -13,20 +13,24 @@ rec {
   # because flake input URLs have to be literals.
   llamaCppPath = "/home/steelph0enix/llama.cpp";
 
-  # GGUF weights and the router's preset file (see nixos/services/llama-server-vulkan). Both sit
-  # under /home/LLMs rather than in the checkout: the unit runs as `llm`, and home is 0700, so it
-  # cannot traverse anything below it - the preset read fails with EACCES. The checkout keeps a
-  # symlink to the preset, so editing it and restarting the unit still needs no rebuild.
+  # GGUF weights and the routers' preset files (see nixos/services/llama-server-vulkan and
+  # nixos/services/llama-server-rocm). Both sit under /home/LLMs rather than in the checkout: the
+  # units run as `llm`, and home is 0700, so they cannot traverse anything below it - the preset read
+  # fails with EACCES. The checkout keeps a symlink to each preset, so editing it and restarting the
+  # unit still needs no rebuild.
   llamaModelsPath = "/home/LLMs";
   llamaPresetsPath = "${llamaModelsPath}/llama-server.ini";
+  # The ROCm container's own preset: that build takes different server flags (device = ROCm0,
+  # lazy-mode, spec-type) and keeps the same single model.
+  llamaRocmPresetsPath = "${llamaModelsPath}/llama-server-rocm.ini";
   # Models kept resident at once (see nixos/services/llama-server-vulkan).
   llamaModelsMax = 1;
   # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
   # used to reach the machine. The ports live here so the firewall rules cannot drift apart.
   llmHost = "0.0.0.0";
-  # The primary LLM endpoint: every inference engine listens here (gufo and llama-server-vulkan
-  # declare Conflicts=, so only one is ever bound). The LAN uses it, and the internet reaches it as
-  # https://clanker.steelph0enix.dev/ through the Cloudflare Tunnel.
+  # The primary LLM endpoint: every inference engine listens here (gufo, llama-server-vulkan and
+  # llama-server-rocm declare Conflicts=, so only one is ever bound). The LAN uses it, and the
+  # internet reaches it as https://clanker.steelph0enix.dev/ through the Cloudflare Tunnel.
   llmPort = 51536;
   llamaLogsPort = 51580;
 
@@ -56,7 +60,8 @@ rec {
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;
-  # The API key both engines on llmPort authenticate with, and what external clients already send.
+  # The API key all three engines on llmPort authenticate with, and what external clients already
+  # send.
   llmApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
 
   # The CI runner's token, handed to the runner as a systemd credential. The runner's uuid is

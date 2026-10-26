@@ -33,16 +33,20 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # The boot engine: autoload reads a preset only when a request names one, so it comes up with
-    # nothing loaded and an idle server holds none of the unified memory pool. A start still stops
-    # gufo first (Conflicts=/After= below), so a model loaded here does not land on top of it.
-    wantedBy = [ "multi-user.target" ];
+    # Starts by hand like gufo: the ROCm container is the boot engine. A start still stops the
+    # other two engines first (Conflicts=/After= below), so a model loaded here does not land on
+    # top of theirs.
+    wantedBy = [ ];
     after = [
       "gufo.service"
+      "llama-server-rocm.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];
-    conflicts = [ "gufo.service" ];
+    conflicts = [
+      "gufo.service"
+      "llama-server-rocm.service"
+    ];
 
     # Pin the real GPU: llvmpipe is enumerated as a second Vulkan device.
     environment = {

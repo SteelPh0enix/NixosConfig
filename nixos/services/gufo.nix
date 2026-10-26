@@ -1,8 +1,8 @@
 # Gufo engine serving Qwen3.8-Flash-Next with its shared MTP sidecar. It is the Strix Halo native
 # engine, built from its flake input for gfx1151 (nix/overlays.nix). It listens on the shared
-# endpoint (settings.llmPort) and conflicts with llama-server-vulkan, so only one engine is bound
-# at a time; the LAN and the Cloudflare Tunnel (https://clanker.steelph0enix.dev/) reach it with the
-# same API key.
+# endpoint (settings.llmPort) and conflicts with the other two engines (llama-server-vulkan,
+# llama-server-rocm), so only one engine is bound at a time; the LAN and the Cloudflare Tunnel
+# (https://clanker.steelph0enix.dev/) reach it with the same API key.
 {
   pkgs,
   lib,
@@ -35,18 +35,23 @@ in
     description = "Gufo engine, Qwen3.8-Flash-Next (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
     # Starts by hand: its 262144-token session permanently fills the unified memory pool, so the
-    # boot engine is the one that idles empty (llama-server-vulkan). The after/conflicts lines
-    # below govern the manual `systemctl start gufo`: they stop the Vulkan server first so the
+    # boot engine is the one that idles empty (llama-server-rocm). The after/conflicts lines
+    # below govern the manual `systemctl start gufo`: they stop the other engines first so the
     # weights load into a free pool.
     wantedBy = [ ];
-    # One engine at a time: a start of gufo stops the Vulkan server first, and the ordering keeps
-    # that stop ahead of the start so the memory is free before the weights load.
+    # One engine at a time: a start of gufo stops the other engines first, and the ordering keeps
+    # that stop ahead of the start so the port is free and the memory is released before the
+    # weights load.
     after = [
+      "llama-server-rocm.service"
       "llama-server-vulkan.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];
-    conflicts = [ "llama-server-vulkan.service" ];
+    conflicts = [
+      "llama-server-rocm.service"
+      "llama-server-vulkan.service"
+    ];
 
     serviceConfig = {
       ExecStart = serve;

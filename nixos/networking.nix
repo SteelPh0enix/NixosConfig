@@ -18,7 +18,7 @@
       22137 # Forgejo (SSH)
 
       settings.llmPort # primary LLM endpoint (gufo or llama.cpp)
-      settings.llamaLogsPort # its log web interface
+      settings.llamaLogsPort # the LLM engines' log web interface
 
       # Few generic ports for one-shot/test stuff
       11111

@@ -1,0 +1,135 @@
+# LLM Router - retained-PM4 ROCm stack on AMD Strix Halo (gfx1151)
+#
+# Serves Qwen3.8-Flash-Next through the halo-box/strix-llama.cpp fork running on the
+# custom ROCr + HIP runtime with retained PM4 command lists. This is the fastest known
+# path for this model on this APU; the stock ROCm toolboxes are slower, and the HIP
+# batched-inference correctness bug they hit is what the custom runtime fixes.
+#
+# Image: built locally by the `llama-rocm-image-update` script (home-manager/shell.nix) from
+#   /home/LLMs/amd-strix-halo-toolboxes/toolboxes/Dockerfile.rocm-10.1-strix-llama and loaded into
+#   the llm account's rootless Docker daemon.
+# It builds ROCr + HIP from pwilkin/rocm-systems:ilintar-experiments and
+# halo-box/strix-llama.cpp:master, both at branch HEAD (nothing is pinned).
+#
+# Runs on the ROOTLESS docker daemon. Do NOT add network_mode: host here: with
+# rootless Docker, host networking makes the engine mask /sys, /sys/class/kfd
+# disappears inside the container, and ROCr fails with "no ROCm-capable device is
+# detected" even though /dev/kfd is passed through. Published ports instead.
+#
+# The image is deliberately bare: the custom libraries lead LD_LIBRARY_PATH and the
+# retained-PM4 environment is baked, but no server flags are. Everything about which model
+# to serve lives in llama-server-rocm.ini, which holds the measured configuration
+# (1207 tok/s pp2048 at depth 0, 1055 at depth 32k, 43.9 tok/s decode with MTP at
+# -c 262144 on a 8060S).
+#
+# Bisection switches, for A/B against stock HIP behaviour - never set them together with
+# each other, and never in this file:
+#   -e GGML_CUDA_DISABLE_GRAPHS=1          no batched graphs at all (~6% slower decode)
+#   -e DEBUG_HIP_GRAPH_CLASSIC_PATH=1      graphs on, classic topological dispatch
+#   -e AMD_LOG_LEVEL=3                     logs "[hipGraph][PM4] retained N dispatches"
+#                                          per lowered batch - the proof PM4 is live
+# Landmine: do NOT add GGML_CUDA_ENABLE_UNIFIED_MEMORY. It sends every allocation through
+# hipMallocManaged and this device reports XNACK 0 / direct host access 0, which corrupts
+# output under retained PM4 (wrong tokens, or "init: invalid token" with MTP).
+#
+# Host prerequisites (already satisfied in hardware.nix):
+#   - /dev/kfd and /dev/dri/renderD128 accessible
+#   - ulimit memlock unlimited
+#   - enough unified memory mapped for the iGPU (amdgpu.gttsize / ttm.pages_limit)
+#
+# References:
+#   - https://github.com/kyuz0/amd-strix-halo-toolboxes/blob/main/docs/building.md#retained-pm4-strix-halo-build-rocm-100-strix-llama
+#   - https://github.com/halo-box/strix-llama.cpp
+#   - https://github.com/pwilkin/strix-halo  (source of the ROCm runtime recipe)
+#
+# This copy is what llama-server-rocm.service runs (nixos/services/llama-server-rocm). The unit
+# reads it from the Nix store - llm cannot traverse the 0700 home - and dials llm's rootless daemon;
+# the port, the preset and the key file come from nix/settings.nix and the unit's environment.
+# ~/LLMs/llm-router-docker-compose.yml stays the manual rollback copy (human account, port 44444).
+
+services:
+  llm-router-strix:
+    image: llama-rocm-10.1-strix-llama:latest
+    container_name: llama-server-rocm
+    # The image exists only in this daemon's storage (llama-rocm-image-update builds it locally),
+    # so compose must never look in a registry: "missing" would try a pull it cannot satisfy.
+    pull_policy: never
+    # systemd owns the lifecycle (ExecStart/ExecStop in the unit). "unless-stopped" would let the
+    # daemon bring the container back after a reboot or a manual stop, racing whichever engine is
+    # up for 51536.
+    restart: "no"
+
+    # ROCm/HSA needs direct access to the AMD GPU kernel driver + render node.
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    # No group_add: docker resolves group names against the IMAGE's /etc/group, and this
+    # image (Ubuntu 26.04 base) has no "render" group, so the container failed to start
+    # with "unable to find group render". It does not need one: the process runs as
+    # root, and /dev/kfd + /dev/dri/renderD128 are world rw, so the GPU is reachable
+    # without any supplementary group. (Under this rootless daemon container GIDs map
+    # to host 100000+, so a container-side group would not match the host device
+    # groups anyway.)
+
+    # ROCm HSA requires relaxed seccomp; mlock keeps weights resident.
+    security_opt:
+      - seccomp=unconfined
+    shm_size: "${STRIX_SHM_SIZE:-8g}"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+    # Published instead of host networking (see the header). The router proxies to the
+    # server instances it spawns, so this is the only port anything external needs: the LAN hits it
+    # directly, and https://clanker.steelph0enix.dev/ arrives through the Cloudflare Tunnel, which
+    # dials 127.0.0.1:51536 from the host (nixos/services/cloudflared.nix). Publishing on
+    # settings.llmPort is what makes this engine drop-in for the other two.
+    ports:
+      - "${STRIX_PORT:-51536}:44444"
+
+    # bash + /dev/tcp only: the runtime image has no curl. In preset mode the router is
+    # ready before any model is loaded, so this goes green quickly; the ~2 min load happens
+    # on the first request to the model instead.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/bin/bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/44444 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q 200",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+    # Model weights and the INI are mounted at their real host paths, so the paths written in
+    # llama-server-rocm.ini resolve unchanged. The API key is the host's own file - the same one
+    # gufo and llama-server-vulkan read - copied out of the systemd credential into the unit's state
+    # directory and bind-mounted read-only, then handed to the server as --api-key-file, so the key
+    # stays out of the container environment and command line.
+    volumes:
+      - /home/LLMs:/home/LLMs:ro
+      - "${LLAMA_API_KEY_FILE:-/var/lib/llama-server-rocm/api-key}:/run/secrets/llama-api-key:ro"
+
+    environment:
+      - "ROCBLAS_USE_HIPBLASLT=1"
+
+    # No --models-dir: with no -m/-hf on the command line the server starts in router mode
+    # and serves exactly the models defined in the preset INI, each with its own flags.
+    entrypoint: ["/usr/local/bin/llama-server"]
+    command:
+      - --models-preset
+      - "${STRIX_PRESET_PATH:-/home/LLMs/llama-server-rocm.ini}"
+      - --api-key-file
+      - /run/secrets/llama-api-key
+      - --host
+      - 0.0.0.0
+      - --port
+      - "44444"
+      - --webui
+      - --metrics
+      - --props
+      - --slots
+      - --perf

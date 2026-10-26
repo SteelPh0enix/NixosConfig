@@ -148,10 +148,47 @@ in
         nix flake update llama-cpp --flake ${repoPath}
         ${success "llama.cpp updated."}
       '';
+
+      llamaRocmImageUpdate = pkgs.writeShellApplication {
+        name = "llama-rocm-image-update";
+        runtimeInputs = [
+          pkgs.docker
+          pkgs.git
+        ];
+        meta.description = "Rebuild the ROCm llama.cpp image and load it into the llm account's rootless Docker daemon";
+        text = ''
+          repo=/home/LLMs/amd-strix-halo-toolboxes
+          image=llama-rocm-10.1-strix-llama
+
+          if [ ! -d "$repo/.git" ]; then
+            ${info "Cloning amd-strix-halo-toolboxes..."}
+            git clone https://github.com/kyuz0/amd-strix-halo-toolboxes.git "$repo"
+          fi
+          if ! git -C "$repo" diff --quiet; then
+            ${warning "Uncommitted changes in the toolboxes checkout - the pull may conflict."}
+          fi
+          ${info "Pulling amd-strix-halo-toolboxes..."}
+          git -C "$repo" pull --ff-only
+
+          # --no-cache is the refresh mechanism: the Dockerfile clones the ROCm runtime and
+          # strix-llama.cpp at branch HEAD, so nothing else can invalidate a cached layer. Allow
+          # 40-60 minutes.
+          ${info "Building the llama.cpp ROCm (gfx1151) image..."}
+          ( cd "$repo/toolboxes" && docker build --no-cache -t "$image" -f Dockerfile.rocm-10.1-strix-llama . )
+
+          # The container runs on llm's daemon, which cannot see the build in the caller's storage.
+          ${info "Loading the image into llm's rootless daemon..."}
+          docker save "$image:latest" \
+            | sudo env DOCKER_HOST="unix:///run/user/$(id -u llm)/docker.sock" ${pkgs.docker}/bin/docker load
+
+          ${success "Done. Restart llama-server-rocm if it is running to use the new image."}
+        '';
+      };
     in
     [
       dockerHere
       llamaCppUpdate
+      llamaRocmImageUpdate
 
       (script "os-rebuild" "Build the NixOS system configuration" ''
         ${info "Rebuilding NixOS..."}
