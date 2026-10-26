@@ -188,11 +188,11 @@
         "nixpkgs-rocm10": "nixpkgs-rocm10"
       },
       "locked": {
-        "lastModified": 1792831650,
-        "narHash": "sha256-n4EsvctNeFNLC/t1ebEDC9+6WdQzBJJRuqgL9qibP+g=",
+        "lastModified": 1792999097,
+        "narHash": "sha256-ZMwal5h+yzyBY7h5IsRKRZrt1BNH9JrywHQs+IWI5ik=",
         "owner": "gufo-org",
         "repo": "gufo",
-        "rev": "6fab9a24611b9551f7fa6a0e89bbffe7dd4d678f",
+        "rev": "1b8ad798a4bc443393754b6676ae6654a624dd0a",
         "type": "github"
       },
       "original": {
@@ -208,11 +208,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792818371,
-        "narHash": "sha256-yhEZAzZRNvzYpoAlyFY3wM75V9BmkIXJIueof8S5gOg=",
+        "lastModified": 1792896866,
+        "narHash": "sha256-/0tELNnhdSnP+bHSdWiEe6KpfSwi6WrTnT9cm/jNkjA=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "2cd3234928f60bbff695a7ee56115ef7799c47cd",
+        "rev": "c216bf5a1f173b0481bd5c8c489ebe5595ecc68c",
         "type": "github"
       },
       "original": {
@@ -228,8 +228,8 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1792833852,
-        "narHash": "sha256-fmgktvJi5HKKPC1urw/PqjkkZmWTZwfJMJZBjS+hayo=",
+        "lastModified": 1793009639,
+        "narHash": "sha256-MD8nIJ6Qx9JXMwuggkDOxwcIJulC/f/hWJEX+EhFyw4=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -259,11 +259,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789370898,
-        "narHash": "sha256-QBlvSGth1NfAWw7iePOzFlrz0/pX6CfkFCcPALdySNI=",
+        "lastModified": 1792664215,
+        "narHash": "sha256-89U++Pnz9kb8a5Vdx8xAq9z3V172S7A9Surz8mgjGrM=",
         "owner": "ryoppippi",
         "repo": "nix-bun",
-        "rev": "48e887d7955c1c05b8d4627ed39bafe4bf2455a7",
+        "rev": "0db08e3d1db83272822209ab82f34b399080494e",
         "type": "github"
       },
       "original": {
@@ -279,11 +279,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792309949,
-        "narHash": "sha256-2DAEMk8YkV8OF6N2uw9jQ016cYoNkcgnq50AShwWxNw=",
+        "lastModified": 1792915725,
+        "narHash": "sha256-v75hPw5NJ+mRRcwUzKi2OQtVSVv1hgq6ceAlPQB2kEE=",
         "owner": "nix-community",
         "repo": "nix-index-database",
-        "rev": "1b4d1758fa6053c5d6284254a793134fa602fbff",
+        "rev": "93696586f3463024cceb089353539be95a38ae2b",
         "type": "github"
       },
       "original": {
@@ -405,11 +405,11 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1792502884,
-        "narHash": "sha256-IoNisKcGbUjdd45qCqywGMCYmZ5EnkxezvLII0FWwNA=",
+        "lastModified": 1792773339,
+        "narHash": "sha256-rZLrzrC6i+jnTAlvPZHogKDulY7WWDEv9hJeHieO7Zw=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "02c087f3fe673c9e317f206a627cb6b910336dbe",
+        "rev": "3ec636362e1816bc2f0888fa0fa2c69f1bc9e504",
         "type": "github"
       },
       "original": {
@@ -483,11 +483,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1792664545,
-        "narHash": "sha256-kglF+uehFqZwyyKpy387MVp1s9URMakZ0+Z9A8aqJ9k=",
+        "lastModified": 1793008951,
+        "narHash": "sha256-eAC0GdrX8ITJaT/1Ml0pxWOT92aI51XsaU4PqXfiE5A=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "0b5c27ab24719c86a5986b95ee55f4e75bc1aaa0",
+        "rev": "fcaebf4ed20a8419d3284e39b87c24412b7bcad9",
         "type": "github"
       },
       "original": {
@@ -561,11 +561,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792825530,
-        "narHash": "sha256-aphXA2IFNd3q48++TKmfuuvDDjkrgGdJDnDIhij9684=",
+        "lastModified": 1793000331,
+        "narHash": "sha256-6sLQgHX/V/yF8VrhmsJroujeRua1GY3nDTEpnY7tHF4=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "5b9f1198b59bcb31c5c3250b332e7d77590e6306",
+        "rev": "0d0575988e4bb9ebc4cf1afb1cec1ceac0b5914e",
         "type": "github"
       },
       "original": {
