@@ -119,8 +119,8 @@ in
       tui.tight = false;
       tui.vimMode = true;
       tui.vimModeDisplay = "text";
-      # Clicks focus the agent rows, and paths and URLs become clickable links.
-      tui.mouse = true;
+      # keeps the selection working, and scrolling without Shift
+      tui.mouse = false;
       tui.hyperlinks = "always";
       # Rows pushed off by the HUD go to the scrollback instead of being dropped.
       tui.completeScrollback = true;
