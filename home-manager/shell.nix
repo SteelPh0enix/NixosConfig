@@ -124,6 +124,8 @@ in
         fi
         ${info "Pulling llama.cpp updates..."}
         git -C "$dir" pull
+        ${info "Re-pinning the llama-cpp flake input..."}
+        nix flake update llama-cpp --flake ${repoPath}
         ${success "llama.cpp updated."}
       '';
     in
