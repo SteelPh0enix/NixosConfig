@@ -188,11 +188,11 @@
         "nixpkgs-rocm10": "nixpkgs-rocm10"
       },
       "locked": {
-        "lastModified": 1793084591,
-        "narHash": "sha256-aLccL1UBLKKsokKgzYEUmZAvAu6nx2J9gyPAdUyYMwk=",
+        "lastModified": 1793096879,
+        "narHash": "sha256-W0KDjiI7dExkSWEyE9u1IYh1CFgIUHj9ikSdd9E0V/c=",
         "owner": "gufo-org",
         "repo": "gufo",
-        "rev": "c0e0be589d287b6935c3f8304e0bc3e63a9f05d5",
+        "rev": "4a4a47c131890f417256c13e43e6adc925895ee7",
         "type": "github"
       },
       "original": {
@@ -228,8 +228,8 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1793095162,
-        "narHash": "sha256-lSCakw+VIlvP1QxxHFnRCAPIjVjBIQ4tuIYfn63vSsE=",
+        "lastModified": 1793096924,
+        "narHash": "sha256-QRX76MNt1e7CWSL+Nh/0eRdfdqffh78A28Ldj/jlppM=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -483,11 +483,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1793093217,
-        "narHash": "sha256-1SsRR1OUL/VBrJhtdfEqQUOi+KGiYbMICjFK7OahMyI=",
+        "lastModified": 1793095132,
+        "narHash": "sha256-3MPtXcXZpZ3rFXurJ8T7R93UpG2z37xPs4265ZrcpTU=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "eaf6567c69e5f9aa5828b9f702ef64c3e278b797",
+        "rev": "d9583b5cb91fada8708e51cf07aac6131e90cfe1",
         "type": "github"
       },
       "original": {
