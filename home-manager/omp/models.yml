@@ -19,9 +19,6 @@
 # compaction fired at half the configured threshold. `replayReasoningContent` puts the reasoning
 # back on the wire, which is what these servers have always rendered.
 providers:
-  # The framework box's gufo router. gufo answers no n_ctx and no launch args, so the window stays
-  # hand-written here, exactly as in pi. The `!` command reads the key at request time - the same
-  # convention pi uses, so the secret stays out of git and out of this file.
   framework:
     baseUrl: http://steelph0enix.framework:51536/v1
     api: openai-completions
@@ -33,7 +30,15 @@ providers:
       qwenPreserveThinking: true
     models:
       - id: qwen-next
-        name: "Qwen 3.8 Flash Next"
+        name: "Qwen 3.8 Flash Next (llama.cpp)"
+        contextWindow: 262144
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts: [low, medium, xhigh]
+      - id: "Qwen 3.8 Flash Next"
+        name: "Qwen 3.8 Flash Next (gufo)"
         contextWindow: 262144
         maxTokens: 32768
         reasoning: true
