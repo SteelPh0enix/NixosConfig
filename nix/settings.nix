@@ -48,7 +48,7 @@ rec {
   # the main agent and a -smart subagent queue on the same slot instead of running side by side.
   # Weights plus the one session take most of the 124 GiB unified pool (gufo logs
   # gpu_device_used_mib); the rest is shared with the desktop and the CLI agents.
-  gufoSessions = 1;
+  gufoSessions = 2;
   # The Flash-Next continuation cache pins host pages on top of model and session state, and gufo sizes
   # it once from the free RAM at startup without ever re-checking it (gufo-org/gufo#387). One session
   # leaves more host-available at load; snapshots measured 0.5 GiB at 9k tokens and 0.8 GiB at 116k,
@@ -56,7 +56,7 @@ rec {
   # older branches.
   # A larger cap left too little for the desktop and pushed two long prompts into zram swap;
   # MemoryMax fences whatever the budget does not cover.
-  gufoCacheRamBytes = 4 * 1024 * 1024 * 1024;
+  gufoCacheRamBytes = 6 * 1024 * 1024 * 1024;
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;
