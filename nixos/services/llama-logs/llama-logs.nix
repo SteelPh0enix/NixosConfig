@@ -29,7 +29,7 @@ in
     # Boots with the boot engine and follows all three, so it is useful whichever one is up.
     wantedBy = [ "multi-user.target" ];
     after = [
-      "llama-server-rocm.service"
+      "gufo.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];

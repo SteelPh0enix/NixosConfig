@@ -54,9 +54,9 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 | Jellyfin | 8096 | LAN |
 | qBittorrent · Jackett · FlaResolverr | 8888 · 8889 · 8890 | LAN |
 | SearXNG | 7777 | LAN, and `search.steelph0enix.dev` through the tunnel |
-| llama.cpp server (ROCm container) | 51536 (boot engine) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
+| llama.cpp server (ROCm container) | 51536, shared with the others (starts by hand, only one runs) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
 | llama.cpp server (Vulkan) | 51536, shared with the others (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
-| Gufo engine (Qwen3.8-Flash-Next) | 51536, shared with the others (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
+| Gufo engine (Qwen3.8-Flash-Next) | 51536 (boot engine) | LAN, and the tunnel while it is the engine up, behind the same key |
 | LLM engine logs (web viewer) | 51580 | LAN |
 | nginx vhosts | 6970 coverage reports, 6971 docs | LAN |
 | Samba + wsdd | 137–139, 445 | LAN only (`hosts allow`) |
@@ -69,15 +69,15 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 Three engines answer on this box's `51536`, all OpenAI-compatible, one at a time.
 
 - **51536** — the primary LLM endpoint, shared by all three because only one runs at a time. The
-  boot engine is the ROCm container (next bullet); the Vulkan llama.cpp server (its presets are
-  listed in `llama-server.ini`: one loads on the first request that names it, and up to four stay
-  resident) and Gufo serving Qwen3.8-Flash-Next with its shared MTP sidecar
-  (`nixos/services/gufo.nix`) start by hand. A start of any engine stops the others first.
+  boot engine is Gufo serving Qwen3.8-Flash-Next with its shared MTP sidecar
+  (`nixos/services/gufo.nix`); the Vulkan llama.cpp server (its presets are listed in
+  `llama-server.ini`: one loads on the first request that names it, and up to four stay resident) and
+  the ROCm container (next bullet) start by hand. A start of any engine stops the others first.
   `clanker.steelph0enix.dev` reaches whichever engine is up, and all three authenticate with the same
   API key. Gufo is built from its flake, so a version bump is a local build.
 - **The ROCm container** (`nixos/services/llama-server-rocm/`) is the retained-PM4 ROCm/HIP build
-  from halo-box/strix-llama.cpp, the fastest of the three on this APU, and the one that boots: like
-  the Vulkan router it loads nothing until a request names its preset. Its image
+  from halo-box/strix-llama.cpp, the fastest of the three on this APU. It starts by hand, and like the
+  Vulkan router it loads nothing until a request names its preset. Its image
   `llama-rocm-10.1-strix-llama` is built locally by the `llama-rocm-image-update` script (toolboxes
   checkout in `/home/LLMs/`, `--no-cache`) and loaded into `llm`'s own rootless Docker daemon, where
   the unit runs it as that account; the compose file in the repo carries `pull_policy: never`

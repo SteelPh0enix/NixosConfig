@@ -33,7 +33,7 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # Starts by hand like gufo: the ROCm container is the boot engine. A start still stops the
+    # Starts by hand like the ROCm container: gufo is the boot engine. A start still stops the
     # other two engines first (Conflicts=/After= below), so a model loaded here does not land on
     # top of theirs.
     wantedBy = [ ];

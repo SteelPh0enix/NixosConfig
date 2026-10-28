@@ -34,11 +34,11 @@ in
   systemd.services.gufo = {
     description = "Gufo engine, Qwen3.8-Flash-Next (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
-    # Starts by hand: its 262144-token session permanently fills the unified memory pool, so the
-    # boot engine is the one that idles empty (llama-server-rocm). The after/conflicts lines
-    # below govern the manual `systemctl start gufo`: they stop the other engines first so the
-    # weights load into a free pool.
-    wantedBy = [ ];
+    # The boot engine. It loads its weights and the 262144-token sessions at boot and fills the
+    # unified pool from then on — the accepted trade against the router engines, which idle with
+    # no weights loaded. The after/conflicts lines below govern a manual `systemctl start gufo`
+    # too: they stop the other engines first so the weights load into a free pool.
+    wantedBy = [ "multi-user.target" ];
     # One engine at a time: a start of gufo stops the other engines first, and the ordering keeps
     # that stop ahead of the start so the port is free and the memory is released before the
     # weights load.

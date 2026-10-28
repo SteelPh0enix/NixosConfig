@@ -33,11 +33,11 @@ in
   systemd.services.llama-server-rocm = {
     description = "llama.cpp router server, ROCm container (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/halo-box/strix-llama.cpp" ];
-    # The boot engine: the router idles with no weights loaded until a request names a preset, so
-    # the container costs little while unused. Conflicts= is the exclusion; After= is what orders
-    # the stop ahead of this start (Conflicts alone leaves the timing open, and every engine wants
-    # 51536 and the whole pool), and ordering never starts the other units by itself.
-    wantedBy = [ "multi-user.target" ];
+    # Starts by hand: gufo is the boot engine. A start still stops the other engines first —
+    # Conflicts= is the exclusion; After= is what orders that stop ahead of this start
+    # (Conflicts alone leaves the timing open, and every engine wants 51536 and the whole pool),
+    # and ordering never starts the other units by itself.
+    wantedBy = [ ];
     after = [
       "llama-server-vulkan.service"
       "gufo.service"

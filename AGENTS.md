@@ -52,7 +52,7 @@ groups, and the file's own comment style, which explains *why* rather than *what
 The Vulkan engine is a NixOS unit (`llama-server-vulkan`), built from the `llama-cpp` flake input
 by `nix/overlays/llama-cpp.nix` — Vulkan only, `-march=znver5` (x86-64-v4 is not enough for the
 AVX512 extensions here), LTO — running as the `llm` user with
-`--slots --props --metrics --models-max 4 --webui`. It starts by hand like gufo; the ROCm container
+`--slots --props --metrics --models-max 4 --webui`. It starts by hand like the ROCm container; gufo
 is the boot engine. Keep autoload on: with it off the server answers
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
@@ -66,8 +66,8 @@ traverse a 0700 home. The checkout keeps a **symlink** to each preset, so editin
 edit plus a restart of the unit, and no rebuild.
 
 Gufo (`nixos/services/gufo.nix`) is the second engine on the same **51536**: built from the `gufo`
-flake input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It starts by hand, and its
-262144-token session permanently filling the unified pool is why it is not the boot engine. The
+flake input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It is the boot engine: it loads
+its weights and its 262144-token session at boot, permanently filling the unified pool from then on. The
 rootless-Docker llama.cpp router it replaced now lives in the repo as
 `nixos/services/llama-server-rocm/` (below); `~/LLMs/llm-router-docker-compose.yml` is kept only as
 the manual rollback copy, on the human account and port 44444. Gufo has no binary cache, so a `gufo`
@@ -89,10 +89,9 @@ result into `llm`'s own rootless Docker daemon (`linger` plus the subuid range i
 home), publishes `llmPort` and mounts `/home/LLMs` read-only; its preset is
 `llama-server-rocm.ini`. It conflicts with both other engines; the
 same key reaches it, copied out of the systemd credential into
-`/var/lib/llama-server-rocm/api-key` and passed as `--api-key-file`. It is the boot engine: the
-router loads nothing until a request names a preset, so an idle container costs little, and it is
-the fastest engine when a request does arrive. `llama-logs` boots with it and follows all three
-engines' journals.
+`/var/lib/llama-server-rocm/api-key` and passed as `--api-key-file`. It starts by hand: the router
+loads nothing until a request names a preset, and it is the fastest engine when a request does arrive.
+`llama-logs` boots with the boot engine and follows all three engines' journals.
 
 Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
 rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
@@ -168,9 +167,10 @@ and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `rev
 session itself uses (provider `framework`), through the `framework` group, also one model at a time.
 That server holds a single 262k slot - the box has no memory for a second one - and the main agent
 permanently sits on it, so the 1 slot `subagents.json` gives the subagents queues on the same one:
-one `-smart` task at a time, the slowest and the most capable thing here. The `framework` endpoint is
-whichever engine is up: gufo - and the `Qwen 3.8 Flash Next` model it serves under that exact name -
-only while it has been started by hand; after a plain reboot it is llama.cpp's preset catalog.
+one `-smart` task at a time, the slowest and the most capable thing here. Gufo boots with the system,
+so after a plain reboot the `framework` endpoint is gufo serving `Qwen 3.8 Flash Next` - the name it
+serves under exactly; the llama.cpp preset catalog is the answer only once another engine has been
+started by hand on top of it.
 
 `models.json` pins `Qwen 3.8 Flash Next` at `contextWindow: 262144`, the one hand-written window in the
 catalog: gufo reports no `n_ctx` in `/models` and no launch args, so `llama-compat` has nothing to read
