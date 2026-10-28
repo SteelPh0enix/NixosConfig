@@ -220,8 +220,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1793178891,
-        "narHash": "sha256-yMHh7OpjHwAJ6gsbckwOjRBJj/JP2olW/ypkXR5GvsU=",
+        "lastModified": 1793184100,
+        "narHash": "sha256-KMqGAkzkzSm7VJJSAQxCN9lglEpsSR7CqxRugW+1TzY=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -431,11 +431,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1793175607,
-        "narHash": "sha256-Ae3JK1i45EPWn95qIvbZTkGXaAwIXkrwMjMe3pACY84=",
+        "lastModified": 1793184094,
+        "narHash": "sha256-fID1kIqOsTQw8QspxpTiC3OiIlET0fv+DtxgUTSHSDY=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "c3b645cb275e03ac8a176fbfb0a877cfb3a2c2ef",
+        "rev": "8da1ecf93042833876ee7a3a62f994a24627cb4e",
         "type": "github"
       },
       "original": {
