@@ -29,16 +29,7 @@ providers:
       # turns as <think> instead of dropping it.
       qwenPreserveThinking: true
     models:
-      - id: qwen-next
-        name: "Qwen 3.8 Flash Next (llama.cpp)"
-        contextWindow: 262144
-        maxTokens: 32768
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [low, medium, xhigh]
       - id: "Qwen 3.8 Flash Next"
-        name: "Qwen 3.8 Flash Next (gufo)"
         contextWindow: 262144
         maxTokens: 32768
         reasoning: true
