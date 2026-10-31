@@ -183,10 +183,27 @@ in
       # A failed turn notifies, like a finished one does.
       error.notify = "on";
 
-      # Nothing goes to omp's cloud: /collab, /share and /stream stay on this box.
-      collab.relayUrl = "none";
+      # Nothing leaves the box unless it is asked to. omp's own phone-home
+      # switches first: OTLP export (only active with an OTEL_* endpoint, pinned
+      # off anyway), the startup marketplace refresh, and auto-QA - no reporting,
+      # consent recorded as denied, and no push endpoint, so even
+      # `omp grievances push` has nowhere to send.
+      telemetry.otlpExportEnabled = false;
+      dev.autoqa = false;
+      dev.autoqaConsent = "denied";
+      dev.autoqaPush.endpoint = "";
+      marketplace.autoUpdate = "off";
+
+      # Sharing surfaces: /collab with no relay (empty throws "No relay configured"
+      # before any DNS query, where "none" would resolve wss://none), /share and
+      # /stream pointed at a base that fails URL parsing before a request, and no
+      # image URL publishing. Empty share.serverUrl is NOT a disable -
+      # normalizeShareServerUrl falls back to my.omp.sh - hence "none".
+      collab.relayUrl = "";
+      collab.autoStart = "off";
       share.serverUrl = "none";
       stream.serverUrl = "none";
+      images.urls.enabled = false;
 
       providers.tinyModelDevice = "default";
     };
