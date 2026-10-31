@@ -182,6 +182,9 @@ in
       github.enabled = true;
       # A failed turn notifies, like a finished one does.
       error.notify = "on";
+      # No idle recap: it asks the session model - gufo's only slot - to restate the conversation
+      # after four minutes of quiet.
+      recap.enabled = false;
 
       # Nothing leaves the box unless it is asked to. omp's own phone-home
       # switches first: OTLP export (only active with an OTEL_* endpoint, pinned
