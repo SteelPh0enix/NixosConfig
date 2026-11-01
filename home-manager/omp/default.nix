@@ -169,8 +169,7 @@ in
       lsp.diagnosticsOnEdit = true;
       astGrep.enabled = true;
       checkpoint.enabled = true;
-      # Every session opens in plan mode, so nothing is written before the plan is approved.
-      plan.defaultOnStartup = true;
+      plan.defaultOnStartup = false;
       # The approved plan stays in the session rather than becoming a file in the tree.
       plan.autosave = false;
 
