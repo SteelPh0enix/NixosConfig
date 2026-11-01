@@ -19,3 +19,5 @@
   to break any of the rules described earlier.
 - You are running on NixOS, use `nix-shell` to access all the packages available in nixpkgs.
 - To search available Nix packages, use `nh search` helper.
+- In attribution (for example, in commits), use "Oh-My-Pi" as the harness name, instead of "omp". Do not
+  add attribution unless explicitly asked (either by user, or via AGENTS.md file)
