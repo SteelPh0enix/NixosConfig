@@ -34,7 +34,6 @@ in
         dbus
         expat
         glib
-        gtk2 # native Flash projector
         gtk3
         libdrm
         libgbm
