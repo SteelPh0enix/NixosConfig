@@ -203,11 +203,11 @@
         "nixpkgs-rocm10": "nixpkgs-rocm10"
       },
       "locked": {
-        "lastModified": 1793991833,
-        "narHash": "sha256-jqk47F/YlrtN8mpDCkZIdF9tT3T57xc8q5wk715uOmY=",
+        "lastModified": 1793996831,
+        "narHash": "sha256-bklgNXKavKKu7D8XPqZPr37GCjkDRP69h+ihh8vi6qw=",
         "owner": "gufo-org",
         "repo": "gufo",
-        "rev": "0d12f7b7f2e1518375d5b649026997f030b29cd6",
+        "rev": "0e2cab6cc2e86a03082df4381662d66b4317384f",
         "type": "github"
       },
       "original": {
@@ -243,8 +243,8 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1793994652,
-        "narHash": "sha256-5Wf1ulmcrVw4niO2rbtwos9BeTtodY9NCp7AcpMJr5w=",
+        "lastModified": 1793997278,
+        "narHash": "sha256-XnhhyPNtRRjHeazw2CVJC/YUP7Wi6TH1jU8uLtaBn5s=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
