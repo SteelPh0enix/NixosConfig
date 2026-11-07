@@ -30,8 +30,8 @@ let
     # shell's DOCKER_HOST points at that user's rootless daemon instead.
     unset DOCKER_HOST
 
-    docker network inspect ${settings.ciNetwork} >/dev/null 2>&1 || \
-      docker network create \
+    $docker network inspect ${settings.ciNetwork} >/dev/null 2>&1 || \
+      $docker network create \
         --driver bridge \
         --subnet ${settings.ciSubnet} \
         --gateway ${settings.ciGateway} \
@@ -43,8 +43,8 @@ let
     # A job that could forward would reach the internet and the LAN around the
     # gateway. Services on this host are reached through INPUT, so this costs
     # nothing the allowlist in nixos-fw does not allow anyway.
-    iptables -w -C DOCKER-USER -i ${settings.ciBridge} -j DROP 2>/dev/null || \
-      iptables -w -I DOCKER-USER 1 -i ${settings.ciBridge} -j DROP
+    $iptables -w -C DOCKER-USER -i ${settings.ciBridge} -j DROP 2>/dev/null || \
+      $iptables -w -I DOCKER-USER 1 -i ${settings.ciBridge} -j DROP
   '';
 in
 {
@@ -62,8 +62,13 @@ in
 
   # The daemon builds DOCKER-USER from nothing every time it starts, so a docker
   # restart would leave the bridge open until the next boot. The script above is
-  # idempotent, so the daemon runs it again as soon as it is up.
-  systemd.services.docker.serviceConfig.ExecStartPost = [ ensureBridge ];
+  # idempotent, so the daemon runs it again once it is up, and a hook that fails
+  # only reports: it must not take the daemon down with it.
+  systemd.services.docker.serviceConfig.ExecStartPost = [
+    (pkgs.writeShellScript "ci-network-retry" ''
+      ${ensureBridge} || echo "ci-network: ${settings.ciBridge} or its DOCKER-USER rule is missing" >&2
+    '')
+  ];
 
   # nixos-fw matches no interface on the global allowedTCPPorts and accepts
   # ESTABLISHED,RELATED before them, so an interface-scoped allowedTCPPorts entry

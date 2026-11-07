@@ -29,7 +29,10 @@ let
     # The OpenAI-compatible endpoint. The credential the engines on settings.llmPort
     # already require is attached here, so a job needs none of its own, and whichever
     # engine is up answers: gufo behind gufo-auth, or one of the llama.cpp builds.
-    ${settings.ciGateway}:${toString settings.ciLlmPort} {
+    # The address goes in `bind`: a site address naming an address only matches the
+    # Host header, leaving the port listening on every interface.
+    :${toString settings.ciLlmPort} {
+      bind ${settings.ciGateway}
       reverse_proxy 127.0.0.1:${toString settings.llmPort} {
         header_up Authorization "Bearer {$LLM_API_KEY}"
       }
@@ -114,5 +117,9 @@ in
   systemd.services.squid = {
     after = [ "ci-network.service" ];
     wants = [ "ci-network.service" ];
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
   };
 }
