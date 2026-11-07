@@ -38,12 +38,14 @@ in
     # top of theirs.
     wantedBy = [ ];
     after = [
+      "gufo-auth.service"
       "gufo.service"
       "llama-server-rocm.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];
     conflicts = [
+      "gufo-auth.service"
       "gufo.service"
       "llama-server-rocm.service"
     ];

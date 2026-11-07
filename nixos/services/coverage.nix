@@ -17,17 +17,10 @@ _:
     "d /srv/coverage 0755 steelph0enix users -"
   ];
 
-  services.nginx.virtualHosts."6970" = {
-    listen = [
-      {
-        port = 6970;
-        addr = "0.0.0.0";
-      }
-    ];
-    locations."/".extraConfig = ''
-      root /srv/coverage;
-      index index.html;
-      autoindex on;
-    '';
-  };
+  # A bare port as the site address serves plain HTTP on the LAN; `file_server browse` is
+  # nginx's `autoindex`, and `index.html` stays the file server's default index.
+  services.caddy.virtualHosts.":6970".extraConfig = ''
+    root * /srv/coverage
+    file_server browse
+  '';
 }

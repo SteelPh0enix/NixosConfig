@@ -26,7 +26,8 @@ in
 
   systemd.services.llama-logs = {
     description = "Web interface for the LLM engines' logs (${toString settings.llamaLogsPort})";
-    # Boots with the boot engine and follows all three, so it is useful whichever one is up.
+    # Boots with the boot engine and follows all three engines plus gufo-auth, their front door,
+    # so it is useful whichever one is up.
     wantedBy = [ "multi-user.target" ];
     after = [
       "gufo.service"
@@ -35,7 +36,7 @@ in
     wants = [ "network-online.target" ];
 
     serviceConfig = {
-      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service llama-server-rocm --service llama-server-vulkan --service gufo --port ${toString settings.llamaLogsPort}";
+      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service llama-server-rocm --service llama-server-vulkan --service gufo --service gufo-auth --port ${toString settings.llamaLogsPort}";
       User = "llama-logs";
       Group = "llama-logs";
       Restart = "on-failure";

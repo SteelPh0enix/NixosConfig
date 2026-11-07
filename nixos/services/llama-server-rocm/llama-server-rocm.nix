@@ -41,6 +41,7 @@ in
     after = [
       "llama-server-vulkan.service"
       "gufo.service"
+      "gufo-auth.service"
       "network-online.target"
       "user@${uid}.service"
     ];
@@ -49,6 +50,7 @@ in
     conflicts = [
       "llama-server-vulkan.service"
       "gufo.service"
+      "gufo-auth.service"
     ];
     path = [ pkgs.coreutils ];
 

@@ -1,8 +1,11 @@
 # Gufo engine serving Qwen3.8-Flash-Next with its shared MTP sidecar. It is the Strix Halo native
-# engine, built from its flake input for gfx1151 (nix/overlays.nix). It listens on the shared
-# endpoint (settings.llmPort) and conflicts with the other two engines (llama-server-vulkan,
-# llama-server-rocm), so only one engine is bound at a time; the LAN and the Cloudflare Tunnel
-# (https://clanker.steelph0enix.dev/) reach it with the same API key.
+# engine, built from its flake input for gfx1151 (nix/overlays.nix). Gufo 0.31 dropped its own
+# API-key auth entirely (gufo-org/gufo#957): the server answers every route without credentials, so
+# it binds loopback-only (settings.gufoUpstreamPort) behind gufo-auth, the caddy front door below
+# that owns the shared endpoint (settings.llmPort) and checks the same Bearer key the other two
+# engines take. The units conflict the same way (llama-server-vulkan, llama-server-rocm), so only
+# one listener is ever bound; the LAN and the Cloudflare Tunnel (https://clanker.steelph0enix.dev/)
+# reach it with the same API key as those two.
 {
   pkgs,
   lib,
@@ -10,15 +13,11 @@
   ...
 }:
 let
-  # gufo has no env alias for the key (unlike llama.cpp's LLAMA_API_KEY) and the value must not land
-  # in the store: systemd reads the secret as root, exposes it under $CREDENTIALS_DIRECTORY, and this
-  # wrapper expands it at exec time.
-  serve = pkgs.writeShellScript "gufo-serve" ''
+  gufoServe = pkgs.writeShellScript "gufo-serve" ''
     set -euo pipefail
     exec ${lib.getExe pkgs.gufo} serve \
-      --host ${settings.llmHost} \
-      --port ${toString settings.llmPort} \
-      --api-key "$(cat "$CREDENTIALS_DIRECTORY/api-key")" \
+      --host 127.0.0.1 \
+      --port ${toString settings.gufoUpstreamPort} \
       llm \
       --model ${settings.gufoModelPath} \
       --speculative mtp \
@@ -29,10 +28,46 @@ let
       --stall-timeout-ms ${toString settings.gufoStallTimeoutMs} \
       --served-model-name ${lib.escapeShellArg settings.gufoServedModelName}
   '';
+
+  # The key must not land in the store: systemd hands it over as a credential, and this wrapper
+  # exports it as the environment variable the Caddyfile's {$LLM_API_KEY} placeholder expands at
+  # load time — unlike gufo's old `--api-key`, the value stays off the process command line.
+  gufoAuthServe = pkgs.writeShellScript "gufo-auth-serve" ''
+    set -euo pipefail
+    LLM_API_KEY="$(cat "$CREDENTIALS_DIRECTORY/api-key")"
+    export LLM_API_KEY
+    exec ${lib.getExe pkgs.caddy} run --config ${caddyfile} --adapter caddyfile
+  '';
+
+  caddyfile = pkgs.writeText "gufo-auth-Caddyfile" ''
+    {
+      admin off
+      auto_https off
+    }
+
+    :${toString settings.llmPort} {
+      # Browsers send credentials only after the CORS preflight, and a preflight exposes nothing;
+      # gufo answers those itself with its wildcard CORS policy. Everything else needs the key.
+      @preflight method OPTIONS
+      @authed header Authorization "Bearer {$LLM_API_KEY}"
+
+      handle @preflight {
+        reverse_proxy 127.0.0.1:${toString settings.gufoUpstreamPort}
+      }
+      handle @authed {
+        reverse_proxy 127.0.0.1:${toString settings.gufoUpstreamPort}
+      }
+      # The body matches what the llama.cpp engines answer, so a bad key reads the same whichever
+      # engine is up.
+      handle {
+        respond `{"error":{"message":"Invalid API key","type":"authorization"}}` 401
+      }
+    }
+  '';
 in
 {
   systemd.services.gufo = {
-    description = "Gufo engine, Qwen3.8-Flash-Next (${settings.llmHost}:${toString settings.llmPort})";
+    description = "Gufo engine, Qwen3.8-Flash-Next (127.0.0.1:${toString settings.gufoUpstreamPort}, behind gufo-auth on :${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
     # The boot engine. It loads its weights and the 262144-token sessions at boot and fills the
     # unified pool from then on — the accepted trade against the router engines, which idle with
@@ -54,8 +89,7 @@ in
     ];
 
     serviceConfig = {
-      ExecStart = serve;
-      LoadCredential = "api-key:${settings.llmApiKeyFile}";
+      ExecStart = gufoServe;
 
       # gufo keeps its GGUF fingerprint cache under $XDG_CACHE_HOME/gufo, so point that at a
       # writable directory rather than a read-only home.
@@ -119,6 +153,71 @@ in
       ProtectProc = "invisible";
       SystemCallArchitectures = "native";
       MemoryDenyWriteExecute = false; # HIP JITs device code at runtime
+      UMask = "0077";
+    };
+  };
+
+  # Gufo's front door: it owns the shared endpoint while gufo is up and conflicts with the other
+  # two engines exactly like gufo does, so an engine start still frees the port (and the pool)
+  # first, while gufo itself is unreachable from outside loopback. A key rotation is a
+  # `systemctl restart gufo-auth`: only the front door re-reads the key, and gufo keeps its
+  # weights loaded.
+  systemd.services.gufo-auth = {
+    description = "Authenticating caddy front door for gufo (${settings.llmHost}:${toString settings.llmPort})";
+    documentation = [ "https://caddyserver.com/docs/caddyfile" ];
+    # Boots with gufo, the boot engine. A start stops the router engines first, same as gufo.
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "llama-server-rocm.service"
+      "llama-server-vulkan.service"
+      "network-online.target"
+    ];
+    wants = [ "network-online.target" ];
+    conflicts = [
+      "llama-server-rocm.service"
+      "llama-server-vulkan.service"
+    ];
+
+    serviceConfig = {
+      ExecStart = gufoAuthServe;
+      LoadCredential = "api-key:${settings.llmApiKeyFile}";
+
+      # caddy with `admin off` and no certificates writes nothing; point its XDG dirs at the
+      # unit's private /tmp anyway so a stray write cannot touch a home.
+      User = "llm";
+      Group = "llm";
+      Environment = [
+        "XDG_DATA_HOME=/tmp"
+        "XDG_CACHE_HOME=/tmp"
+      ];
+      Restart = "on-failure";
+      RestartSec = 5;
+
+      ProtectSystem = "strict";
+      ProtectHome = "read-only";
+      PrivateTmp = true;
+      PrivateIPC = true;
+      NoNewPrivileges = true;
+      CapabilityBoundingSet = "";
+      AmbientCapabilities = "";
+      # AF_NETLINK stays: libc getifaddrs() while opening the listener, same as gufo.
+      RestrictAddressFamilies = [
+        "AF_INET"
+        "AF_INET6"
+        "AF_NETLINK"
+        "AF_UNIX"
+      ];
+      RestrictNamespaces = true;
+      RestrictSUIDSGID = true;
+      RestrictRealtime = true;
+      LockPersonality = true;
+      ProtectKernelModules = true;
+      ProtectKernelTunables = true;
+      ProtectControlGroups = true;
+      ProtectProc = "invisible";
+      SystemCallArchitectures = "native";
+      # Nothing JITs here: caddy is Go, so deny write+execute outright.
+      MemoryDenyWriteExecute = true;
       UMask = "0077";
     };
   };

@@ -187,12 +187,11 @@ in
     port = 8890;
   };
 
-  # --- Nginx (static hosting; vhosts defined in services/*.nix) ---
-  services.nginx = {
-    enable = true;
-    recommendedOptimisation = true;
-    recommendedTlsSettings = true;
-  };
+  # --- Caddy (static hosting; vhosts defined in services/*.nix) ---
+  # gufo's authenticated front door is a second, separate caddy instance
+  # (nixos/services/gufo.nix): this one is always on, and an always-on listener cannot own
+  # llmPort, which the router engines bind.
+  services.caddy.enable = true;
 
   # --- Forgejo ---
   services.forgejo = {

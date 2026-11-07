@@ -28,11 +28,15 @@ rec {
   # Services bind every interface and the firewall decides who gets in; the LAN names are only ever
   # used to reach the machine. The ports live here so the firewall rules cannot drift apart.
   llmHost = "0.0.0.0";
-  # The primary LLM endpoint: every inference engine listens here (gufo, llama-server-vulkan and
-  # llama-server-rocm declare Conflicts=, so only one is ever bound). The LAN uses it, and the
-  # internet reaches it as https://clanker.steelph0enix.dev/ through the Cloudflare Tunnel.
+  # The primary LLM endpoint. The llama.cpp engines bind it directly; gufo-auth, the caddy front
+  # door that replaced gufo's own --api-key (dropped in 0.31, gufo-org/gufo#957), holds it for
+  # gufo and checks the key. All of them declare Conflicts=, so only one listener is ever bound.
+  # The LAN uses it, and the internet reaches it as https://clanker.steelph0enix.dev/ through
+  # the Cloudflare Tunnel.
   llmPort = 51536;
   llamaLogsPort = 51580;
+  # Loopback-only hop from gufo-auth to gufo; never opened in the firewall.
+  gufoUpstreamPort = 51537;
 
   # The Qwen3.8-Flash-Next target and the shared MTP sidecar it speculates with. Both stay under
   # llamaModelsPath so the service user can read them (see the note above). UD-Q4_K_XL is gufo's
@@ -60,8 +64,8 @@ rec {
   # A generation that makes no progress for this long exits as device_lost, so systemd restarts the
   # engine rather than the request hanging forever.
   gufoStallTimeoutMs = 120000;
-  # The API key all three engines on llmPort authenticate with, and what external clients already
-  # send.
+  # The API key every engine on llmPort authenticates with — directly for the llama.cpp pair,
+  # through the gufo-auth front door for gufo — and what external clients already send.
   llmApiKeyFile = "${repoPath}/secrets/llama-strix-api-key";
 
   # The CI runner's token, handed to the runner as a systemd credential. The runner's uuid is

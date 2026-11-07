@@ -71,10 +71,12 @@ its weights and its 262144-token session at boot, permanently filling the unifie
 rootless-Docker llama.cpp router it replaced now lives in the repo as
 `nixos/services/llama-server-rocm/` (below); `~/LLMs/llm-router-docker-compose.yml` is kept only as
 the manual rollback copy, on the human account and port 44444. Gufo has no binary cache, so a `gufo`
-bump is a long local build. The API key is
-`secrets/llama-strix-api-key`, the same one llama.cpp serves with (the retired `.env` kept it as
-`STRIX_API_KEY`); gufo takes it only as `--api-key`, so it is visible in the process command line
-and there is no env or file alternative. Its continuation cache is capped with `--cache-ram-bytes`
+bump is a long local build. The API key is `secrets/llama-strix-api-key`, the same one llama.cpp
+serves with (the retired `.env` kept it as `STRIX_API_KEY`); gufo 0.31 dropped `--api-key`
+entirely (gufo-org/gufo#957), so gufo binds loopback-only behind gufo-auth, a caddy unit that
+owns llmPort and checks the Bearer key — the key is no longer visible in any process command
+line, and rotating it is a `systemctl restart gufo-auth` that leaves the weights loaded. Its
+continuation cache is capped with `--cache-ram-bytes`
 (the automatic budget is half of `MemAvailable` and throws the host into swap, gufo-org/gufo#387),
 and `--stall-timeout-ms` exits a generation that stops progressing as `device_lost` so systemd
 restarts the engine. It runs as `llm`, the same account as the Vulkan server (`nixos/users.nix`),
@@ -91,7 +93,7 @@ home), publishes `llmPort` and mounts `/home/LLMs` read-only; its preset is
 same key reaches it, copied out of the systemd credential into
 `/var/lib/llama-server-rocm/api-key` and passed as `--api-key-file`. It starts by hand: the router
 loads nothing until a request names a preset, and it is the fastest engine when a request does arrive.
-`llama-logs` boots with the boot engine and follows all three engines' journals.
+`llama-logs` boots with the boot engine and follows all three engines' journals, and gufo-auth's.
 
 Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
 rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
@@ -126,7 +128,8 @@ server matches on, so changing it means re-registering.
 `llama-server-vulkan` after editing `/home/LLMs/llama-server.ini`, `llama-server-rocm` after editing
 `/home/LLMs/llama-server-rocm.ini` (the compose copy comes from the store, so that one needs a
 rebuild), `adguardhome` to force a filter-list update (the merge drops `last_updated`, so the lists
-re-download), and the cloudflared tunnels when the boot-minute DNS race got them.
+re-download), `gufo-auth` after rotating the API key (only the front door re-reads it, so gufo
+keeps its weights loaded), and the cloudflared tunnels when the boot-minute DNS race got them.
 `llama-rocm-image-update` rebuilds the container image, reloads it into `llm`'s daemon, and then
 `llama-server-rocm` needs a restart to run it. `home-manager/pi/subagents.json` and `models.json` are
 read at pi's startup, so they need `nh os switch` *and* a pi restart. There is no `nh home switch`

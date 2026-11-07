@@ -18,17 +18,10 @@ _:
     "d /srv/docs 0755 steelph0enix users -"
   ];
 
-  services.nginx.virtualHosts."6971" = {
-    listen = [
-      {
-        port = 6971;
-        addr = "0.0.0.0";
-      }
-    ];
-    locations."/".extraConfig = ''
-      root /srv/docs;
-      index index.html;
-      autoindex on;
-    '';
-  };
+  # A bare port as the site address serves plain HTTP on the LAN; `file_server browse` is
+  # nginx's `autoindex`, and `index.html` stays the file server's default index.
+  services.caddy.virtualHosts.":6971".extraConfig = ''
+    root * /srv/docs
+    file_server browse
+  '';
 }

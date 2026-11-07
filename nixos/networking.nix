@@ -13,8 +13,8 @@
       8123 # AdGuard
 
       6969 # Forgejo (HTTP)
-      6970 # Coverage report viewer (nginx, /srv/coverage)
-      6971 # Docs viewer (nginx, /srv/docs)
+      6970 # Coverage report viewer (caddy, /srv/coverage)
+      6971 # Docs viewer (caddy, /srv/docs)
       22137 # Forgejo (SSH)
 
       settings.llmPort # primary LLM endpoint (gufo or llama.cpp)

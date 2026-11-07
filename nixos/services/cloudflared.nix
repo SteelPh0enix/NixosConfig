@@ -11,10 +11,12 @@
 # public side is the standard 443 with no cert to issue or renew, and the hop to the container is
 # plain HTTP on loopback. The LAN keeps using :51536 directly (networking.nix).
 #
-# Authentication is Gufo's own `--api-key` (nixos/services/gufo.nix): one `Authorization: Bearer
-# <key>` guards the tunnel and the LAN port alike, and every OpenAI-compatible client already sends
-# it. Cloudflare Access with a service token would be the heavier alternative, which has one advantage
-# worth knowing about: it guards only the public hostname, so LAN clients could stay keyless.
+# Authentication is the gufo-auth caddy front door (nixos/services/gufo.nix): gufo 0.31 dropped
+# its own `--api-key` (gufo-org/gufo#957), so the front door owns :51536 and one
+# `Authorization: Bearer <key>` guards the tunnel and the LAN port alike, which every
+# OpenAI-compatible client already sends. Cloudflare Access with a service token would be the
+# heavier alternative, which has one advantage worth knowing about: it guards only the public
+# hostname, so LAN clients could stay keyless.
 #
 # Routing is declared below rather than in the dashboard, so it survives a rebuild - that needs the
 # tunnel to stay *locally managed*. Adding a public hostname route to this tunnel in the Zero Trust

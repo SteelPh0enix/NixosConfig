@@ -56,9 +56,9 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 | SearXNG | 7777 | LAN, and `search.steelph0enix.dev` through the tunnel |
 | llama.cpp server (ROCm container) | 51536, shared with the others (starts by hand, only one runs) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
 | llama.cpp server (Vulkan) | 51536, shared with the others (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
-| Gufo engine (Qwen3.8-Flash-Next) | 51536 (boot engine) | LAN, and the tunnel while it is the engine up, behind the same key |
+| Gufo engine (Qwen3.8-Flash-Next) | 51536 (boot engine), behind the gufo-auth caddy front door | LAN, and the tunnel while it is the engine up, behind the same key |
 | LLM engine logs (web viewer) | 51580 | LAN |
-| nginx vhosts | 6970 coverage reports, 6971 docs | LAN |
+| caddy vhosts | 6970 coverage reports, 6971 docs | LAN |
 | Samba + wsdd | 137–139, 445 | LAN only (`hosts allow`) |
 | XRDP | 3389 | LAN |
 | Tailscale | UDP 41641 | tailnet; subnet router and exit node |
@@ -73,8 +73,10 @@ Three engines answer on this box's `51536`, all OpenAI-compatible, one at a time
   (`nixos/services/gufo.nix`); the Vulkan llama.cpp server (its presets are listed in
   `llama-server.ini`: one loads on the first request that names it, and up to four stay resident) and
   the ROCm container (next bullet) start by hand. A start of any engine stops the others first.
-  `clanker.steelph0enix.dev` reaches whichever engine is up, and all three authenticate with the same
-  API key. Gufo is built from its flake, so a version bump is a local build.
+  `clanker.steelph0enix.dev` reaches whichever engine is up, and all three authenticate with the
+  same API key — gufo through gufo-auth, the caddy front door on 51536 that took over when gufo
+  0.31 dropped its own `--api-key`. Gufo is built from its flake, so a version bump is a local
+  build.
 - **The ROCm container** (`nixos/services/llama-server-rocm/`) is the retained-PM4 ROCm/HIP build
   from halo-box/strix-llama.cpp, the fastest of the three on this APU. It starts by hand, and like the
   Vulkan router it loads nothing until a request names its preset. Its image
@@ -127,5 +129,5 @@ them. Each is read by path, as a boot-time credential or an env file.
 | `cloudflare-search-credentials.json` | cloudflared, the `search` tunnel |
 | `tailscale-authkey` | tailscaled, re-applied on every boot |
 | `searxng.env` | SearXNG (`SEARXNG_SECRET`, optional Brave/Kagi keys) |
-| `llama-strix-api-key` | all three engines on 51536 (`LoadCredential` in `nixos/services/gufo.nix`, `nixos/services/llama-server-vulkan/llama-server-vulkan.nix` and `nixos/services/llama-server-rocm/llama-server-rocm.nix`, which copies it into `/var/lib/llama-server-rocm` for the container's `--api-key-file`) and pi's `models.json` through an `apiKey: "!command"` |
+| `llama-strix-api-key` | every engine on 51536 (`LoadCredential` in `nixos/services/gufo.nix` for the gufo-auth front door, in `nixos/services/llama-server-vulkan/llama-server-vulkan.nix` directly, and in `nixos/services/llama-server-rocm/llama-server-rocm.nix`, which copies it into `/var/lib/llama-server-rocm` for the container's `--api-key-file`) and pi's `models.json` through an `apiKey: "!command"` |
 | `ci-runner-token` | the CI runner for Forgejo Actions (`LoadCredential` in `nixos/services/ci-runner.nix`) |
