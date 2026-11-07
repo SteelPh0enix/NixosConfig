@@ -38,6 +38,23 @@ let
       }
     }
   '';
+
+  # What a build may fetch; everything else is refused, so this is the list a project
+  # grows when its CI starts needing another host.
+  fetchDomains = [
+    ".cache.nixos.org"
+    "nixos.org"
+    "github.com"
+    "api.github.com"
+    "codeload.github.com"
+    "objects.githubusercontent.com"
+    "index.crates.io"
+    "static.crates.io"
+    "crates.io"
+    "registry.npmjs.org"
+    "pypi.org"
+    "files.pythonhosted.org"
+  ];
 in
 {
   systemd.services.ci-gateway = {
@@ -107,7 +124,7 @@ in
     proxyPort = settings.ciProxyPort;
     extraConfig = ''
       acl ci_jobs src ${settings.ciSubnet}
-      acl ci_fetch dstdomain .cache.nixos.org nixos.org github.com api.github.com codeload.github.com objects.githubusercontent.com
+      acl ci_fetch dstdomain ${lib.concatStringsSep " " fetchDomains}
       http_access allow ci_jobs ci_fetch
       http_access deny ci_jobs
     '';

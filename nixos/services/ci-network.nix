@@ -3,6 +3,10 @@
 # nothing is masqueraded outbound, and both directions are closed by default:
 # forwarded traffic (the internet, the LAN) is dropped, and inbound traffic is
 # accepted only for the gateway listeners and Forgejo's API.
+#
+# The unit deliberately does not re-run on a switch, so a running link survives an
+# activation with jobs in flight. Changing the name or subnet therefore needs
+# `systemctl restart ci-network` by hand, once no job is running.
 {
   pkgs,
   lib,
