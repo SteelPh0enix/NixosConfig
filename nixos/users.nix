@@ -72,6 +72,12 @@
       isNormalUser = false;
       group = "users";
     };
+
+    # Rootless Docker's user unit is wanted by every user manager (nixos/virtualisation), so an
+    # account whose manager runs needs a subordinate id range: without one it fails three times
+    # and takes the activation that restarted it down with it.
+    forgejo.autoSubUidGidRange = true;
+    lightdm.autoSubUidGidRange = true;
   };
 
   # Primary shell; `programs.fish.enable` (nixos/packages) is what puts it in /etc/shells.
