@@ -31,7 +31,10 @@ let
     # engine is up answers: gufo behind gufo-auth, or one of the llama.cpp builds.
     # The address goes in `bind`: a site address naming an address only matches the
     # Host header, leaving the port listening on every interface.
-    :${toString settings.ciLlmPort} {
+    # The scheme is what makes this plaintext: with `auto_https off` and no scheme,
+    # the listener still serves TLS, and a job's http:// base URL gets a 400 from
+    # caddy itself rather than reaching the engine.
+    http://:${toString settings.ciLlmPort} {
       bind ${settings.ciGateway}
       reverse_proxy 127.0.0.1:${toString settings.llmPort} {
         header_up Authorization "Bearer {$LLM_API_KEY}"
