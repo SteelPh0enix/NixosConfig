@@ -43,17 +43,18 @@ let
   '';
 
   # What a build may fetch; everything else is refused, so this is the list a project
-  # grows when its CI starts needing another host.
+  # grows when its CI starts needing another host. Entries are exact hostnames: squid only
+  # covers subdomains for an element written with a leading dot, so `nixos.org` would not
+  # have let `releases.nixos.org` through, and install-nix-action dies without that one.
   fetchDomains = [
-    ".cache.nixos.org"
-    "nixos.org"
+    "cache.nixos.org"
+    "releases.nixos.org"
     "github.com"
     "api.github.com"
     "codeload.github.com"
     "objects.githubusercontent.com"
     "index.crates.io"
     "static.crates.io"
-    "crates.io"
     "registry.npmjs.org"
     "pypi.org"
     "files.pythonhosted.org"
@@ -118,9 +119,10 @@ in
   # Outbound fetches, by domain, because a job has no route of its own: whatever it
   # downloads is resolved and forwarded here, and lands in the access log.
   #
-  # Squid's generated config puts extraConfig before its `allow localnet` tail, and
-  # localnet covers 172.16.0.0/12 - the job subnet is inside it - so the refusal below
-  # has to come from the same file and after the allow, or every domain passes.
+  # Squid's generated config puts extraConfig before its `allow localnet` tail, so this pair
+  # lands first. A job's source is in no localnet (172.16.0.0/12 is 172.16-172.31, not the
+  # 172.42 bridge), so the tail's `deny all` would catch it anyway; the explicit deny is there
+  # to make that local rather than dependent on what the defaults grow into.
   services.squid = {
     enable = true;
     proxyAddress = settings.ciGateway;
