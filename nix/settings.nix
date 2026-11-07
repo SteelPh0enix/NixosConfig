@@ -71,4 +71,25 @@ rec {
   # The CI runner's token, handed to the runner as a systemd credential. The runner's uuid is
   # an identifier rather than a credential, so it lives in nixos/services/ci-runner.nix.
   ciRunnerTokenFile = "${repoPath}/secrets/ci-runner-token";
+
+  # Forgejo's HTTP listener and the name it serves under. The runner dials it, the
+  # firewall opens it, and a job receives it in ACTIONS_RUNTIME_URL, so it is one
+  # value here rather than a literal in three files.
+  forgejoPort = 6969;
+  forgejoDomain = "steelph0enix.framework";
+
+  # --- CI jobs ---------------------------------------------------------------
+  # A job container gets no host access: it lives on the bridge below, and the only
+  # address it can reach is the bridge's own gateway, where nixos/services/ci-gateway.nix
+  # hands out the few services a build asks for. These ports are deliberately not in
+  # nixos/networking.nix - the gateway listeners bind the bridge address, so the LAN
+  # cannot see them, and the access list is the rule in nixos/services/ci-network.nix.
+  ciNetwork = "ci";
+  ciBridge = "br-ci0"; # docker names the bridge after this opt (15 chars at most)
+  ciSubnet = "172.42.0.0/24";
+  ciGateway = "172.42.0.1";
+  ciRunnerImage = "localhost/ci-runner:1";
+  ciCachePort = 19777; # the runner's cache proxy, advertised to jobs
+  ciLlmPort = 19778; # gateway -> llmPort, with the Bearer key added
+  ciProxyPort = 19779; # squid, by-domain egress allowlist
 }

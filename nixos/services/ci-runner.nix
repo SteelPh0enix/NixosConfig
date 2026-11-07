@@ -16,19 +16,56 @@
     instances.framework = {
       enable = true;
       settings = {
-        runner.labels = [
-          "framework:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-          "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest"
-        ];
+        runner = {
+          labels = [
+            "framework:docker://${settings.ciRunnerImage}"
+            # The same image, named for what it provides rather than for a distro: a
+            # workflow that wants to say it needs this environment picks it, and
+            # nothing behaves differently once it is scheduled.
+            "nix-ci:docker://${settings.ciRunnerImage}"
+          ];
+          # Where a build finds the services it is allowed to use. No key among them -
+          # the gateway adds the one the inference endpoint wants (ci-gateway.nix).
+          # Nix's own sandbox needs namespaces this container will not hand out
+          # (unshare and mount are refused by seccomp) and the container is the
+          # isolation anyway, so saying it here keeps the warning out of every job log
+          # and out of the workflow, which has to stay honest for whatever runner it
+          # ends up on.
+          envs = {
+            HTTP_PROXY = "http://${settings.ciGateway}:${toString settings.ciProxyPort}";
+            HTTPS_PROXY = "http://${settings.ciGateway}:${toString settings.ciProxyPort}";
+            http_proxy = "http://${settings.ciGateway}:${toString settings.ciProxyPort}";
+            https_proxy = "http://${settings.ciGateway}:${toString settings.ciProxyPort}";
+            NO_PROXY = "localhost,127.0.0.1,${settings.ciGateway},${settings.forgejoDomain}";
+            LLM_BASE_URL = "http://${settings.ciGateway}:${toString settings.ciLlmPort}/v1";
+            NIX_CONFIG = "sandbox = false";
+          };
+        };
+        # The job reaches the runner's cache over the gateway address: `host` is the
+        # address written into ACTIONS_CACHE_URL and `proxy_port` the port it connects
+        # to, so both have to be named. A cache the job cannot reach means every run
+        # rebuilds the store, which is the memory spike AGENTS.md warns about.
+        cache = {
+          enabled = true;
+          host = settings.ciGateway;
+          proxy_port = settings.ciCachePort;
+        };
         container = {
-          # Mount the host Docker socket, so that the 'docker' command inside the container
-          # talks to the daemon on the host.
-          valid_volumes = [ "/var/run/docker.sock" ];
+          network = settings.ciNetwork;
+          # The empty default mounts /var/run/docker.sock into the job container, so
+          # the dash has to stay written down. valid_volumes is the allowlist a
+          # workflow's `volumes:` is checked against, and an empty one means nothing is
+          # ever mounted - the socket included.
           docker_host = "-";
-          network = "host";
+          privileged = false;
+          valid_volumes = [ ];
+          # The server's own name reaches the job inside ACTIONS_RUNTIME_URL, and a
+          # container on this bridge has no way to resolve it, so it maps to the
+          # gateway address - the answer the host's resolver gives for it too.
+          options = "--add-host ${settings.forgejoDomain}:${settings.ciGateway}";
         };
         server.connections.framework = {
-          url = "http://steelph0enix.framework:6969/";
+          url = "http://${settings.forgejoDomain}:${toString settings.forgejoPort}/";
           uuid = "f3c3c627-b658-4f9f-8eeb-2f129f3ac085";
         };
       };
@@ -44,14 +81,22 @@
       WorkingDirectory = lib.mkForce "/var/lib/ci-runner/framework";
     };
     environment.HOME = lib.mkForce "/var/lib/ci-runner/framework";
-    # The runner talks to the Forgejo instance on this box, so it waits for it and for DNS.
+    # The runner talks to the Forgejo instance on this box and hands jobs to containers
+    # on the bridge, so it waits for the instance and DNS, and for the bridge with its
+    # two listeners, before it takes work.
     wants = lib.mkAfter [
       "dns-ready.target"
       "forgejo.service"
+      "ci-network.service"
+      "ci-gateway.service"
+      "squid.service"
     ];
     after = lib.mkAfter [
       "dns-ready.target"
       "forgejo.service"
+      "ci-network.service"
+      "ci-gateway.service"
+      "squid.service"
     ];
   };
 

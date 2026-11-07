@@ -202,9 +202,9 @@ in
       DEFAULT.APP_NAME = "RX-78-FORGEJO";
       server = {
         PROTOCOL = "http";
-        HTTP_PORT = 6969;
+        HTTP_PORT = settings.forgejoPort;
         SSH_PORT = 22137; # displayed in clone URLs
-        DOMAIN = "steelph0enix.framework";
+        DOMAIN = settings.forgejoDomain;
         # ROOT_URL auto-computed as http://steelph0enix.framework:6969/
         OFFLINE_MODE = true;
         ENABLE_GZIP = true;

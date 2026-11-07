@@ -5,6 +5,8 @@
     ./coverage.nix
     ./docs.nix
     ./ci-runner.nix
+    ./ci-network.nix
+    ./ci-gateway.nix
     ./minecraft.nix
     ./llama-server-vulkan/llama-server-vulkan.nix
     ./llama-server-rocm/llama-server-rocm.nix
