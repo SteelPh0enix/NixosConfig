@@ -1,4 +1,4 @@
-final: prev:
+_final: prev:
 {
   # The demangle testcase compiles a C++ file with `volatile`-qualified return types, which
   # gcc 16 deprecates: that compile fails and the whole testsuite errors out (230 passes,

@@ -1,14 +1,4 @@
-{ pkgs, ... }:
-{
-  # `pkgs.rustToolchain` (nix/overlays/rust-toolchain.nix) is also what nixos/packages/dev.nix
-  # installs, so the server, `cargo` and the proc-macro server are one release.
-  #
-  # Repointing nixvim's own `dependencies.rust-analyzer` (rather than `plugins.<name>.package`,
-  # which would swap the *vim plugin*) keeps `<toolchain>/bin` on the wrapper PATH ahead of
-  # nixpkgs' standalone rust-analyzer. Dependencies land *after* conform's tools, so `rustfmt`
-  # still resolves to conform's copy - the same binary `<leader>cf` calls.
-  dependencies.rust-analyzer.package = pkgs.rustToolchain;
-
+_: {
   # ---- Rust ----
   plugins.rustaceanvim = {
     enable = true;
@@ -24,7 +14,7 @@
           allTargets = true; # tests, benches, examples - not just the lib
         };
 
-        procMacro.enable = true; # the reason for the toolchain pin above
+        procMacro.enable = true;
         cargo.buildScripts.enable = true; # build.rs-generated code (tonic, bindgen, ...)
 
         # `ref mut binding @ subpattern` hints - the class rust-analyzer leaves off by default.
