@@ -34,8 +34,13 @@
     # nothing overlaps the ~/.pi/agent files home-manager/pi installs. Its flake does ship a
     # home-manager module (programs.omp), which home-manager/omp uses. Do not make its nixpkgs
     # follow ours: the package builds against its own pin (bun2nix, rust-overlay, a pinned rust).
+    # Its own rust-overlay lock trails the nightly its `rust-toolchain.toml` names, so take the
+    # overlay from upstream instead; this does not put rust-overlay into our package set.
     # Built from source with no public binary cache, so the first build costs a while.
-    omp.url = "github:can1357/oh-my-pi";
+    omp = {
+      url = "github:can1357/oh-my-pi";
+      inputs.rust-overlay.url = "github:oxalica/rust-overlay";
+    };
 
     openlogi = {
       url = "github:AprilNEA/OpenLogi?dir=packaging";
