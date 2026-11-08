@@ -1,4 +1,4 @@
-final: prev:
+_final: prev:
 let
   # LTO archives hold only GCC IR, so they must be indexed with the LTO plugin; the cc-wrapper
   # ships plain `ar`, which cannot (link then fails with undefined references).
