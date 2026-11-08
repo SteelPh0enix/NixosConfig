@@ -220,8 +220,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1794130655,
-        "narHash": "sha256-De8uKLW4pmhucOqQyd5LNl3TcHre9rfClj0nz2nlGyM=",
+        "lastModified": 1794130854,
+        "narHash": "sha256-tkyPZ6WxTpvEkPCWSeFQ5zRg1jLLfMDEMrOI6wAsgLo=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -431,11 +431,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1794129764,
-        "narHash": "sha256-mtAM8nxvmekBWngavh1MhM9fUWcWcD3fAW0GSl89E1o=",
+        "lastModified": 1794130706,
+        "narHash": "sha256-rkrdiWuRkkFsFT7F+/JdDtRQ+1qY/Ama7ZFsHjeXxtw=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "2e9afbd7c7f4696a8e99ed565c1ab71180695005",
+        "rev": "ed3f3270f54ff10dc22eb9524a33c7a5e8d10330",
         "type": "github"
       },
       "original": {
@@ -519,7 +519,6 @@
         "openlogi": "openlogi",
         "phonto": "phonto",
         "pi": "pi",
-        "rust-overlay": "rust-overlay_4",
         "ucodenix": "ucodenix"
       }
     },
@@ -578,26 +577,6 @@
         "owner": "oxalica",
         "repo": "rust-overlay",
         "rev": "8cd592658d4448c57326aaa819e1c2f91086eb40",
-        "type": "github"
-      },
-      "original": {
-        "owner": "oxalica",
-        "repo": "rust-overlay",
-        "type": "github"
-      }
-    },
-    "rust-overlay_4": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1794127728,
-        "narHash": "sha256-QhZ104DwHvvMxWxmI13zdppISE27UmdqhRI2VwBg/yU=",
-        "owner": "oxalica",
-        "repo": "rust-overlay",
-        "rev": "51c6dc40d18552701f7c5c62e3f7a5fc899f7132",
         "type": "github"
       },
       "original": {
