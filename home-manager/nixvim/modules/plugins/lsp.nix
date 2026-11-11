@@ -110,7 +110,9 @@ in
       jsonls.enable = true; # flake.lock, dashboards/*.json
       yamlls.enable = true; # docker-compose.yml
       marksman.enable = true; # markdown, pairs with render-markdown
-      neocmake.enable = true; # CMakeLists.txt + *.cmake
+      # Re-enable once nixpkgs gives neocmakelsp pkg-config/oniguruma: this rev's rust hook
+      # sets RUSTONIG_SYSTEM_LIBONIG and its build fails without them.
+      neocmake.enable = false;
       # Schema-aware completion/diagnostics for every .toml; conform's taplo CLI still wins
       # for formatting (lsp_format = "fallback").
       taplo.enable = true;
