@@ -6,7 +6,9 @@
 #
 # The unit deliberately does not re-run on a switch, so a running link survives an
 # activation with jobs in flight. Changing the name or subnet therefore needs
-# `systemctl restart ci-network` by hand, once no job is running.
+# `systemctl restart ci-network` by hand, once no job is running - the same command puts
+# the bridge back after anything removes it, `docker system prune` above all, which
+# leaves jobs failing at `docker run` with `network ci not found`.
 {
   pkgs,
   lib,
