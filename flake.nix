@@ -47,11 +47,6 @@
       };
     };
 
-    openlogi = {
-      url = "github:AprilNEA/OpenLogi?dir=packaging";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Video wallpaper daemon (GPU decode). Used by home-manager/phonto.nix.
     phonto.url = "github:museslabs/phonto";
 
@@ -68,7 +63,6 @@
       nixpkgs,
       home-manager,
       nix-index-database,
-      openlogi,
       ...
     }@inputs:
     let
@@ -88,7 +82,6 @@
           modules = [
             ./nixos/configuration.nix
             nix-index-database.nixosModules.nix-index
-            openlogi.nixosModules.default
             home-manager.nixosModules.home-manager
             {
               home-manager.backupFileExtension = "hmgr.backup";

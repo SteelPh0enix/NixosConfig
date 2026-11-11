@@ -104,8 +104,6 @@
 
   qt.enable = true;
 
-  programs.openlogi.enable = true;
-
   # The niri module enables xdg.portal itself and adds its own portal.
   xdg.portal.xdgOpenUsePortal = true;
 }
