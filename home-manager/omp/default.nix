@@ -24,20 +24,9 @@ in
       defaultThinkingLevel = "xhigh";
       # Same default as pi: the framework box's router. Quote a selector holding spaces.
       modelRoles.default = "framework/Qwen 3.8 Flash Next";
-      # Session titles, the tool-issue judge and speculative compaction ride the smol/tiny
-      # roles; unset, they would resolve through the built-in cloud chains (pinned off at the
-      # bottom of this file), so they point at cyber-tiel-coder instead: this router's fast
-      # coder, abliterated, and on the pc rather than the framework box, so the side
-      # requests those features make never contend with the primary. Its two slots run on one
-      # unified KV pool: one holds the quick smol/tiny requests, one the single subagent that
-      # `task.maxConcurrency` allows.
-      modelRoles.smol = "llama-pc/cyber-tiel-coder";
-      modelRoles.tiny = "llama-pc/cyber-tiel-coder";
-      # The generic task/sonic/scout agents share that free cyber-tiel slot. `agents/` pins its
-      # own two agents explicitly - coder and reviewer both on cyber-tiel - so they hold their
-      # slot whichever model the session happens to be on. `slow` stays unset, so anything asking
-      # for it gets the configured default, which is the slot the main session holds.
-      modelRoles.task = "llama-pc/cyber-tiel-coder";
+      modelRoles.smol = "";
+      modelRoles.tiny = "";
+      modelRoles.task = "";
       # No advisor: it keeps a model resident to re-read every turn, which on a two-slot unified
       # pool is a whole slot spent on a passive second opinion. Reviewing happens on purpose
       # instead, as a `reviewer` spawn that reads the tree itself. `omp --advisor` or `/advisor on`
