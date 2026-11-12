@@ -14,10 +14,20 @@ let
       useRocm ? false,
       useVulkan ? true,
     }:
-    (prev.llamaPackages.llama-cpp.override { inherit useCuda useMetalKit useRocm useVulkan; })
+    # No WebUI: its `npm run build` dies on `llama-brand`, which importNpmLock turns into a `file:`
+    # symlink npm 11 never unpacks, so the favicons the PWA generator wants are missing. Temporary:
+    # the server then serves no chat page (server-http.cpp skips the asset routes).
+    (prev.llamaPackages.llama-cpp.override {
+      inherit useCuda useMetalKit useRocm useVulkan;
+      useWebUi = false;
+    })
     .overrideAttrs
       (
         _finalAttrs: prevAttrs: {
+          # Still unconditional upstream: `useWebUi` only gates postPatch and the cmake flag, and a
+          # leftover `webui` attribute would keep npm in the build graph.
+          webui = null;
+
           # Add 'cacert' to the build inputs so SSL certificates are available
           nativeBuildInputs = (prevAttrs.nativeBuildInputs or [ ]) ++ [ prev.cacert ];
 
