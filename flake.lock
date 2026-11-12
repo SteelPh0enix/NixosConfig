@@ -220,8 +220,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1794421928,
-        "narHash": "sha256-2Pfb7b8kWY9GYFQPzxpWb94lNYZKBoNzDE3bxuXD7Tw=",
+        "lastModified": 1794475570,
+        "narHash": "sha256-AGNQkFVKOPjN+6SfzoR/Lh/ljcpqmgdmo4NrtbGeK+E=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -273,11 +273,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1794042290,
-        "narHash": "sha256-ziZn2PvCJE5JEEpqTdxXwJpPB+L3YqoCpTAMCzyaP3U=",
+        "lastModified": 1794192123,
+        "narHash": "sha256-SvB8u5qaJAOwZZyZciqTVOg/rBoUs2w0sFTU6ED51AQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
+        "rev": "177d0540942fb205af6993b1d5fa0b57799e09f8",
         "type": "github"
       },
       "original": {
@@ -336,11 +336,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1794042290,
-        "narHash": "sha256-ziZn2PvCJE5JEEpqTdxXwJpPB+L3YqoCpTAMCzyaP3U=",
+        "lastModified": 1794192123,
+        "narHash": "sha256-SvB8u5qaJAOwZZyZciqTVOg/rBoUs2w0sFTU6ED51AQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
+        "rev": "177d0540942fb205af6993b1d5fa0b57799e09f8",
         "type": "github"
       },
       "original": {
@@ -431,11 +431,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1794420612,
-        "narHash": "sha256-WnpsLK9ZEPKdc63aTTWulUAGwgkIriZkD96C/IARjxo=",
+        "lastModified": 1794475198,
+        "narHash": "sha256-M8/pMH2r+Syvsfwrcl58J7Lz2TVKu2XpARj25kmwl5A=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "50da2d357039404a81d7c64622740ce13e4c54b4",
+        "rev": "dda359f90536faa57c7b92812968027f1867945b",
         "type": "github"
       },
       "original": {
