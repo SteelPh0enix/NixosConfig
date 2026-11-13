@@ -4,6 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # The kernel alone comes from the stable release: unstable's linux-zen 7.3.4-zen1 has the
+    # duplicated `current_at` store that panics in a BH worker on boot (zen-kernel#425, fixed in
+    # -zen2), while 7.2.15-zen1 does not. Deliberately does not follow `nixpkgs`.
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
+
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
