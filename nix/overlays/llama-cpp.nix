@@ -63,13 +63,27 @@ in
   # of Vulkan. llama.cpp is reached under upstream's names - useCuda/useRocm/useVulkan - which is
   # what this mapping is for; the flags are pinned so whisper always gets exactly `llama-cpp`
   # above, and ROCm stays available to the rest of the package set.
-  whisper-cpp = prev.whisper-cpp.override {
-    cudaSupport = false;
-    rocmSupport = false;
-    vulkanSupport = true;
-    llama-cpp = prev.lib.makeOverridable (
-      { metalSupport ? false, ... }:
-      llama-cpp-with { useMetalKit = metalSupport; }
-    ) { };
-  };
+  whisper-cpp =
+    (prev.whisper-cpp.override {
+      cudaSupport = false;
+      rocmSupport = false;
+      vulkanSupport = true;
+      llama-cpp = prev.lib.makeOverridable (
+        {
+          metalSupport ? false,
+          ...
+        }:
+        llama-cpp-with { useMetalKit = metalSupport; }
+      ) { };
+    }).overrideAttrs
+      (
+        _finalAttrs: prevAttrs: {
+          # talk-llama's cmake asks for llama.cpp 0.6.0 and accepts only that major version, which
+          # our 1.0.0 checkout fails even though the bump touched nothing but the version number.
+          postPatch = (prevAttrs.postPatch or "") + ''
+            substituteInPlace examples/talk-llama/CMakeLists.txt \
+              --replace-fail 'find_package(llama 0.6.0 REQUIRED)' 'find_package(llama REQUIRED)'
+          '';
+        }
+      );
 }
