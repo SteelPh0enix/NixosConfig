@@ -29,10 +29,11 @@ in
   systemd.services.llama-server-rocm = {
     description = "llama.cpp router server, ROCm container (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/halo-box/strix-llama.cpp" ];
-    # Starts by hand; gufo is the boot engine. Conflicts= excludes the others; After= orders
+    # Starts by hand; crucible is the boot engine. Conflicts= excludes the others; After= orders
     # their stop ahead of this start.
     wantedBy = [ ];
     after = [
+      "crucible.service"
       "llama-server-vulkan.service"
       "gufo.service"
       "gufo-auth.service"
@@ -42,6 +43,7 @@ in
     wants = [ "network-online.target" ];
     requires = [ "user@${uid}.service" ];
     conflicts = [
+      "crucible.service"
       "llama-server-vulkan.service"
       "gufo.service"
       "gufo-auth.service"

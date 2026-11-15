@@ -18,4 +18,11 @@
 
   llamaRocmImage = "llama-rocm-10.1-strix-llama";
   llamaRocmContainerPort = 44444;
+
+  # Crucible's EXL3 4.05 pack and the conversation cache it spills to; both under llamaModelsPath
+  # because the engine runs as `llm`.
+  crucibleModelPath = "${llamaModelsPath}/models/qwen/3.8-Flash-Next/EXL3-4.05bpw_h6_ng6";
+  crucibleStatePath = "${llamaModelsPath}/crucible-states";
+  # The model id pi and omp pin for the framework endpoint.
+  crucibleServedModelName = "Qwen 3.8 Flash Next";
 }

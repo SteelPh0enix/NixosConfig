@@ -2,6 +2,7 @@
 inputs: [
   inputs.llama-cpp.overlays.default
   (import ./overlays/llama-cpp.nix)
+  (import ./overlays/crucible.nix inputs)
   # gufo ships packages, not an overlay; expose its release build as pkgs.gufo.
   (final: _prev: {
     gufo = inputs.gufo.packages.${final.system}.release;

@@ -177,6 +177,9 @@ in
   services.forgejo = {
     enable = true;
     lfs.enable = true;
+    # The module defaults to forgejo-lts, whose schema is older than this instance's database
+    # (migrated to v17).
+    package = pkgs.forgejo;
     settings = {
       DEFAULT.APP_NAME = "RX-78-FORGEJO";
       server = {

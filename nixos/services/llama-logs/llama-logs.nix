@@ -23,16 +23,17 @@ in
 
   systemd.services.llama-logs = {
     description = "Web interface for the LLM engines' logs (${toString settings.llamaLogsPort})";
-    # Boots with the boot engine and follows all three engines plus gufo-auth.
+    # Boots with the boot engine and follows every engine plus gufo-auth.
     wantedBy = [ "multi-user.target" ];
     after = [
+      "crucible.service"
       "gufo.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];
 
     serviceConfig = {
-      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service llama-server-rocm --service llama-server-vulkan --service gufo --service gufo-auth --port ${toString settings.llamaLogsPort}";
+      ExecStart = "${pkgs.python3}/bin/python3 ${viewer}/server.py --service crucible --service llama-server-rocm --service llama-server-vulkan --service gufo --service gufo-auth --port ${toString settings.llamaLogsPort}";
       User = "llama-logs";
       Group = "llama-logs";
       Restart = "on-failure";

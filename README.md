@@ -36,7 +36,7 @@ The runs that are more than one command are installed as wrapper scripts by `hom
 | script | does |
 |---|---|
 | `os-rebuild` · `os-rebuild-switch` | `nh os boot` · `nh os switch`, both with `--keep-going` |
-| `os-update` | run `llama-cpp-update` (pull + re-pin), restart `adguardhome` so the merged filter lists re-apply, then `nh os boot --refresh --commit-lock-file --update` |
+| `os-update` | run `crucible-update` (newest release, both hashes rewritten) and `llama-cpp-update` (pull + re-pin), restart `adguardhome` so the merged filter lists re-apply, then `nh os boot --refresh --commit-lock-file --update` |
 | `os-repair` | `nh os boot --repair --install-bootloader` |
 | `os-clean` · `os-check` | `nh clean all` · `nix-store --verify --check-contents --repair` |
 
@@ -56,7 +56,8 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 | SearXNG | 7777 | LAN, and `search.steelph0enix.dev` through the tunnel |
 | llama.cpp server (ROCm container) | 51536, shared with the others (starts by hand, only one runs) | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind an API key |
 | llama.cpp server (Vulkan) | 51536, shared with the others (starts by hand, only one runs) | LAN, and the tunnel while it is the engine up, behind the same key |
-| Gufo engine (Qwen3.8-Flash-Next) | 51536 (boot engine), behind the gufo-auth caddy front door | LAN, and the tunnel while it is the engine up, behind the same key |
+| Crucible engine (Qwen3.8-Flash-Next) | 51536 (boot engine), behind the API key | LAN, and `clanker.steelph0enix.dev` through the tunnel, behind the same key |
+| Gufo engine (Qwen3.8-Flash-Next) | 51536, shared with the others (starts by hand, behind the gufo-auth caddy front door) | LAN, and the tunnel while it is the engine up, behind the same key |
 | LLM engine logs (web viewer) | 51580 | LAN |
 | caddy vhosts | 6970 coverage reports, 6971 docs | LAN |
 | Samba + wsdd | 137–139, 445 | LAN only (`hosts allow`) |
@@ -65,20 +66,21 @@ Cloudflare. "LAN" below means `192.168.0.0/24`, plus the tailnet.
 
 ## The LLM stack
 
-Three engines answer on this box's `51536`, all OpenAI-compatible, one at a time.
+Four engines answer on this box's `51536`, all OpenAI-compatible, one at a time.
 
-- **51536** — the primary LLM endpoint, shared by all three because only one runs at a time. The
-  boot engine is Gufo serving Qwen3.8-Flash-Next with its shared MTP sidecar
-  (`nixos/services/gufo.nix`); the Vulkan llama.cpp server (its presets are listed in
-  `llama-server.ini`: one loads on the first request that names it, and one stays resident
-  (`llamaModelsMax`)) and
-  the ROCm container (next bullet) start by hand. A start of any engine stops the others first.
-  `clanker.steelph0enix.dev` reaches whichever engine is up, and all three authenticate with the
-  same API key — gufo through gufo-auth, the caddy front door on 51536 that took over when gufo
-  0.31 dropped its own `--api-key`. Gufo is built from its flake, so a version bump is a local
-  build.
+- **51536** — the primary LLM endpoint, shared by all four because only one runs at a time. The
+  boot engine is Crucible (`nixos/services/crucible.nix`), serving Qwen3.8-Flash-Next from the EXL3
+  4.05 bpw pack in two 262144-token sessions. Gufo, serving the same model from its GGUF with the
+  shared MTP sidecar (`nixos/services/gufo.nix`), the Vulkan llama.cpp server (its presets are
+  listed in `llama-server.ini`: one loads on the first request that names it, and one stays resident
+  (`llamaModelsMax`)) and the ROCm container (next bullet) start by hand. A start of any engine
+  stops the others first. `clanker.steelph0enix.dev` reaches whichever engine is up, and all four
+  authenticate with the same API key: Crucible checks it itself, gufo through gufo-auth, the caddy
+  front door on 51536 that took over when gufo 0.31 dropped its own `--api-key`. Gufo is built from
+  its flake, so a version bump is a local build; Crucible is a release binary run on gufo's ROCm
+  10.1 package set, so a bump is `crucible-update` and a rebuild.
 - **The ROCm container** (`nixos/services/llama-server-rocm/`) is the retained-PM4 ROCm/HIP build
-  from halo-box/strix-llama.cpp, the fastest of the three on this APU. It starts by hand, and like the
+  from halo-box/strix-llama.cpp, the fastest of them on this APU. It starts by hand, and like the
   Vulkan router it loads nothing until a request names its preset. Its image
   `llama-rocm-10.1-strix-llama` is built locally by the `llama-rocm-image-update` script (toolboxes
   checkout in `/home/LLMs/`, `--no-cache`) and loaded into `llm`'s own rootless Docker daemon, where
@@ -128,5 +130,5 @@ them. Each is read by path, as a boot-time credential or an env file.
 | `cloudflare-search-credentials.json` | cloudflared, the `search` tunnel |
 | `tailscale-authkey` | tailscaled, re-applied on every boot |
 | `searxng.env` | SearXNG (`SEARXNG_SECRET`, optional Brave/Kagi keys) |
-| `llama-strix-api-key` | every engine on 51536 (`LoadCredential` in `nixos/services/gufo.nix` for the gufo-auth front door, in `nixos/services/llama-server-vulkan/llama-server-vulkan.nix` directly, and in `nixos/services/llama-server-rocm/llama-server-rocm.nix`, which copies it into `/var/lib/llama-server-rocm` for the container's `--api-key-file`) and pi's `models.json` through an `apiKey: "!command"` |
+| `llama-strix-api-key` | every engine on 51536 (`LoadCredential` in `nixos/services/gufo.nix` for the gufo-auth front door, in `nixos/services/llama-server-vulkan/llama-server-vulkan.nix` directly, in `nixos/services/llama-server-rocm/llama-server-rocm.nix`, which copies it into `/var/lib/llama-server-rocm` for the container's `--api-key-file`, and in `nixos/services/crucible.nix`, which copies it into `/var/lib/crucible` for `--api-key-file`) and pi's `models.json` through an `apiKey: "!command"` |
 | `ci-runner-token` | the CI runner for Forgejo Actions (`LoadCredential` in `nixos/services/ci-runner.nix`) |

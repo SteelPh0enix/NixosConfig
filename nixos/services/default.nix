@@ -10,6 +10,7 @@
     ./llama-server-rocm/llama-server-rocm.nix
     ./llama-logs/llama-logs.nix
     ./gufo.nix
+    ./crucible.nix
     ./adguardhome.nix
     ./cloudflared.nix
     ./searxng.nix

@@ -1,5 +1,5 @@
 # Gufo serves Qwen3.8-Flash-Next on loopback; gufo-auth owns `llmPort` and checks the Bearer
-# key. The units conflict with the other engines.
+# key. Gufo starts by hand, and the units conflict with the other engines.
 {
   pkgs,
   lib,
@@ -60,18 +60,19 @@ in
   systemd.services.gufo = {
     description = "Gufo engine, Qwen3.8-Flash-Next (127.0.0.1:${toString settings.gufoUpstreamPort}, behind gufo-auth on :${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
-    # The boot engine: it loads its weights and the 262144-token session at boot and fills the
-    # unified pool from then on.
-    wantedBy = [ "multi-user.target" ];
+    # Starts by hand; crucible is the boot engine.
+    wantedBy = [ ];
     # One engine at a time: a start stops the others first and orders that stop ahead of the
     # start, so the port is free and the memory released before the weights load.
     after = [
+      "crucible.service"
       "llama-server-rocm.service"
       "llama-server-vulkan.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];
     conflicts = [
+      "crucible.service"
       "llama-server-rocm.service"
       "llama-server-vulkan.service"
     ];
@@ -139,19 +140,23 @@ in
     };
   };
 
-  # gufo-auth owns llmPort and conflicts with the other engines; gufo itself stays reachable only
-  # from loopback. A key rotation restarts this unit and leaves the weights loaded.
+  # gufo-auth owns llmPort when gufo was started by hand and conflicts with the other engines;
+  # gufo itself stays reachable only from loopback. A key rotation restarts this unit and leaves
+  # the weights loaded.
   systemd.services.gufo-auth = {
     description = "Authenticating caddy front door for gufo (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://caddyserver.com/docs/caddyfile" ];
-    wantedBy = [ "multi-user.target" ];
+    # Trips with gufo, by hand.
+    wantedBy = [ ];
     after = [
+      "crucible.service"
       "llama-server-rocm.service"
       "llama-server-vulkan.service"
       "network-online.target"
     ];
     wants = [ "network-online.target" ];
     conflicts = [
+      "crucible.service"
       "llama-server-rocm.service"
       "llama-server-vulkan.service"
     ];

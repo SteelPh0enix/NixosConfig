@@ -173,11 +173,55 @@ in
           ${success "Done. Restart llama-server-rocm if it is running to use the new image."}
         '';
       };
+      crucibleUpdate = pkgs.writeShellApplication {
+        name = "crucible-update";
+        runtimeInputs = [
+          pkgs.curl
+          pkgs.jq
+          pkgs.nix
+          pkgs.gnused
+          pkgs.coreutils
+        ];
+        meta.description = "Rewrite nix/overlays/crucible.nix to the newest Crucible release";
+        text = ''
+          file=${repoPath}/nix/overlays/crucible.nix
+
+          release=$(curl -fsSL https://api.github.com/repos/jaedync/crucible-strix-halo/releases/latest)
+          version=$(printf '%s' "$release" | jq -r '.tag_name' | sed 's/^v//')
+          current=$(sed -n 's/^  version = "\(.*\)";$/\1/p' "$file" | head -n 1)
+
+          if [ "$version" = "$current" ]; then
+            ${info "crucible-update: already at the release the overlay pins"}
+            exit 0
+          fi
+
+          engine_url=$(printf '%s' "$release" | jq -r '
+            .assets[]
+            | select((.name | endswith(".gz")) and (.name | contains("-gfx1151-")))
+            | .browser_download_url' | head -n 1)
+          [ -n "$engine_url" ] || {
+            ${error "crucible-update: the newest release has no gfx1151 engine asset"}
+            exit 1
+          }
+          src_url="https://github.com/jaedync/crucible-strix-halo/archive/refs/tags/v''${version}.tar.gz"
+
+          src_sri=$(nix hash convert --hash-algo sha256 --to sri "$(nix-prefetch-url --unpack "$src_url")")
+          engine_sri=$(nix hash convert --hash-algo sha256 --to sri "$(nix-prefetch-url "$engine_url")")
+
+          sed -i "s|^  version = \"$current\";$|  version = \"$version\";|" "$file"
+          sed -i "/^    src = .*fetchFromGitHub {/,/^    };/ s|hash = \"[^\"]*\";|hash = \"$src_sri\";|" "$file"
+          sed -i "/^    engine = .*fetchurl {/,/^    };/ s|hash = \"[^\"]*\";|hash = \"$engine_sri\";|" "$file"
+
+          ${info "crucible-update: overlay rewritten for the newest release"}
+          ${success "nix/overlays/crucible.nix rewritten; rebuild with nh os switch and commit the file."}
+        '';
+      };
     in
     [
       dockerHere
       llamaCppUpdate
       llamaRocmImageUpdate
+      crucibleUpdate
 
       (script "os-rebuild" "Build the NixOS system configuration" ''
         ${info "Rebuilding NixOS..."}
@@ -193,18 +237,23 @@ in
 
       # Restarting AdGuard refreshes the filter lists: the preStart merge replaces the top-level
       # `filters`, wiping the `last_updated` stamps it would otherwise honour.
-      (script "os-update" "Update llama.cpp and the AdGuard filter lists, rebuild, commit flake.lock" ''
-        ${info "=== Starting OS Update Sequence ==="}
-        llama-cpp-update
+      (script "os-update"
+        "Update Crucible, llama.cpp and the AdGuard filter lists, rebuild, commit flake.lock"
+        ''
+          ${info "=== Starting OS Update Sequence ==="}
+          ${info "Updating Crucible..."}
+          crucible-update
+          llama-cpp-update
 
-        ${info "Refreshing AdGuard Home filter lists..."}
-        sudo systemctl restart adguardhome
-        # grace period for DNS restart
-        sleep 5
-        ${info "Rebuilding NixOS with updated inputs..."}
-        nh os boot --keep-going --show-trace --refresh --commit-lock-file --update
-        ${success "=== OS Update done! ==="}
-      '')
+          ${info "Refreshing AdGuard Home filter lists..."}
+          sudo systemctl restart adguardhome
+          # grace period for DNS restart
+          sleep 5
+          ${info "Rebuilding NixOS with updated inputs..."}
+          nh os boot --keep-going --show-trace --refresh --commit-lock-file --update
+          ${success "=== OS Update done! ==="}
+        ''
+      )
 
       (script "os-clean" "Garbage-collect the Nix store and prune gcroots" ''
         ${info "Running NixOS cleanup..."}

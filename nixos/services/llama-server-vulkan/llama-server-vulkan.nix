@@ -28,9 +28,10 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # Starts by hand; gufo is the boot engine. A start stops the other engines first.
+    # Starts by hand; crucible is the boot engine. A start stops the other engines first.
     wantedBy = [ ];
     after = [
+      "crucible.service"
       "gufo-auth.service"
       "gufo.service"
       "llama-server-rocm.service"
@@ -38,6 +39,7 @@ in
     ];
     wants = [ "network-online.target" ];
     conflicts = [
+      "crucible.service"
       "gufo-auth.service"
       "gufo.service"
       "llama-server-rocm.service"

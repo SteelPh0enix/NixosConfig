@@ -4,7 +4,7 @@
   ...
 }:
 {
-  # Shared by the GPU engines: gufo and llama-server-vulkan both run as this account.
+  # Shared by the GPU engines: every engine runs as this account.
   users.groups.llm = { };
 
   users.users = {

@@ -12,10 +12,18 @@
           "reasoning": true,
           "maxTokens": 32768,
           "thinkingLevelMap": {
-            "minimal": null,
-            "high": null,
-            "max": null,
+            "minimal": "low",
+            "low": "low",
+            "medium": "medium",
+            "high": "xhigh",
+            "max": "xhigh",
             "xhigh": "xhigh"
+          },
+          "compat": {
+            "supportsStore": false,
+            "supportsDeveloperRole": false,
+            "supportsLongCacheRetention": false,
+            "thinkingFormat": "qwen"
           }
         }
       ]

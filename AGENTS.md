@@ -52,12 +52,12 @@ groups, and the file's own comment style, which explains *why* rather than *what
 The Vulkan engine is a NixOS unit (`llama-server-vulkan`), built from the `llama-cpp` flake input
 by `nix/overlays/llama-cpp.nix` — Vulkan only, `-march=znver5` (x86-64-v4 is not enough for the
 AVX512 extensions here), LTO — running as the `llm` user with
-`--slots --props --metrics --models-max 1 --webui`. It starts by hand like the ROCm container; gufo
-is the boot engine. Keep autoload on: with it off the server answers
+`--slots --props --metrics --models-max 1 --webui`. It starts by hand like the other three engines;
+crucible is the boot engine. Keep autoload on: with it off the server answers
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).
-A start stops the other two engines first (`Conflicts=`/`After=`) so a model loaded here does not
+A start stops the other three engines first (`Conflicts=`/`After=`) so a model loaded here does not
 land on top of theirs. It authenticates with `secrets/llama-strix-api-key` via `--api-key-file`,
 fed by a systemd credential.
 
@@ -65,9 +65,27 @@ Weights and the presets live in `/home/LLMs` for that reason: the unit runs as `
 traverse a 0700 home. The checkout keeps a **symlink** to each preset, so editing presets is an
 edit plus a restart of the unit, and no rebuild.
 
+Crucible (`nixos/services/crucible.nix`) is the boot engine and holds the GPU from boot: the release
+binary from jaedync/crucible-strix-halo, packaged by `nix/overlays/crucible.nix` over gufo's own ROCm
+10.1 set (`inputs.gufo.inputs.nixpkgs-rocm10`) rather than nixpkgs' 7.2.4, because that is the runtime
+upstream checked the release engine on; the Python front end comes from that same set, so its glibc and
+libstdc++ are one snapshot with the HIP runtime. It is not built from source: upstream only qualifies
+a source build with the 7.2.4 compiler. It serves Qwen3.8-Flash-Next from the EXL3 4.05 bpw pack
+(`4.05bpw_h6_ng6` under `/home/LLMs/models/qwen/3.8-Flash-Next/`) in **two** 262144-token sessions -
+upstream measured 4, which this box has not been tested for, so raise `--streams` in the unit once it
+has. It binds `llmPort` itself and checks the Bearer key with `--api-key-file`, so unlike gufo there is
+no caddy front door: the unit copies `secrets/llama-strix-api-key` into `/var/lib/crucible/api-key`,
+and rotating it means restarting `crucible`. Its conversation cache spills to
+`/home/LLMs/crucible-states` (`--state-dir`, 200 GiB), writable through `ProtectHome=read-only` by
+being named in `ReadWritePaths`; the engine only accepts a `--state-dir` below `$HOME`, and `llm`'s
+own home is on the root filesystem, so the unit sets `HOME=/home/LLMs` - move that variable with the
+directory, not just the flag. Version and both hashes sit in the overlay, not in a flake input, so
+`nh os switch` needs no network; `crucible-update` resolves the newest release, rewrites those three
+values and leaves the file alone when it is already current.
+
 Gufo (`nixos/services/gufo.nix`) is the second engine on the same **51536**: built from the `gufo`
-flake input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It is the boot engine: it loads
-its weights and its 262144-token session at boot, permanently filling the unified pool from then on. The
+flake input, serving Qwen3.8-Flash-Next with its shared MTP sidecar. It starts by hand, taking its
+262144-token session with it. The
 rootless-Docker llama.cpp router it replaced now lives in the repo as
 `nixos/services/llama-server-rocm/` (below); `~/LLMs/llm-router-docker-compose.yml` is kept only as
 the manual rollback copy, on the human account and port 44444. Gufo has no binary cache, so a `gufo`
@@ -82,18 +100,18 @@ and `--stall-timeout-ms` exits a generation that stops progressing as `device_lo
 restarts the engine. It runs as `llm`, the same account as the Vulkan server (`nixos/users.nix`),
 and on the same `llmPort` (51536); the units conflict, so only one engine is up at a time.
 
-The third engine is the ROCm container (`nixos/services/llama-server-rocm/`), the retained-PM4
-HALO build from halo-box/strix-llama.cpp and the fastest of the three on this APU. Its image
+The third llama.cpp engine is the ROCm container (`nixos/services/llama-server-rocm/`), the retained-PM4
+HALO build from halo-box/strix-llama.cpp and the fastest of them on this APU. Its image
 `llama-rocm-10.1-strix-llama` has no registry: `llama-rocm-image-update` clones or pulls
 `/home/LLMs/amd-strix-halo-toolboxes`, runs the toolboxes `docker build --no-cache`, and loads the
 result into `llm`'s own rootless Docker daemon (`linger` plus the subuid range in
 `nixos/users.nix`). The unit reads its compose from the store (that account cannot read the 0700
 home), publishes `llmPort` and mounts `/home/LLMs` read-only; its preset is
-`llama-server-rocm.ini`. It conflicts with both other engines; the
+`llama-server-rocm.ini`. It conflicts with the other three engines; the
 same key reaches it, copied out of the systemd credential into
 `/var/lib/llama-server-rocm/api-key` and passed as `--api-key-file`. It starts by hand: the router
 loads nothing until a request names a preset, and it is the fastest engine when a request does arrive.
-`llama-logs` boots with the boot engine and follows all three engines' journals, and gufo-auth's.
+`llama-logs` boots with the boot engine and follows every engine's journal, and gufo-auth's.
 
 Memory here is one pool the iGPU shares, so read it from `/sys/class/drm/card1/device/mem_info_gtt_used`
 rather than `btop`: the weights are GTT buffer objects allocated kernel-side, invisible to every process
@@ -129,7 +147,8 @@ server matches on, so changing it means re-registering.
 `/home/LLMs/llama-server-rocm.ini` (the compose copy comes from the store, so that one needs a
 rebuild), `adguardhome` to force a filter-list update (the merge drops `last_updated`, so the lists
 re-download), `gufo-auth` after rotating the API key (only the front door re-reads it, so gufo
-keeps its weights loaded), and the cloudflared tunnels when the boot-minute DNS race got them.
+keeps its weights loaded), `crucible` for the same rotation (it reads the key once at start), and the
+cloudflared tunnels when the boot-minute DNS race got them.
 `llama-rocm-image-update` rebuilds the container image, reloads it into `llm`'s daemon, and then
 `llama-server-rocm` needs a restart to run it. `home-manager/pi/subagents.json` and `models.json` are
 read at pi's startup, so they need `nh os switch` *and* a pi restart. There is no `nh home switch`
@@ -168,18 +187,22 @@ here: home-manager is a NixOS module of this flake, which exports no `homeConfig
 Most subagents run on this box's server (provider `llama-pc`), through the `pc` group, which allows one
 model at a time. So a live test of an extension, or a big model swap, is felt on the other machine too,
 and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
-`assistant-smart`) is the exception: it runs on the framework box's gufo server, the model the main
+`assistant-smart`) is the exception: it runs on the framework box's boot engine, the model the main
 session itself uses (provider `framework`), through the `framework` group, also one model at a time.
-That server holds a single 262k slot - the box has no memory for a second one - and the main agent
-permanently sits on it, so the 1 slot `subagents.json` gives the subagents queues on the same one:
-one `-smart` task at a time, the slowest and the most capable thing here. Gufo boots with the system,
-so after a plain reboot the `framework` endpoint is gufo serving `Qwen 3.8 Flash Next` - the name it
-serves under exactly; the llama.cpp preset catalog is the answer only once another engine has been
-started by hand on top of it.
+That engine serves two 262k slots and the main agent permanently sits on one, so the 1 slot
+`subagents.json` gives the subagents mostly queues on the second one: one `-smart` task at a time, the
+slowest and the most capable thing here. Crucible boots with the system, so after a plain reboot the
+`framework` endpoint is Crucible serving `Qwen 3.8 Flash Next` - the name it serves under exactly; the
+llama.cpp preset catalog, or gufo's one slot, is the answer only once another engine has been started
+by hand on top of it.
 
 `models.json` pins `Qwen 3.8 Flash Next` at `contextWindow: 262144`, the one hand-written window in the
-catalog: gufo reports no `n_ctx` in `/models` and no launch args, so `llama-compat` has nothing to read
-for it and would otherwise fall back to pi's 128K default.
+catalog: neither Crucible nor gufo reports an `n_ctx` in `/models`, so `llama-compat` has nothing to
+read for it and would otherwise fall back to pi's 128K default. Both client catalogs also carry
+`compat` overrides for that entry, because Crucible refuses request fields outside its allow list:
+`supportsStore` and (for pi) `supportsDeveloperRole` off, and omp's thinking routed through
+`chat_template_kwargs` (`thinkingFormat: qwen-chat-template`) instead of a top-level
+`preserve_thinking`.
 
 Before testing:
 
