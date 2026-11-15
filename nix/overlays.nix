@@ -7,4 +7,5 @@ inputs: [
     gufo = inputs.gufo.packages.${final.system}.release;
   })
   (import ./overlays/ltrace.nix)
+  (import ./overlays/pymediainfo.nix)
 ]
