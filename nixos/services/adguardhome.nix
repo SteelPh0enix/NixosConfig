@@ -79,6 +79,11 @@ in
         ];
         port = 53;
 
+        # AdGuard's default is 20 qps for a whole /24, silently dropping the rest: a docker
+        # build's apt burst loses lookups. LAN-only, so the budget can be generous per client.
+        ratelimit = 200;
+        ratelimit_subnet_len_ipv4 = 32;
+
         # AdGuard's own resolver (filter downloads, upstream hostnames). Must never point at
         # this server, or DNS resolution deadlocks on startup.
         bootstrap_dns = [
@@ -86,16 +91,13 @@ in
           "9.9.9.9:53"
         ];
 
-        # Same resolvers Pi-hole forwarded to.
+        # Same resolvers Pi-hole forwarded to, IPv4 only: this box has no IPv6 default route,
+        # so IPv6 upstreams just fail with "network is unreachable". AAAA records still resolve.
         upstream_dns = [
           "1.1.1.1"
           "1.0.0.1"
-          "2606:4700:4700::1001"
-          "2606:4700:4700::1111"
           "8.8.8.8"
           "8.8.4.4"
-          "2001:4860:4860::8888"
-          "2001:4860:4860::8844"
         ];
       };
 
