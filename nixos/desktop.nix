@@ -1,10 +1,12 @@
 { pkgs, ... }:
 {
-  services.xserver.enable = true;
-  services.xserver.videoDrivers = [ "amdgpu" ];
-
-  services.xserver.displayManager.lightdm.enable = true;
-  services.xserver.desktopManager.xfce.enable = true;
+  services.xserver = {
+    enable = true;
+    videoDrivers = [ "amdgpu" ];
+    desktopManager.xfce.enable = true;
+    # XRDP starts its own Xorg; no local greeter is needed.
+    displayManager.lightdm.enable = false;
+  };
 
   environment.systemPackages = with pkgs; [
     hardinfo2

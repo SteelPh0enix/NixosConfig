@@ -13,7 +13,6 @@ import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-# Get the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(SCRIPT_DIR, "index.html")
 
@@ -70,7 +69,6 @@ class LogHandler(BaseHTTPRequestHandler):
             self.send_error(500, "HTML template not found")
             return
 
-        # Substitute the service label into the template so the page names the units it follows.
         label = " / ".join(
             service.removesuffix(".service").replace("_", " ").replace("-", " ").upper()
             for service in SERVICES
@@ -91,7 +89,6 @@ class LogHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
-        # Send recent historical logs first
         try:
             proc = subprocess.Popen(
                 [
@@ -116,14 +113,12 @@ class LogHandler(BaseHTTPRequestHandler):
             )
             self.wfile.flush()
 
-        # Then stream new logs
         while True:
             try:
                 line = LOG_QUEUE.get(timeout=1)
                 self.wfile.write(f"event: log\ndata: {line}\n\n".encode())
                 self.wfile.flush()
             except queue.Empty:
-                # Send keepalive comment to prevent connection timeout
                 try:
                     self.wfile.write(b": keepalive\n\n")
                     self.wfile.flush()

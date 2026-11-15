@@ -1,10 +1,8 @@
 _: {
-  # VS Code-style icons for the `kind` column of the completion menu. nixvim plugs
-  # lspkind into `plugins.cmp.settings.formatting.format` automatically.
+  # VS Code-style icons in the completion menu; nixvim wires lspkind into cmp.
   plugins.lspkind.enable = true;
 
-  # Confirming a completion inside brackets: autopairs has to be told about it,
-  # otherwise the auto-inserted closing character stays and you get `foo())`.
+  # Confirming a completion inside brackets: autopairs has to be told, or `foo())` stays.
   extraConfigLuaPost = ''
     require("cmp").event:on(
       "confirm_done",
@@ -12,7 +10,6 @@ _: {
     )
   '';
 
-  # ---- Completion (nvim-cmp) ----
   plugins.cmp = {
     enable = true;
     autoEnableSources = true;
@@ -23,7 +20,6 @@ _: {
         completeopt = "menu,menuone,noinsert,noselect";
       };
 
-      # lspkind fills `kind` with an icon and `menu` with the source name.
       formatting.fields = [
         "kind"
         "abbr"
@@ -40,8 +36,7 @@ _: {
         "<C-d>" = "cmp.mapping.scroll_docs(-4)";
         "<C-f>" = "cmp.mapping.scroll_docs(4)";
         "<C-e>" = "cmp.mapping.close()";
-        # Menu first, then snippet placeholders. nvim-cmp uses Neovim's own `vim.snippet`,
-        # so no extra snippet engine is needed.
+        # Menu first, then snippet placeholders; Neovim's own `vim.snippet` needs no engine.
         "<Tab>" = # lua
           ''
             cmp.mapping(function(fallback)
@@ -84,14 +79,12 @@ _: {
         {
           name = "buffer";
           group_index = 2;
-          # Buffer words are the noisiest source; only kick in for longer words
-          # than the global keyword_length of 2.
+          # Buffer words are the noisiest source; wait for longer words.
           keyword_length = 3;
         }
       ];
     };
 
-    # Command-line completion
     cmdline = {
       ":" = {
         completion.completeopt = "menu,menuone,noinsert";

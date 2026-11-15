@@ -1,8 +1,5 @@
-# llama.cpp router on the retained-PM4 ROCm/HIP build (gfx1151), served from the locally built
-# llama-rocm-10.1-strix-llama image by the `llm` account's own rootless Docker daemon. It is the
-# third engine on settings.llmPort: it starts by hand and conflicts with both others, and container
-# root maps to `llm` - not to the human account and not to root. The compose file comes from the
-# store (the account cannot read the 0700 home); the preset comes from /home/LLMs.
+# llama.cpp router on the retained-PM4 ROCm/HIP build, served from the locally built image by
+# the `llm` account's rootless Docker daemon. Container root maps to `llm`.
 {
   config,
   pkgs,
@@ -16,12 +13,11 @@ let
 
   start = pkgs.writeShellScript "llama-server-rocm-up" ''
     set -euo pipefail
-    # The secret stays 0600 on the human's account; systemd reads it as root and the copy lands in the
-    # state directory, which rootlesskit does not copy up (unlike /run), so the daemon can bind it
-    # into the container.
+    # systemd reads the secret as root; the copy lands in StateDirectory, which rootlesskit does
+    # not copy up.
     install -m 600 "$CREDENTIALS_DIRECTORY/api-key" "$STATE_DIRECTORY/api-key"
     export LLAMA_API_KEY_FILE="$STATE_DIRECTORY/api-key"
-    # user@<uid> pulls the daemon in; wait for its socket so a start right after boot is not a race.
+    # user@<uid> pulls the daemon in; wait for its socket.
     for _ in $(seq 1 60); do
       if [ -S "/run/user/${uid}/docker.sock" ]; then break; fi
       sleep 1
@@ -33,10 +29,8 @@ in
   systemd.services.llama-server-rocm = {
     description = "llama.cpp router server, ROCm container (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/halo-box/strix-llama.cpp" ];
-    # Starts by hand: gufo is the boot engine. A start still stops the other engines first —
-    # Conflicts= is the exclusion; After= is what orders that stop ahead of this start
-    # (Conflicts alone leaves the timing open, and every engine wants 51536 and the whole pool),
-    # and ordering never starts the other units by itself.
+    # Starts by hand; gufo is the boot engine. Conflicts= excludes the others; After= orders
+    # their stop ahead of this start.
     wantedBy = [ ];
     after = [
       "llama-server-vulkan.service"
@@ -55,11 +49,13 @@ in
     path = [ pkgs.coreutils ];
 
     environment = {
-      # The image lives in this account's rootless daemon, not the system one.
       DOCKER_HOST = "unix:///run/user/${uid}/docker.sock";
       XDG_RUNTIME_DIR = "/run/user/${uid}";
       HOME = llm.home;
       STRIX_PORT = toString settings.llmPort;
+      STRIX_IMAGE = settings.llamaRocmImage;
+      STRIX_MODELS_PATH = settings.llamaModelsPath;
+      STRIX_INTERNAL_PORT = toString settings.llamaRocmContainerPort;
       STRIX_PRESET_PATH = settings.llamaRocmPresetsPath;
     };
 
@@ -67,8 +63,8 @@ in
       ExecStart = start;
       ExecStop = "${pkgs.docker}/bin/docker compose -p llama-server-rocm -f ${compose} down --remove-orphans --timeout 60";
       LoadCredential = "api-key:${settings.llmApiKeyFile}";
-      # The key copy has to outlive the credential directory, and /var is outside rootlesskit's
-      # copy-up paths. Persisting it also keeps a manual `docker compose up` working.
+      # The key copy must outlive the credential dir, and /var is outside rootlesskit's copy-up
+      # paths. Persisting it also keeps a manual `docker compose up` working.
       StateDirectory = "llama-server-rocm";
       StateDirectoryMode = "0700";
       User = llm.name;

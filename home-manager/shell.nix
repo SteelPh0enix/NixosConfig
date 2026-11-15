@@ -7,16 +7,14 @@
 let
   inherit (settings) repoPath llamaCppPath;
 
-  # ANSI status lines: `printf` instead of fish's `set_color`, so any shell renders them.
-  # `'' ''` strings keep backslashes literal, which is exactly what printf needs here.
+  # ANSI status lines via printf, so any shell renders them.
   say = sgr: message: ''printf '\033[1;${sgr}m%s\033[0m\n' ${lib.escapeShellArg message}'';
   error = say "31";
   warning = say "38;5;208"; # orange
   info = say "34";
   success = say "32";
 
-  # POSIX-sh scripts instead of fish functions: they also work from `nvim :!`, systemd-run,
-  # a non-interactive ssh session and any other shell.
+  # POSIX-sh so the scripts also work from `nvim :!`, systemd-run and non-interactive ssh.
   script =
     name: description: text:
     pkgs.writeShellApplication {
@@ -29,27 +27,21 @@ let
       meta.description = description;
     };
 
-  rsyncFlags = "--archive --recursive --mkpath --verbose --progress --human-readable";
+  rsyncFlags = "--archive --mkpath --verbose --progress --human-readable";
 in
 {
-  # Fish stays the login shell; nothing below depends on it. This option is what makes
-  # `home.shellAliases` reach fish at all.
+  # This option is what makes `home.shellAliases` reach fish.
   programs.fish.enable = true;
 
-  # ~/.npm/bin: programs.npm sets the global prefix to ~/.npm but never adds its bin to PATH.
-  # ~/.local/bin itself goes into PATH system-wide (environment.localBinInPath).
+  # ~/.npm/bin: programs.npm sets the prefix but never adds its bin to PATH.
   home.sessionPath = [ "$HOME/.npm/bin" ];
 
   home.sessionVariables = {
     LLAMA_CPP_REPO_PATH = llamaCppPath;
     LLAMA_CPP_VENV_PATH = "${llamaCppPath}/.venv";
-    LLAMA_BASE_URL = "http://steelph0enix.framework:51536/v1";
-    LLAMA_API_KEY = "dummy";
   };
 
-  # Simple, shell-independent aliases. eza's own integration already provides
-  # ls/ll/la/lt/lla, so only `l` is added here - on purpose through `ls`, so it keeps eza's
-  # icons/--git/extraOptions.
+  # eza's integration already provides ls/ll/la/lt/lla, so only `l` is added, through `ls`.
   home.shellAliases = {
     l = "ls -lh";
     e = "$EDITOR";
@@ -126,9 +118,8 @@ in
             exit 2
           fi
 
-          # Deliberately no `-u $(id -u):$(id -g)`: on rootless docker, container root *is* our
-          # host uid, so files written into $PWD stay ours. Forcing our uid instead maps to an
-          # unmapped subuid: $PWD turns unwritable and HOME falls back to /.
+          # No `-u $(id -u)`: on rootless docker container root is already our host uid; forcing
+          # it maps to an unmapped subuid and $PWD turns unwritable.
           exec docker run --rm "''${tty[@]}" "''${gpu[@]}" -v "$PWD:$PWD" -w "$PWD" "$@"
         '';
       };
@@ -157,8 +148,8 @@ in
         ];
         meta.description = "Rebuild the ROCm llama.cpp image and load it into the llm account's rootless Docker daemon";
         text = ''
-          repo=/home/LLMs/amd-strix-halo-toolboxes
-          image=llama-rocm-10.1-strix-llama
+          repo=${settings.llamaRocmToolboxesPath}
+          image=${settings.llamaRocmImage}
 
           if [ ! -d "$repo/.git" ]; then
             ${info "Cloning amd-strix-halo-toolboxes..."}
@@ -170,13 +161,11 @@ in
           ${info "Pulling amd-strix-halo-toolboxes..."}
           git -C "$repo" pull --ff-only
 
-          # --no-cache is the refresh mechanism: the Dockerfile clones the ROCm runtime and
-          # strix-llama.cpp at branch HEAD, so nothing else can invalidate a cached layer. Allow
-          # 40-60 minutes.
+          # --no-cache is the refresh mechanism: the Dockerfile clones at branch HEAD.
           ${info "Building the llama.cpp ROCm (gfx1151) image..."}
           ( cd "$repo/toolboxes" && docker build --no-cache -t "$image" -f Dockerfile.rocm-10.1-strix-llama . )
 
-          # The container runs on llm's daemon, which cannot see the build in the caller's storage.
+          # The container runs on llm's daemon, which cannot see the caller's storage.
           ${info "Loading the image into llm's rootless daemon..."}
           docker save "$image:latest" \
             | sudo env DOCKER_HOST="unix:///run/user/$(id -u llm)/docker.sock" ${pkgs.docker}/bin/docker load
@@ -202,11 +191,8 @@ in
         ${success "System rebuild complete, switched to new build."}
       '')
 
-      # `--commit-lock-file` is handled by `nix flake update` itself and no-ops when the
-      # lock file did not change.
-      # Restarting AdGuard refreshes the filter lists: the unit's preStart merge replaces the
-      # top-level `filters`, wiping the `last_updated` stamps AdGuard would otherwise honour. The API
-      # equivalent (/control/refresh) would need the web password, which we don't keep here.
+      # Restarting AdGuard refreshes the filter lists: the preStart merge replaces the top-level
+      # `filters`, wiping the `last_updated` stamps it would otherwise honour.
       (script "os-update" "Update llama.cpp and the AdGuard filter lists, rebuild, commit flake.lock" ''
         ${info "=== Starting OS Update Sequence ==="}
         llama-cpp-update
@@ -220,8 +206,6 @@ in
         ${success "=== OS Update done! ==="}
       '')
 
-      # Generations are already reaped daily by `programs.nh.clean`; this is the on-demand
-      # variant, which also drops gcroots. No --optimise: auto-optimise-store covers it.
       (script "os-clean" "Garbage-collect the Nix store and prune gcroots" ''
         ${info "Running NixOS cleanup..."}
         nh clean all
@@ -243,7 +227,7 @@ in
         ${success "=== OS Update done! ==="}
       '')
 
-      # ROCm venv for the conversion scripts; `llama-cpp-venv-activate` (fish) for interactive use.
+      # ROCm venv for the conversion scripts.
       (pkgs.writeShellApplication {
         name = "llama-cpp-venv-create";
         runtimeInputs = [ pkgs.uv ];

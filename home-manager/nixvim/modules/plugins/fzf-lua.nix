@@ -1,5 +1,4 @@
 _: {
-  # ---- fzf-lua ----
   plugins.fzf-lua = {
     enable = true;
     profile = "default";
@@ -12,26 +11,21 @@ _: {
     };
 
     keymaps = {
-      # Files / grep
       "<leader>ff" = "files";
       "<leader>fg" = "live_grep";
       "<leader>fr" = "oldfiles";
       "<leader>fb" = "buffers";
 
-      # LSP
       "<leader>sl" = "lsp_document_symbols";
       "<leader>sw" = "lsp_live_workspace_symbols";
       "<leader>sd" = "diagnostics";
 
-      # Misc
       "<leader>sh" = "help_tags";
       "<leader>sk" = "keymaps";
 
-      # Doc lookup for C/C++/POSIX symbols, which LSP hover cannot give (clangd only knows the
-      # compilation database; `K` is already hover).
+      # Doc lookup for C/C++/POSIX symbols, which LSP hover cannot give.
       "<leader>sm" = "man_pages";
 
-      # Git
       "<leader>gc" = "git_commits";
       "<leader>gb" = "git_branches";
       "<leader>gt" = "git_status";

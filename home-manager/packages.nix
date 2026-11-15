@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, settings, ... }:
 {
   home.packages = with pkgs; [
     keepassxc
@@ -112,7 +112,7 @@
       user = {
         name = "SteelPh0enix";
         email = [ "wojciech_olech@hotmail.com" ];
-        signingkey = "/home/steelph0enix/.ssh/forgejo.pub";
+        signingkey = "/home/${settings.userName}/.ssh/forgejo.pub";
       };
       core.editor = "nvim";
       merge.ff = true;

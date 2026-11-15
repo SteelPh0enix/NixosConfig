@@ -1,8 +1,5 @@
-# The whole service surface a CI job has: with no route off its bridge except this
-# gateway address, whatever listens here is everything a build can reach. Two
-# listeners - caddy, which adds the inference endpoint's Bearer key so that no
-# workflow, log or job environment carries one, and squid, which fetches by domain
-# and writes down what it fetched.
+# Everything a CI job can reach: caddy adds the inference Bearer key, squid fetches by domain
+# and logs it.
 {
   pkgs,
   lib,
@@ -10,9 +7,7 @@
   ...
 }:
 let
-  # The key must not land in the store: systemd hands it over as a credential and this
-  # wrapper exports it as the variable the Caddyfile's {$LLM_API_KEY} placeholder
-  # expands at load time, so the value stays off the process command line.
+  # The key stays off the command line: a credential, expanded into the Caddyfile at load time.
   serve = pkgs.writeShellScript "ci-gateway-serve" ''
     set -euo pipefail
     LLM_API_KEY="$(cat "$CREDENTIALS_DIRECTORY/api-key")"
@@ -26,14 +21,8 @@ let
       auto_https off
     }
 
-    # The OpenAI-compatible endpoint. The credential the engines on settings.llmPort
-    # already require is attached here, so a job needs none of its own, and whichever
-    # engine is up answers: gufo behind gufo-auth, or one of the llama.cpp builds.
-    # The address goes in `bind`: a site address naming an address only matches the
-    # Host header, leaving the port listening on every interface.
-    # The scheme is what makes this plaintext: with `auto_https off` and no scheme,
-    # the listener still serves TLS, and a job's http:// base URL gets a 400 from
-    # caddy itself rather than reaching the engine.
+    # The engines' Bearer key is attached here, so a job needs none. `bind` pins the listener
+    # to the bridge; a site address alone would listen on every interface and still serve TLS.
     http://:${toString settings.ciLlmPort} {
       bind ${settings.ciGateway}
       reverse_proxy 127.0.0.1:${toString settings.llmPort} {
@@ -42,10 +31,7 @@ let
     }
   '';
 
-  # What a build may fetch; everything else is refused, so this is the list a project
-  # grows when its CI starts needing another host. Entries are exact hostnames: squid only
-  # covers subdomains for an element written with a leading dot, so `nixos.org` would not
-  # have let `releases.nixos.org` through, and install-nix-action dies without that one.
+  # Exact hostnames: squid covers subdomains only with a leading dot.
   fetchDomains = [
     "cache.nixos.org"
     "releases.nixos.org"
@@ -78,8 +64,7 @@ in
       ExecStart = serve;
       LoadCredential = "api-key:${settings.llmApiKeyFile}";
 
-      # caddy with `admin off` and no certificates writes nothing; point its XDG dirs at
-      # the unit's private /tmp anyway so a stray write cannot touch a home.
+      # caddy with `admin off` writes nothing; keep its XDG dirs in the private /tmp anyway.
       DynamicUser = true;
       Environment = [
         "XDG_DATA_HOME=/tmp"
@@ -116,13 +101,8 @@ in
     };
   };
 
-  # Outbound fetches, by domain, because a job has no route of its own: whatever it
-  # downloads is resolved and forwarded here, and lands in the access log.
-  #
-  # Squid's generated config puts extraConfig before its `allow localnet` tail, so this pair
-  # lands first. A job's source is in no localnet (172.16.0.0/12 is 172.16-172.31, not the
-  # 172.42 bridge), so the tail's `deny all` would catch it anyway; the explicit deny is there
-  # to make that local rather than dependent on what the defaults grow into.
+  # extraConfig lands before squid's `allow localnet` tail; the explicit deny keeps the bridge
+  # out of that default.
   services.squid = {
     enable = true;
     proxyAddress = settings.ciGateway;

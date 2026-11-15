@@ -1,37 +1,20 @@
-# Network-wide DNS + ad blocking (replaces the Pi-hole Docker stack).
-#
-# `settings` is authoritative: preStart merges the generated AdGuardHome.yaml into
-# /var/lib/AdGuardHome/AdGuardHome.yaml on every start, so upstreams, filter lists and custom
-# records always come back from Nix, while UI-only tweaks (e.g. a hand-made allowlist entry)
-# survive restarts. Admin credentials are created in the UI on first visit and live in the
-# state file, not here.
-#
-# Note the AdGuardHome.yaml layout (schema 34): filter lists live in the top-level `filters`,
-# custom records in top-level `filtering.rewrites` - *not* under `dns.*`, and every entry needs
-# an explicit `enabled = true`, otherwise AdGuard silently loads it disabled.
-#
-# Lists refresh themselves every 24h (filtering.filters_update_interval). A restart forces it:
-# the merge above replaces `filters`, so the `last_updated` stamps are gone and AdGuard
-# re-downloads everything - `systemctl restart adguardhome` is the manual "update gravity".
-# The fixed `id`s keep that from piling up orphaned files in /var/lib/AdGuardHome/data/filters.
-{ lib, ... }:
+# Network-wide DNS and ad blocking. The module merges these settings into the state file on
+# every start, so filters, upstreams and rewrites always come back from Nix; UI-only tweaks
+# survive. Admin credentials live in the UI, not here.
+{ lib, settings, ... }:
 let
-  # This host's LAN address; DNS is published on it plus loopback, like the old Pi-hole.
-  lanIp = "192.168.0.185";
-
-  # Custom names, migrated 1:1 from Pi-hole's `dns.hosts`.
   customHosts = {
-    "home.ap" = "192.168.0.100";
+    "home.ap" = "${settings.lanPrefix}100";
+    # `home.gateway` is on a different subnet.
     "home.gateway" = "192.168.18.1";
-    "home.router" = "192.168.0.1";
-    "search.framework" = lanIp;
-    "steelph0enix.1337.cx" = lanIp;
-    "steelph0enix.framework" = lanIp;
-    "steelph0enix.pc" = "192.168.0.150";
-    "steelph0enix.worklaptop" = "192.168.0.156";
+    "home.router" = "${settings.lanPrefix}1";
+    "${settings.searchDomain}" = settings.lanIp;
+    "steelph0enix.1337.cx" = settings.lanIp;
+    "${settings.forgejoDomain}" = settings.lanIp;
+    "steelph0enix.pc" = "${settings.lanPrefix}150";
+    "steelph0enix.worklaptop" = "${settings.lanPrefix}156";
   };
 
-  # Filter lists, migrated from Pi-hole's gravity DB (all five were enabled).
   filterLists = [
     {
       name = "StevenBlack hosts";
@@ -56,10 +39,8 @@ let
   ];
 in
 {
-  # NetworkManager assigns the LAN address a moment after the services start, and binding a host
-  # it does not own yet is fatal for AdGuard (`listen udp 192.168.0.185:53: cannot assign requested
-  # address`). It then loses 10s to its own restart delay, and every service behind dnsWait waits
-  # with it, so wait for the address instead.
+  # NetworkManager assigns the LAN address after the services start; binding it too early is
+  # fatal for AdGuard.
   systemd.services.adguardhome = {
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
@@ -71,28 +52,25 @@ in
     openFirewall = true;
 
     settings = {
-      http.address = "0.0.0.0:8123";
+      http.address = "0.0.0.0:${toString settings.adguardUiPort}";
       dns = {
         bind_hosts = [
-          lanIp
+          settings.lanIp
           "127.0.0.1"
         ];
         port = 53;
 
-        # AdGuard's default is 20 qps for a whole /24, silently dropping the rest: a docker
-        # build's apt burst loses lookups. LAN-only, so the budget can be generous per client.
+        # AdGuard's default drops bursts; docker builds lose lookups.
         ratelimit = 200;
         ratelimit_subnet_len_ipv4 = 32;
 
-        # AdGuard's own resolver (filter downloads, upstream hostnames). Must never point at
-        # this server, or DNS resolution deadlocks on startup.
+        # AdGuard's own resolver; must not point at this server.
         bootstrap_dns = [
           "1.1.1.1:53"
           "9.9.9.9:53"
         ];
 
-        # Same resolvers Pi-hole forwarded to, IPv4 only: this box has no IPv6 default route,
-        # so IPv6 upstreams just fail with "network is unreachable". AAAA records still resolve.
+        # IPv4 only: this box has no IPv6 default route.
         upstream_dns = [
           "1.1.1.1"
           "1.0.0.1"

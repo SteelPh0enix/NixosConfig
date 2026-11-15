@@ -1,15 +1,9 @@
-{ pkgs, ... }:
 {
   imports = [
     ./dev.nix
     ./media.nix
     ./system.nix
   ];
-
-  programs.appimage = {
-    enable = true;
-    binfmt = true;
-  };
 
   programs.bat.enable = true;
   programs.cpu-energy-meter.enable = true;
@@ -30,12 +24,6 @@
 
   programs.gnupg.agent.enable = true;
 
-  programs.java = {
-    package = pkgs.javaPackages.compiler.temurin-bin.jdk-25;
-    enable = true;
-    binfmt = true;
-  };
-
   programs.less.enable = true;
   programs.nix-ld.enable = true;
   programs.npm.enable = true;
@@ -48,6 +36,4 @@
     dumpcap.enable = true;
     usbmon.enable = true;
   };
-
-  qt.enable = true;
 }

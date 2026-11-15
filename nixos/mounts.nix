@@ -1,5 +1,6 @@
+{ settings, ... }:
 {
-  fileSystems."/mnt/NAS" = {
+  fileSystems."${settings.nasPath}" = {
     device = "/dev/disk/by-uuid/24261497-6b99-47ea-86a3-ef4ab0133bad";
     fsType = "ext4";
     options = [
@@ -14,7 +15,7 @@
     ];
   };
 
-  fileSystems."/mnt/NAS2" = {
+  fileSystems."${settings.nas2Path}" = {
     device = "/dev/disk/by-uuid/a6133d4a-cca8-42df-aaf6-429fbe2fd2d9";
     fsType = "ext4";
     options = [

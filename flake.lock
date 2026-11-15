@@ -254,19 +254,6 @@
         "type": "path"
       }
     },
-    "mcserver": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790532726,
-        "narHash": "sha256-uwGx7yD/bXSIsrVaTaQJ76M2bvdG0Od7nDHF2gFEPTw=",
-        "path": "/home/steelph0enix/Projects/mcserver-nix",
-        "type": "path"
-      },
-      "original": {
-        "path": "/home/steelph0enix/Projects/mcserver-nix",
-        "type": "path"
-      }
-    },
     "nix-bun": {
       "inputs": {
         "nixpkgs": [
@@ -368,22 +355,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "nixpkgs.lib",
-        "type": "github"
-      }
-    },
-    "nixpkgs-previous": {
-      "locked": {
-        "lastModified": 1789114715,
-        "narHash": "sha256-ugpsyk3NM2s87vXfUiIIiibbJ4Pp0JPS5p/3mfs+q+c=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "21a67dc470149f337cecafbe965d8d252a390518",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "21a67dc470149f337cecafbe965d8d252a390518",
         "type": "github"
       }
     },
@@ -539,10 +510,8 @@
         "gufo": "gufo",
         "home-manager": "home-manager",
         "llama-cpp": "llama-cpp",
-        "mcserver": "mcserver",
         "nix-index-database": "nix-index-database",
         "nixpkgs": "nixpkgs_3",
-        "nixpkgs-previous": "nixpkgs-previous",
         "nixvim": "nixvim",
         "omp": "omp",
         "pi": "pi",

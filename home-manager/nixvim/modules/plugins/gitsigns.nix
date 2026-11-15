@@ -1,7 +1,6 @@
 _: {
-  # gitsigns 2.x ships no default keymaps and the nixvim module has no keymap option, so
-  # `settings.on_attach` is the only hook. The `bufnr` parameter is used explicitly because
-  # gitsigns can attach a buffer that is not the current one.
+  # gitsigns 2.x has no default keymaps and nixvim has no keymap option, so on_attach is the
+  # hook. bufnr is the attached buffer, which may not be the current one.
   plugins.gitsigns = {
     enable = true;
 

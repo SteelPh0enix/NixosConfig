@@ -18,15 +18,15 @@ let
             service display-name="Jellyfin" unit="jellyfin"
             service display-name="Forgejo" unit="forgejo"
             service display-name="Forgejo runner" unit="forgejo-runner-framework"
-            service display-name="XRDP" unit="xrdp"
+            ${lib.optionalString settings.enableRdp "service display-name=\"XRDP\" unit=\"xrdp\"\n"}
             service display-name="SearXNG" unit="searx"
         }
         uptime prefix="Uptime"
         filesystems {
             filesystem name="root" mount-point="/"
             filesystem name="home" mount-point="/home"
-            filesystem name="NAS" mount-point="/mnt/NAS"
-            filesystem name="NAS2" mount-point="/mnt/NAS2"
+            filesystem name="NAS" mount-point="${settings.nasPath}"
+            filesystem name="NAS2" mount-point="${settings.nas2Path}"
         }
         memory swap-pos="beside"
         load-avg format="Load (1, 5, 15 min.): {one:.02}, {five:.02}, {fifteen:.02}"
@@ -41,7 +41,6 @@ let
   };
 in
 {
-  # Create dns-ready.target for services that depend on DNS resolution
   systemd.targets."dns-ready" = {
     description = "DNS resolution ready";
     unitConfig = {
@@ -50,14 +49,8 @@ in
     };
   };
 
-  # DNS readiness check service - ensures DNS is actually functional
-  #
-  # The probe asks for a public name and insists on a real answer. A local name (the old
-  # steelph0enix.framework) was a false positive: AdGuard serves its custom rewrites from the
-  # config it loaded at startup, so it answers them even while upstream forwarding is dead - which
-  # is exactly what the dependents below need working. `dig` alone is not enough either, since it
-  # exits 0 on SERVFAIL. AdGuard listens on 127.0.0.1 and the LAN address, so ask it there; naming
-  # `localhost` makes dig try ::1 first, which AdGuard does not bind.
+  # The probe asks a public name and insists on an answer: AdGuard serves custom rewrites even
+  # while upstreams are dead, and dig exits 0 on SERVFAIL.
   systemd.services."dns-ready-check" = {
     description = "DNS readiness check";
     after = [ "adguardhome.service" ];
@@ -93,18 +86,14 @@ in
   systemd.services.jellyfin = dnsWait;
   systemd.services.qbittorrent = dnsWait;
   systemd.services.searx = dnsWait;
-  systemd.services.xrdp = dnsWait;
-
-  services.printing.enable = true;
-  services.blueman.enable = true;
+  systemd.services.xrdp = lib.mkIf settings.enableRdp dnsWait;
 
   services.openssh = {
     enable = true;
-    ports = [ 22137 ];
+    ports = [ settings.sshPort ];
     openFirewall = true;
     settings = {
-      # COLORTERM carries WezTerm's truecolor hint. Without it TUIs quantize to the 256-colour
-      # palette, and the Noctalia scheme paints index 16 with the palette's secondary colour.
+      # COLORTERM carries WezTerm's truecolor hint.
       AcceptEnv = [
         "LANG"
         "LC_*"
@@ -128,10 +117,7 @@ in
     cpuModelId = "00B70F00";
   };
 
-  services.gvfs = {
-    enable = true;
-    package = lib.mkForce pkgs.gnome.gvfs;
-  };
+  services.gvfs.enable = true;
 
   services.watchdogd = {
     enable = true;
@@ -146,7 +132,6 @@ in
     script = "${pkgs.rust-motd}/bin/rust-motd ${motdConfig} > /tmp/motd && cp /tmp/motd /etc/motd";
     serviceConfig = {
       Type = "oneshot";
-      User = "root";
     };
   };
   users.motdFile = "/etc/motd";
@@ -164,12 +149,12 @@ in
     user = "qbittorrent";
     group = "users";
     openFirewall = true;
-    webuiPort = 8888;
+    webuiPort = settings.qbittorrentWebPort;
     extraArgs = [
       "--confirm-legal-notice"
       "--sequential"
       "--first-and-last"
-      "--save-path=/mnt/NAS2/Torrents"
+      "--save-path=${settings.nas2Path}/Torrents"
       "--add-stopped=false"
       "--skip-dialog=false"
     ];
@@ -178,34 +163,27 @@ in
   services.jackett = {
     enable = true;
     openFirewall = true;
-    port = 8889;
+    port = settings.jackettPort;
   };
 
   services.flaresolverr = {
     enable = true;
     openFirewall = true;
-    port = 8890;
+    port = settings.flaresolverrPort;
   };
 
-  # --- Caddy (static hosting; vhosts defined in services/*.nix) ---
-  # gufo's authenticated front door is a second, separate caddy instance
-  # (nixos/services/gufo.nix): this one is always on, and an always-on listener cannot own
-  # llmPort, which the router engines bind.
   services.caddy.enable = true;
 
-  # --- Forgejo ---
   services.forgejo = {
     enable = true;
-    package = pkgs.forgejo; # 16.0.2
     lfs.enable = true;
     settings = {
       DEFAULT.APP_NAME = "RX-78-FORGEJO";
       server = {
         PROTOCOL = "http";
         HTTP_PORT = settings.forgejoPort;
-        SSH_PORT = 22137; # displayed in clone URLs
+        SSH_PORT = settings.sshPort; # displayed in clone URLs
         DOMAIN = settings.forgejoDomain;
-        # ROOT_URL auto-computed as http://steelph0enix.framework:6969/
         OFFLINE_MODE = true;
         ENABLE_GZIP = true;
       };
@@ -214,10 +192,6 @@ in
         DEFAULT_ACTIONS_URL = "github";
       };
       packages = {
-        ENABLED = true;
-      };
-      # not present in the Forgejo v16 config reference; harmless no-op, kept for parity
-      "packages.container" = {
         ENABLED = true;
       };
       "repository.signing" = {
@@ -236,21 +210,15 @@ in
     };
   };
 
-  services.xrdp = {
+  services.xrdp = lib.mkIf settings.enableRdp {
     enable = true;
+    port = settings.xrdpPort;
     openFirewall = true;
-    port = 3389;
-    audio = {
-      enable = true;
-    };
     defaultWindowManager = "xfce4-session";
   };
 
-  # Owns the CPU governor (`powerManagement.cpuFreqGovernor` would lose to tuned anyway).
-  # Pinned to `accelerator-performance`: tuned cannot switch profiles on load, so there is no
-  # power-saving fallback. Empty `recommend` rule always matches -> daemon start and
-  # `tuned-adm auto` both land on it. `ppdSupport = false` because tuned-ppd applies the
-  # power-profiles-daemon default profile on start, which would move us off it.
+  # tuned owns the CPU governor. `accelerator-performance` is pinned, and `ppdSupport = false`
+  # keeps tuned-ppd from moving off it.
   services.tuned = {
     enable = true;
     ppdSupport = false;

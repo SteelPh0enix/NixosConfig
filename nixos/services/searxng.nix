@@ -1,62 +1,61 @@
 # SearXNG metasearch engine - http://search.framework:7777 (name from the AdGuard rewrite).
-# LAN/VPN only: nothing is port-forwarded on the router, so no reverse proxy and no rate limiter.
+# LAN/VPN only: no reverse proxy, no rate limiter.
 { settings, ... }:
 
 let
-  # Engine entries are merged into SearXNG's default engines by name. The names below were
-  # checked against this instance (/stats, /stats/errors): the scraped engines get their IP
-  # blocked (CAPTCHA / HTTP 429) and that is not fixable from settings - only via official
-  # APIs (see braveapi/kagi below) or another exit IP.
-  disabled = map (name: { inherit name; disabled = true; });
-  enabled = map (name: { inherit name; disabled = false; });
+  # Engine entries merge into SearXNG's defaults by name.
+  disabled = map (name: {
+    inherit name;
+    disabled = true;
+  });
+  enabled = map (name: {
+    inherit name;
+    disabled = false;
+  });
 in
 {
   services.searx = {
     enable = true;
     openFirewall = true;
 
-    # Contains SEARXNG_SECRET=... (gitignored). systemd reads it, then the searx-init unit runs
-    # the generated settings.yml through envsubst, so the key stays out of the nix store.
+    # Contains SEARXNG_SECRET=... (gitignored); envsubst keeps the key out of the store.
     environmentFile = "${settings.repoPath}/secrets/searxng.env";
 
-    # Valkey is the backend for the search-box autocomplete (and for the limiter, unused here).
+    # Valkey backs the search-box autocomplete.
     redisCreateLocally = true;
 
     settings = {
       server = {
-        # Public hostname the Cloudflare "search" tunnel serves (see nixos/services/cloudflared.nix).
-        # The pi extension reaches this instance over the LAN (SEARXNG_URL=http://search.framework:7777)
-        # and calls the JSON API directly, so this only controls the HTML template links below.
-        base_url = "https://search.steelph0enix.dev/";
+        # Public hostname the Cloudflare "search" tunnel serves.
+        base_url = "https://${settings.searchHost}/";
         bind_address = "0.0.0.0";
-        port = 7777;
+        port = settings.searxngPort;
         secret_key = "$SEARXNG_SECRET";
       };
 
       search = {
-        # Needs the valkey URL wired up by redisCreateLocally, otherwise suggestions stay empty.
-        # Autocomplete uses duckduckgo.com/ac, which is not affected by the CAPTCHA below.
+        # Autocomplete uses duckduckgo.com/ac, which the CAPTCHAs below do not affect.
         autocomplete = "duckduckgo";
         favicon_resolver = "duckduckgo";
-        # Without "json" the /search endpoint answers 403 to ?format=json (see ~/.pi/agent/extensions/).
-        formats = [ "html" "json" ];
+        # Without "json" the /search endpoint answers 403 to ?format=json.
+        formats = [
+          "html"
+          "json"
+        ];
       };
 
       engines =
         disabled [
-          # html.duckduckgo.com answers with a challenge form; "duckduckgo web" (enabled below)
-          # uses the duckduckgo.com API instead and works.
+          # These answer with CAPTCHAs or 429.
           "duckduckgo"
-          # search.brave.com answers 429 to every request, all four categories share it.
           "brave"
           "brave.images"
           "brave.videos"
           "brave.news"
-          # startpage.com redirects to /sp/captcha before a search can even start.
           "startpage"
           "startpage news"
           "startpage images"
-          # SPARQL on query.wikidata.org needs way more than the 3s default timeout.
+          # Needs more than the 3s default timeout.
           "wikidata"
         ]
         ++ enabled [
@@ -66,15 +65,11 @@ in
           "fynd"
         ]
         ++ [
-          # Wikipedia also hit ReadTimeouts with the default 3s.
+          # Also hits ReadTimeouts at the 3s default.
           {
             name = "wikipedia";
             timeout = 6.0;
           }
-          # Official APIs are the only CAPTCHA-free Brave/Google results; both need a key in
-          # secrets/searxng.env (envsubst already runs over the generated settings.yml):
-          # { name = "braveapi"; inactive = false; api_key = "$SEARXNG_BRAVE_API_KEY"; }
-          # { name = "kagi"; inactive = false; api_key = "$KAGI_API_KEY"; }
         ];
     };
   };

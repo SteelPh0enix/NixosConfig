@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-previous.url = "github:NixOS/nixpkgs/21a67dc470149f337cecafbe965d8d252a390518";
 
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
@@ -15,48 +14,24 @@
       url = "github:e-tho/ucodenix";
     };
 
-    # Externally managed checkout (updated by the `llama-cpp-update` script).
-    # flake.lock records the path input's narHash, so a plain rebuild keeps the old snapshot;
-    # `llama-cpp-update` re-pins it. Literal path required here - flake input URLs are read
-    # syntactically. Keep in sync with settings.llamaCppPath.
+    # Externally managed checkout, re-pinned by `llama-cpp-update`. Input URLs must be literal,
+    # so this repeats settings.llamaCppPath.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
-
-    # Create+ (Minecraft 1.19.2 / Forge 43.5.1) server: launcher module and package plus the
-    # generated server pack (~200 MB of jars, content-addressed into the store; unchanged jars
-    # are hardlinked). Not a git repo on purpose: a git path input would follow `git ls-files`
-    # semantics and silently drop the untracked pack. Refresh with `nix flake update mcserver`
-    # after `scripts/build-pack.sh` regenerates it.
-    mcserver = {
-      url = "path:/home/steelph0enix/Projects/mcserver-nix";
-      flake = false;
-    };
 
     nixvim = {
       url = "github:nix-community/nixvim";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # pi coding agent, official flake. It ships packages only (no home-manager module), so
-    # home-manager/pi wires up the config with plain home-manager. No public binary cache, so a
-    # `nix flake update pi` means a few minutes of local building.
+    # pi coding agent, packages only; no binary cache.
     pi.url = "github:earendil-works/pi/stable";
 
-    # Gufo engine for Strix Halo, built from its flake. It ships only packages, so nix/overlays.nix
-    # maps `release` onto pkgs.gufo for nixos/services/gufo.nix. No binary cache: a bump is a long
-    # local build, so measure before activating a new version: re-check decode throughput at 150k+
-    # tokens (0.17.0 plus PR #626, "cut prefill and decode attention cost at depth", served single
-    # digits here).
+    # Gufo engine for Strix Halo; nix/overlays.nix maps `release` onto pkgs.gufo. No binary cache.
     gufo.url = "github:gufo-org/gufo";
 
-    # oh-my-pi (`omp`), a pi fork, run side by side with it: omp reads and writes only ~/.omp, so
-    # nothing overlaps the ~/.pi/agent files home-manager/pi installs. Its flake does ship a
-    # home-manager module (programs.omp), which home-manager/omp uses. Do not make its nixpkgs
-    # follow ours: the package builds against its own pin (bun2nix, rust-overlay, a pinned rust).
-    # Its own rust-overlay lock trails the nightly its `rust-toolchain.toml` names, so pin one
-    # that carries it (2026-11-08); bump this when omp's nightly moves. Pinning the revision, not
-    # just the repo, keeps `nh --update` from selecting the stale overlay again, and this does
-    # not put rust-overlay into our package set.
-    # Built from source with no public binary cache, so the first build costs a while.
+    # oh-my-pi (`omp`), a pi fork; omp reads and writes only ~/.omp. Do not make its nixpkgs follow
+    # ours: it builds against its own pin. Keep the rust-overlay revision in step with its
+    # `rust-toolchain.toml`.
     omp = {
       url = "github:can1357/oh-my-pi";
       inputs.rust-overlay = {
@@ -65,8 +40,8 @@
       };
     };
 
-    # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
-    # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
+    # Licensed, non-redistributable fonts kept outside this repo, consumed by
+    # home-manager/nonfree-fonts.nix.
     berkeleyMono = {
       url = "path:/home/steelph0enix/nixos-nonfree/berkeley-mono";
       flake = false;
@@ -111,8 +86,7 @@
         };
       };
 
-      # Same toolchain as the system profile and VS Code's FHS environment; `:NixDevelop` in
-      # Neovim loads this shell.
+      # Same toolchain as the system profile and VS Code's FHS environment.
       devShells.x86_64-linux.default =
         let
           pkgs = import nixpkgs {

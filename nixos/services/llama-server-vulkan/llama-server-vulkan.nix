@@ -1,6 +1,4 @@
-# llama.cpp router server: one process, presets from settings.llamaPresetsPath, models swapped in
-# on request. It serves the LAN (pi runs on the other box), so it stays a sandboxed system service
-# instead of something started from a terminal session, on the `llm` account gufo also runs as.
+# llama.cpp router: presets from settings.llamaPresetsPath, models swapped in on request.
 {
   pkgs,
   lib,
@@ -13,18 +11,15 @@ let
     settings.llmHost
     "--port"
     (toString settings.llmPort)
-    # /slots, /props, /metrics: how n_ctx, the chat-template caps and the loaded preset get inspected.
+    # /slots, /props, /metrics expose n_ctx, template caps and the loaded preset.
     "--slots"
     "--props"
     "--metrics"
-    # How many models stay resident is per host; llama.cpp's autoload (on by default) then loads a
-    # preset when a request names it - not at boot. Switching autoload off would make the router
-    # answer 400 "model is not loaded" until something POSTs /load.
+    # Autoload stays on: off, the router answers 400 "model is not loaded" until a /load.
     "--models-max"
     (toString settings.llamaModelsMax)
     "--models-preset"
     settings.llamaPresetsPath
-    # The browser chat and the t/s + pp/tg breakdown the log viewer follows.
     "--webui"
     "--perf"
   ];
@@ -33,9 +28,7 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # Starts by hand like the ROCm container: gufo is the boot engine. A start still stops the
-    # other two engines first (Conflicts=/After= below), so a model loaded here does not land on
-    # top of theirs.
+    # Starts by hand; gufo is the boot engine. A start stops the other engines first.
     wantedBy = [ ];
     after = [
       "gufo-auth.service"
@@ -57,43 +50,36 @@ in
     };
 
     serviceConfig = {
-      # The credential is expanded in a shell wrapper rather than on ExecStart: systemd's own
-      # expansion of $CREDENTIALS_DIRECTORY there ate it as an empty variable, which left
-      # --api-key-file without a value. LoadCredential is required, so a missing secret fails the
-      # unit at start instead of booting an unauthenticated engine; the key stays out of the
-      # process cmdline, and the rotation script's one-key-per-line file needs no trimming.
+      # The credential is expanded in a shell wrapper: systemd's own `$CREDENTIALS_DIRECTORY`
+      # expansion in ExecStart ate it as empty. The key stays off the command line.
       ExecStart = pkgs.writeShellScript "llama-server-vulkan-serve" ''
         exec ${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args} \
           --api-key-file "$CREDENTIALS_DIRECTORY/api-key"
       '';
       LoadCredential = "api-key:${settings.llmApiKeyFile}";
 
-      # Shared account declared in nixos/users.nix; gufo runs as the same user.
       User = "llm";
       Group = "llm";
-      # Vulkan wants renderD128, the DRM card node sits in video.
+      # Vulkan wants renderD128; the DRM card node sits in video.
       SupplementaryGroups = [
         "video"
         "render"
       ];
-      # The presets live outside the repo and a `load-mode = mmap+mlock` one needs far more than the
-      # non-privileged 8 KiB, so the limit stays raised even though the current presets do not use it.
+      # A mmap+mlock preset needs far more than the non-privileged 8 KiB.
       LimitMEMLOCK = "infinity";
 
-      # A crash should not wedge the port.
       Restart = "on-failure";
       RestartSec = 5;
       TimeoutStopSec = 30;
 
-      # Weights and preset both live under /home, so home is exposed read-only rather than masked;
-      # everything else the service could touch is world-readable and outside any user's files.
+      # Weights and preset live under /home, so home is read-only rather than masked.
       ProtectSystem = "strict";
       ProtectHome = "read-only";
       ReadOnlyPaths = [
         settings.llamaModelsPath
         settings.llamaPresetsPath
       ];
-      # PrivateDevices stays off: it would hide /dev/dri, and the GPU nodes are group-writable anyway.
+      # PrivateDevices would hide /dev/dri.
       PrivateTmp = true;
       PrivateIPC = true;
       NoNewPrivileges = true;
@@ -113,7 +99,6 @@ in
       ProtectKernelModules = true;
       ProtectKernelTunables = true;
       ProtectControlGroups = true;
-      # The server only ever reads its own /proc entries.
       ProtectProc = "invisible";
       SystemCallArchitectures = "native";
       MemoryDenyWriteExecute = false; # the Vulkan driver JITs

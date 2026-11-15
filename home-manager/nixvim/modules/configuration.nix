@@ -1,7 +1,6 @@
 { ... }:
 {
   imports = [
-    # Core editor setup
     ./base.nix
     ./options.nix
     ./autocmds.nix
@@ -9,7 +8,6 @@
     ./diagnostics.nix
     ./colorscheme.nix
 
-    # Plugins (one file per plugin; keep in alphabetical order)
     ./plugins/cmp.nix
     ./plugins/conform-nvim.nix
     ./plugins/dap.nix

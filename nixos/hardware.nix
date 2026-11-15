@@ -1,6 +1,10 @@
-_: {
+_:
+let
+  gttSize = 126976;
+  ttmPages = 32505856;
+in
+{
   boot.initrd.kernelModules = [ "amdgpu" ];
-  boot.kernelModules = [ "kvm-amd" ];
 
   boot.kernelParams = [
     "microcode.amd_sha_check=off"
@@ -10,46 +14,26 @@ _: {
     "amdgpu.runpm=0"
     "amdgpu.tmz=0"
     "amdgpu.noretry=0"
-    "amdgpu.gttsize=126976"
+    "amdgpu.gttsize=${toString gttSize}"
     "amdgpu.lockup_timeout=600000"
     "split_lock_detect=off"
     "amd_iommu=off"
-    "ttm.pages_limit=32505856"
-    # llama.cpp and the JVM never madvise(MADV_HUGEPAGE), so the `madvise` default of the kernel
-    # would leave their heaps on 4K pages.
+    "ttm.pages_limit=${toString ttmPages}"
+    # llama.cpp and the JVM never madvise(MADV_HUGEPAGE).
     "transparent_hugepage=always"
   ];
 
   boot.extraModprobeConfig = ''
-    options amdgpu gttsize=126976
+    options amdgpu gttsize=${toString gttSize}
     options amdgpu vm_fragment_size=8
-    options ttm pages_limit=32505856
-    options ttm page_pool_size=32505856
+    options ttm pages_limit=${toString ttmPages}
+    options ttm page_pool_size=${toString ttmPages}
   '';
 
   hardware.enableRedistributableFirmware = true;
-  # AMD microcode comes from ucodenix (`nixos/services.nix`), whose blobs are fresher than
-  # linux-firmware's; `microcode.amd_sha_check=off` above is what lets them load.
+  # ucodenix's blobs are fresher than linux-firmware's; the sha_check parameter lets them load.
   hardware.graphics.enable = true;
-  hardware.graphics.enable32Bit = true;
-  hardware.amdgpu = {
-    opencl.enable = true;
-    overdrive.enable = true;
-  };
-
-  hardware.bluetooth = {
-    enable = true;
-    powerOnBoot = true;
-    settings = {
-      General = {
-        Experimental = true;
-        FastConnectable = true;
-      };
-      Policy = {
-        AutoEnable = true;
-      };
-    };
-  };
+  hardware.amdgpu.overdrive.enable = true;
 
   environment.variables.AMD_VULKAN_ICD = "RADV";
 
@@ -66,39 +50,9 @@ _: {
         pipewire."92-low-latency" = {
           "context.properties" = {
             "default.clock.rate" = 48000;
-            "default.clock.quantum" = 32;
-            "default.clock.min-quantum" = 32;
-            "default.clock.max-quantum" = 32;
-          };
-        };
-        bluetoothEnhancements = {
-          "monitor.bluez.properties" = {
-            "bluez5.enable-sbc-xq" = true;
-            "bluez5.enable-msbc" = true;
-            "bluez5.enable-hw-volume" = true;
-            "bluez5.hfphsp-backend" = "native";
-            "bluez5.codecs" = [
-              "sbc"
-              "sbc_xq"
-              "aac"
-              "ldac"
-              "lc3"
-              "lc3plus_h3"
-              "aptx"
-              "aptx_hd"
-              "aptx_ll"
-              "aptx_ll_duplex"
-            ];
-            "bluez5.roles" = [
-              "hsp_hs"
-              "hsp_ag"
-              "hfp_hf"
-              "hfp_ag"
-              "a2dp_sink"
-              "a2dp_source"
-              "bap_sink"
-              "bap_source"
-            ];
+            "default.clock.quantum" = 256;
+            "default.clock.min-quantum" = 256;
+            "default.clock.max-quantum" = 256;
           };
         };
       };
@@ -108,29 +62,21 @@ _: {
   boot.kernel.sysctl = {
     "vm.swappiness" = 10;
     "vm.vfs_cache_pressure" = 50;
-    # Almost the whole unified pool is committed by the inference engine and most of it is amdgpu GTT,
-    # which sits on no LRU, so there is little to reclaim and it must start early. The default reserve is
-    # 66 MiB: the kernel ran to zero free and failed allocations inside its own swap path. Waking kswapd
-    # a percent earlier keeps that reclaim off the allocating process, which is where a stall becomes a
-    # hang. Both are pinned so a kernel swap cannot move them back.
-    #
-    # overcommit_memory stays at the `1` the redis module asks for: heuristic (0) is still optimistic and
-    # would not have refused anything here, while strict (2) counts address space and no engine that
-    # reserves 240 GiB of it could load at all.
+    # GTT pages sit on no LRU and must be reclaimed early. overcommit_memory stays at the redis
+    # module's `1`: strict counts the engines' 240 GiB of reserved address space and nothing loads.
     "vm.min_free_kbytes" = 2097152;
     "vm.watermark_scale_factor" = 100;
     "kernel.sched_cfs_bandwidth_slice_us" = 3000;
     "net.core.netdev_max_backlog" = 65536;
     "net.ipv4.tcp_fastopen" = 3;
-    # XanMod picks bbr by default; pinned here so a kernel swap cannot move it under us.
+    # XanMod defaults to bbr; pinned so a kernel swap cannot change it.
     "net.ipv4.tcp_congestion_control" = "cubic";
   };
 
   zramSwap = {
     enable = true;
-    # Half of RAM let the kernel accept ~60 GiB of compression instead of failing: minutes of engine
-    # pages being squeezed while zram needed RAM it no longer had, then a global OOM kill. 10 GiB covers
-    # genuine outliers and turns the rest into a fast, visible failure.
+    # 10% (about 12 GiB) covers genuine outliers. Half of RAM let the kernel accept ~60 GiB of
+    # compression it no longer had RAM to hold, ending in a global OOM kill.
     memoryPercent = 10;
   };
 

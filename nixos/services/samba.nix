@@ -1,8 +1,7 @@
-{ pkgs, inputs, ... }:
+{ settings, ... }:
 {
   services.samba = {
     enable = true;
-    package = inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.samba;
     openFirewall = true;
     nsswins = true;
     usershares.enable = true;
@@ -12,17 +11,17 @@
     settings = {
       global = {
         security = "user";
-        workgroup = "WORKGROUP";
-        "server string" = "RX-78-FPC";
-        "netbios name" = "RX-78-FPC";
-        "hosts allow" = "192.168.0. 127.0.0.1 localhost";
+        inherit (settings) workgroup;
+        "server string" = settings.hostId;
+        "netbios name" = settings.hostId;
+        "hosts allow" = "${settings.lanPrefix} 127.0.0.1 localhost";
         "hosts deny" = "0.0.0.0/0";
         "guest account" = "nobody";
         "map to guest" = "bad user";
       };
 
       "LLMs" = {
-        path = "/home/steelph0enix/LLMs";
+        path = settings.llamaModelsPath;
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "yes";
@@ -32,18 +31,18 @@
       };
 
       "HomeStorage" = {
-        path = "/home/steelph0enix/HomeStorage";
+        path = "/home/${settings.userName}/HomeStorage";
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "no";
         "create mask" = "0644";
         "directory mask" = "0755";
-        "force user" = "steelph0enix";
+        "force user" = settings.userName;
         "force group" = "users";
       };
 
       "NAS" = {
-        path = "/mnt/NAS";
+        path = settings.nasPath;
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "yes";
@@ -53,7 +52,7 @@
       };
 
       "NAS2" = {
-        path = "/mnt/NAS2";
+        path = settings.nas2Path;
         browseable = "yes";
         "read only" = "no";
         "guest ok" = "yes";
@@ -69,6 +68,6 @@
     openFirewall = true;
     interface = "enp191s0";
     discovery = true;
-    workgroup = "WORKGROUP";
+    inherit (settings) workgroup;
   };
 }

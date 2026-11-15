@@ -38,7 +38,7 @@ groups, and the file's own comment style, which explains *why* rather than *what
   shape is always: a path in the config, the value in `secrets/` (or pi's `apiKey: "!command"`). A new
   secret is created by hand at mode 0600, and the commit records the path, never the value.
 - Run `nix flake update` casually. `pi` has no binary cache, so it costs minutes of local building;
-  `llama-cpp`, `mcserver` and `berkeleyMono` are `path:` inputs pinned by narHash in `flake.lock`, so
+  `llama-cpp` and `berkeleyMono` are `path:` inputs pinned by narHash in `flake.lock`, so
   `nix flake update <input>` re-pins the current directory - `llama-cpp-update` does that for llama.cpp
   (see the README). The kernel is `linuxPackages_xanmod_latest` from cache.nixos.org, so a `nixpkgs`
   bump normally just substitutes it; the `nix-cachyos-kernel` flake is gone because its author's
@@ -52,7 +52,7 @@ groups, and the file's own comment style, which explains *why* rather than *what
 The Vulkan engine is a NixOS unit (`llama-server-vulkan`), built from the `llama-cpp` flake input
 by `nix/overlays/llama-cpp.nix` — Vulkan only, `-march=znver5` (x86-64-v4 is not enough for the
 AVX512 extensions here), LTO — running as the `llm` user with
-`--slots --props --metrics --models-max 4 --webui`. It starts by hand like the ROCm container; gufo
+`--slots --props --metrics --models-max 1 --webui`. It starts by hand like the ROCm container; gufo
 is the boot engine. Keep autoload on: with it off the server answers
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
@@ -137,26 +137,28 @@ here: home-manager is a NixOS module of this flake, which exports no `homeConfig
 
 ## Couplings that break quietly
 
-- **The `hosts` entries in `nixos/services.nix`** are what keep `steelph0enix.framework`,
+- **The `hosts` entries in `nixos/services/adguardhome.nix`** are what keep `steelph0enix.framework`,
   `search.framework` and `steelph0enix.pc` resolvable. `models.json` and `SEARXNG_URL` name those
   hosts, so moving or renaming a box breaks pi on both — and it breaks *only* the things that resolve,
   because DNS for everything else is AdGuard on `192.168.0.185`. When that box is down, this one loses
-  its default provider and every lookup that isn't in `hosts`. The `resolvconf` options there
+  its default provider and every lookup that isn't one of those rewrites. The `resolvconf` options there
   (`timeout:2 attempts:3 single-request-reopen`) are a mitigation for AdGuard dropping about one UDP
   reply in twenty, and at glibc's defaults a lost reply costs five seconds; don't remove them as noise.
-- **Ports.** `nix/settings.nix` holds `llmPort` and `llamaLogsPort`, and `nixos/services.nix`
-  opens them; there is no separate firewall file to remember. Every inference engine binds `llmPort`
+- **Ports.** `nix/settings/host.nix` (composed by `nix/settings.nix`) holds `llmPort` and
+  `llamaLogsPort`, and `nixos/services.nix` opens them; there is no separate firewall file to remember. Every inference engine binds `llmPort`
   and the units conflict, so only one listener is ever on it. The log viewer binds every interface
   (`server.py --host` defaults to the IPv4 wildcard address), so 51580 is what makes it reachable; if
-  you open something, check what it actually binds (`ss -tulpn`).
+  you open something, check what it actually binds (`ss -tulpn`). XRDP is off by default
+  (`settings.enableRdp`); lightdm is not installed, so an RDP session is xrdp's own Xorg plus
+  `xfce4-session`.
 - **The presets are `/home/LLMs/llama-server.ini` and `/home/LLMs/llama-server-rocm.ini`, and the
   checkout only symlinks them.** A rebuild never deploys edits to them, so edit the file and restart
   the owning unit. The weights sit on the filesystem mounted at `/home`
   (`nixos/hardware-configuration.nix`), so a layout change takes the servers with it.
-- **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
+- **tuned owns the CPU side.** It runs with `ppdSupport = false`, so `powerManagement.cpuFreqGovernor`
   and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
   disables and the kernel parameter repeats.
-- **`nix/nixpkgs-config.nix` here is only `allowUnfree` and `rocmSupport`.** There is no `badpkgs`
+- **`nix/nixpkgs-config.nix` here is only `allowUnfree`.** There is no `badpkgs`
   list and no download-verification overrides, unlike the other branch — a package that needs an
   override over there may build plainly here, and backporting an override that references `badpkgs`
   fails to evaluate here.
@@ -208,11 +210,11 @@ the extension's own directory:
 
 A new service is a file in `nixos/services/` imported from `nixos/services/default.nix` — note that
 `./services` in an import resolves to `nixos/services.nix`, so the directory entry has to be named
-explicitly, as `configuration.nix` already does. Its port goes in `nix/settings.nix` and
+explicitly, as `configuration.nix` already does. Its port goes in `nix/settings/host.nix` and
 `nixos/networking.nix` together; its credentials come from `secrets/` as a systemd credential or env
 file. What only the user needs goes in `home-manager/packages.nix`; `nixos/packages/` holds what the
 system itself needs (split `dev` / `media` / `system`). Identity — user, host, paths — is read from
-`nix/settings.nix` rather than repeated anywhere else.
+`nix/settings/` rather than repeated anywhere else.
 
 ## pi's colours
 

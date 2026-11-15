@@ -4,9 +4,6 @@
   ...
 }:
 {
-  # Only groups no NixOS module creates (normal users already get `users` as their primary group).
-  users.groups.samba = { };
-
   # Shared by the GPU engines: gufo and llama-server-vulkan both run as this account.
   users.groups.llm = { };
 
@@ -20,20 +17,17 @@
         "render"
         "samba"
         "systemd-journal"
-        "vboxusers"
         "video"
         "wheel"
         "wireshark"
       ];
       openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID7HEYiuWVQP3BcNDibe5cwVuL081u1Noos4OAuyWVBb FrameworkPC SSH"
-        # Deploy key used by Forgejo CI to publish coverage reports to
-        # /srv/coverage and API docs to /srv/docs
+        # Deploy key used by Forgejo CI to publish to /srv/coverage and /srv/docs.
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIMBBk8Y/FcUNsIemBzYJb7TiBMYpnT1ik/H9+obvnxR forgejo-localmachine"
       ];
     };
 
-    # Service users - groups auto-created by NixOS modules
     jellyfin = {
       isNormalUser = false;
       group = "users";
@@ -43,9 +37,8 @@
       ];
     };
 
-    # The GPU engines' account. Only one engine loads at a time, so the units share it. It also owns
-    # the rootless Docker daemon the ROCm container runs on (nixos/services/llama-server-rocm), which
-    # is why the uid is pinned: the unit names /run/user/<uid>/docker.sock and user@<uid>.service.
+    # Shared by the GPU engines and the rootless Docker daemon. The uid is pinned: the unit names
+    # /run/user/<uid>/docker.sock and user@<uid>.service.
     llm = {
       group = "llm";
       isSystemUser = true;
@@ -68,19 +61,12 @@
       ];
     };
 
-    qbittorrent = {
-      isNormalUser = false;
-      group = "users";
-    };
-
-    # Rootless Docker's user unit is wanted by every user manager (nixos/virtualisation), so an
-    # account whose manager runs needs a subordinate id range: without one it fails three times
-    # and takes the activation that restarted it down with it.
+    # A user manager needs a subordinate id range, or the rootless Docker unit fails and takes
+    # the activation down with it.
     forgejo.autoSubUidGidRange = true;
-    lightdm.autoSubUidGidRange = true;
   };
 
-  # Primary shell; `programs.fish.enable` (nixos/packages) is what puts it in /etc/shells.
+  # Primary shell; `programs.fish.enable` puts it in /etc/shells.
   users.defaultUserShell = pkgs.fish;
 
   security.sudo.execWheelOnly = true;

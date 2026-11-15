@@ -7,7 +7,6 @@
 
       font-awesome
       corefonts
-      winePackages.fonts
 
       nerd-fonts.symbols-only
       nerd-fonts.monaspace

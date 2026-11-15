@@ -6,29 +6,18 @@
   networking.firewall = {
     enable = true;
     allowPing = true;
-    # Only ports not managed by services with openFirewall = true
+    # Only ports not managed by services with openFirewall = true.
     allowedTCPPorts = [
-      53 # AdGuard Home DNS (its openFirewall covers the UI port only)
-      443 # HTTPS
-      8123 # AdGuard
-
-      settings.forgejoPort # Forgejo (HTTP)
-      6970 # Coverage report viewer (caddy, /srv/coverage)
-      6971 # Docs viewer (caddy, /srv/docs)
-      22137 # Forgejo (SSH)
-
-      settings.llmPort # primary LLM endpoint (gufo or llama.cpp)
-      settings.llamaLogsPort # the LLM engines' log web interface
-
-      # Few generic ports for one-shot/test stuff
-      11111
-      22222
-      44444
-      55555
+      53 # AdGuard Home DNS
+      settings.forgejoPort
+      settings.coveragePort # Coverage reports (caddy)
+      settings.docsPort # Docs (caddy)
+      settings.llmPort
+      settings.llamaLogsPort
     ];
-    allowedUDPPorts = [ 53 ]; # AdGuard Home DNS
+    allowedUDPPorts = [ 53 ];
     extraCommands = "iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns";
   };
 
-  networking.nameservers = [ "192.168.0.185" ];
+  networking.nameservers = [ settings.lanIp ];
 }

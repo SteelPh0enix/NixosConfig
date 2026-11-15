@@ -1,14 +1,6 @@
-# The bridge CI jobs run on. It is created explicitly instead of leaving jobs on
-# docker0 so that the host interface has a stable name the firewall can address,
-# nothing is masqueraded outbound, and both directions are closed by default:
-# forwarded traffic (the internet, the LAN) is dropped, and inbound traffic is
-# accepted only for the gateway listeners and Forgejo's API.
-#
-# The unit deliberately does not re-run on a switch, so a running link survives an
-# activation with jobs in flight. Changing the name or subnet therefore needs
-# `systemctl restart ci-network` by hand, once no job is running - the same command puts
-# the bridge back after anything removes it, `docker system prune` above all, which
-# leaves jobs failing at `docker run` with `network ci not found`.
+# The bridge CI jobs run on: forwarded traffic is dropped, and inbound is accepted only for the
+# gateway listeners and Forgejo's API. The unit does not re-run on a switch, so a running link
+# survives activation with jobs in flight.
 {
   pkgs,
   lib,
@@ -32,8 +24,7 @@ let
     docker=${pkgs.docker}/bin/docker
     iptables=${pkgs.iptables}/bin/iptables
 
-    # The runner reads /run/docker.sock (its unit is in the `docker` group); a user
-    # shell's DOCKER_HOST points at that user's rootless daemon instead.
+    # The runner reads /run/docker.sock; a user shell's DOCKER_HOST points at rootless docker.
     unset DOCKER_HOST
 
     $docker network inspect ${settings.ciNetwork} >/dev/null 2>&1 || \
@@ -46,9 +37,7 @@ let
         --opt com.docker.network.bridge.enable_icc=false \
         ${settings.ciNetwork}
 
-    # A job that could forward would reach the internet and the LAN around the
-    # gateway. Services on this host are reached through INPUT, so this costs
-    # nothing the allowlist in nixos-fw does not allow anyway.
+    # A job that could forward would reach the internet and the LAN around the gateway.
     $iptables -w -C DOCKER-USER -i ${settings.ciBridge} -j DROP 2>/dev/null || \
       $iptables -w -I DOCKER-USER 1 -i ${settings.ciBridge} -j DROP
   '';
@@ -66,21 +55,15 @@ in
     };
   };
 
-  # The daemon builds DOCKER-USER from nothing every time it starts, so a docker
-  # restart would leave the bridge open until the next boot. The script above is
-  # idempotent, so the daemon runs it again once it is up, and a hook that fails
-  # only reports: it must not take the daemon down with it.
+  # The daemon rebuilds DOCKER-USER from nothing on start, so re-run the idempotent script.
   systemd.services.docker.serviceConfig.ExecStartPost = [
     (pkgs.writeShellScript "ci-network-retry" ''
       ${ensureBridge} || echo "ci-network: ${settings.ciBridge} or its DOCKER-USER rule is missing" >&2
     '')
   ];
 
-  # nixos-fw matches no interface on the global allowedTCPPorts and accepts
-  # ESTABLISHED,RELATED before them, so an interface-scoped allowedTCPPorts entry
-  # could only ever widen the firewall. Both rules below go in ahead of those: the
-  # listeners named first, then everything else from the bridge. IPv4 only - the
-  # bridge has no IPv6 (container.enable_ipv6 stays false).
+  # nixos-fw accepts ESTABLISHED before the port lists, so interface-scoped entries could only
+  # widen the firewall; these rules go in ahead of those.
   networking.firewall.extraCommands = lib.mkAfter ''
     iptables -w -I nixos-fw 1 -i ${settings.ciBridge} -p tcp -d ${settings.ciGateway} \
       -m multiport --dports ${allowedPorts} -j nixos-fw-accept

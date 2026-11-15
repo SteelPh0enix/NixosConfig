@@ -1,14 +1,12 @@
-# Journal tail of every LLM engine over HTTP. server.py + index.html live next to this file
-# and are packaged into the Nix store so the unprivileged llama-logs user can reach them
-# (the working checkout is mode 0700 and not world-traversable).
+# Journal tail of every LLM engine over HTTP; the files are packaged so the llama-logs user can
+# read them.
 {
   pkgs,
   settings,
   ...
 }:
 let
-  # Flake path literals reach the store under hashed names (`…-server.py`), so the copies have to
-  # name the targets: server.py reads index.html from its own directory.
+  # Hashed store names, so copy by name: server.py reads index.html from its own directory.
   viewer = pkgs.runCommand "llama-logs-viewer" { } ''
     mkdir -p $out
     cp ${./server.py} $out/server.py
@@ -20,14 +18,12 @@ in
   users.users.llama-logs = {
     group = "llama-logs";
     isSystemUser = true;
-    # The only privilege: reading the persistent journal.
     extraGroups = [ "systemd-journal" ];
   };
 
   systemd.services.llama-logs = {
     description = "Web interface for the LLM engines' logs (${toString settings.llamaLogsPort})";
-    # Boots with the boot engine and follows all three engines plus gufo-auth, their front door,
-    # so it is useful whichever one is up.
+    # Boots with the boot engine and follows all three engines plus gufo-auth.
     wantedBy = [ "multi-user.target" ];
     after = [
       "gufo.service"

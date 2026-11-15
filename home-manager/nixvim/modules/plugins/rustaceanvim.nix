@@ -1,42 +1,34 @@
 _: {
-  # ---- Rust ----
   plugins.rustaceanvim = {
     enable = true;
 
     settings = {
-      # The `"rust-analyzer"` key is rustaceanvim's namespacing convention; it merges the
-      # namespace away before sending the settings.
+      # rustaceanvim merges its namespace away before sending the settings.
       server.default_settings."rust-analyzer" = {
-        # Diagnostics from clippy rather than cargo check, deterministically (tools.enable_clippy
-        # only flips this when it *detects* clippy) and for flyCheck too.
+        # clippy instead of cargo check, for flyCheck too.
         check = {
           command = "clippy";
-          allTargets = true; # tests, benches, examples - not just the lib
+          allTargets = true;
         };
 
         procMacro.enable = true;
-        cargo.buildScripts.enable = true; # build.rs-generated code (tonic, bindgen, ...)
+        cargo.buildScripts.enable = true;
 
-        # `ref mut binding @ subpattern` hints - the class rust-analyzer leaves off by default.
+        # Binding-mode hints are off by default in rust-analyzer.
         inlayHints.bindingModeHints.enable = true;
 
-        # `rustfmt.extraArgs` deliberately unset: rust-analyzer passes `--edition <crate edition>`
-        # itself, so a hardcoded edition would apply one crate's edition to all of them.
+        # `rustfmt.extraArgs` stays unset: rust-analyzer passes each crate's edition itself.
       };
 
-      # Native terminal split: "quickfix" (the other legal value) cannot run interactive
-      # binaries, which is most of what `:RustLsp runnables` is for.
+      # "quickfix" cannot run interactive binaries.
       tools.executor = "termopen";
 
-      # `dap.adapter` stays at its default, which dap.nix satisfies: rustaceanvim probes
-      # `lldb-dap` by name and reuses the existing `dap.adapters.lldb`.
+      # dap.nix provides `dap.adapters.lldb`, which rustaceanvim reuses.
     };
   };
 
-  # ---- Rust-only keymaps ----
-  # `:RustLsp` is buffer-local, so these are registered per Rust buffer (a global map would
-  # E492 elsewhere). FileType rather than LspAttach: the keys then exist while the server is
-  # still indexing. Neovim's own `gra`/`grn`/`grr`/`gri`/`grt` cover the rest.
+  # `:RustLsp` is buffer-local, so map per Rust buffer. FileType rather than LspAttach: the
+  # keys exist while the server is still indexing.
   autoCmd = [
     {
       event = [ "FileType" ];

@@ -1,7 +1,5 @@
 _: {
-  # ---- Tree-sitter ----
-  # NOTE: enabling `nvim-treesitter` alone does nothing on the `main` branch: Nvim does not
-  # start parsers by itself, the features have to be turned on explicitly.
+  # On `main` the features do not start by themselves; enable them explicitly.
   plugins.treesitter = {
     enable = true;
 
