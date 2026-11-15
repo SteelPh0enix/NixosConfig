@@ -21,6 +21,8 @@ in
     settings = {
       defaultThinkingLevel = "xhigh";
       modelRoles.default = "framework/Qwen 3.8 Flash Next";
+      # Subagents run on the same engine - it is the only model.
+      modelRoles.task = "framework/Qwen 3.8 Flash Next";
       advisor.enabled = false;
       modelRoles.web = "web/searxng";
       searxng.endpoint = "http://${settings.searchDomain}:${toString settings.searxngPort}";
@@ -86,8 +88,9 @@ in
       todo.eager = "always";
 
       task.showResolvedModelBadge = true;
-      # One task at a time: a second parallel task costs a model swap.
+      # One subagent at a time on the engine's only slot, and no side request probing it.
       task.maxConcurrency = 1;
+      task.completionProbe = false;
       task.eager = "default";
       task.structured = true;
       task.enableEffort = true;
@@ -102,6 +105,8 @@ in
         "soft"
         "handoff"
       ];
+      # No speculative summarize on the single slot.
+      compaction.asyncEnabled = false;
       compaction.idleEnabled = false;
       # omp-vcc replaces the history at 75% of the window.
       compaction.thresholdPercent = 75;
