@@ -69,7 +69,6 @@
     package = pkgs.mpv.override {
       mpv-unwrapped = pkgs.mpv-unwrapped.override {
         waylandSupport = true;
-        jackaudioSupport = true;
         ffmpeg = pkgs.ffmpeg-full;
       };
       scripts = with pkgs.mpvScripts; [
