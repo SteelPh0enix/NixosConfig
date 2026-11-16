@@ -1,16 +1,12 @@
 { pkgs, ... }:
 let
-  # Absolute paths: nvim-dap spawns adapters through jobstart(), and a store path cannot be
-  # shadowed by whatever $PATH the launching terminal had.
-  # lldb-dap over codelldb: it is free, upstream (LLVM's own adapter) and version-matched to
-  # the lldb CLI. codelldb is only reachable as an unpacked VS Code extension pinned to an
-  # older LLVM, and plugins.dap-lldb hardcodes codelldb's `--port` server mode, which
-  # lldb-dap (stdio / `--connection listen://`) does not speak - hence hand-written configs.
+  # Absolute paths: nvim-dap spawns adapters through jobstart(), so $PATH cannot shadow them.
+  # lldb-dap over codelldb: free, upstream, version-matched - and stdio-only, while
+  # plugins.dap-lldb expects codelldb's `--port` server mode.
   lldb-dap = "${pkgs.lldb}/bin/lldb-dap";
   gdb = "${pkgs.gdb}/bin/gdb";
 
-  # C/C++ projects here have no single build output, so prompt instead of guessing;
-  # nvim-dap reuses the last configuration (<leader>dl).
+  # No single build output to guess at; nvim-dap reuses the last configuration (<leader>dl).
   programPrompt = {
     __raw = ''
       function()
@@ -41,9 +37,8 @@ let
       pid = pickProcess;
     }
     {
-      # GDB's built-in DAP understands: program, cwd, args, env, stopOnEntry,
-      # stopAtBeginningOfMainSubprogram (+ init/preRun commands). VS-Code-shaped keys are
-      # silently ignored.
+      # GDB's own DAP understands program, cwd, args, env, stopOnEntry and
+      # stopAtBeginningOfMainSubprogram; VS-Code-shaped keys are silently ignored.
       name = "gdb: launch";
       type = "gdb";
       request = "launch";
@@ -60,9 +55,7 @@ let
   ];
 in
 {
-  # rustaceanvim probes its default adapter with `vim.fn.executable('codelldb')` /
-  # `('lldb-dap')` and refuses to run `:RustLsp debuggables` when neither resolves by name,
-  # so lldb-dap has to be on the nvim PATH as well.
+  # rustaceanvim probes for `codelldb`/`lldb-dap` on nvim's PATH before allowing debuggables.
   extraPackages = [ pkgs.lldb ];
 
   plugins.dap = {
@@ -73,8 +66,7 @@ in
     adapters.executables = {
       lldb.command = lldb-dap;
 
-      # GDB >= 14 speaks DAP over stdio. Fallback for attach-by-pid lldb-dap cannot grab and
-      # for gdb-specific commands (scheduler-locking, core files).
+      # GDB >= 14 speaks DAP over stdio: fallback for gdb-only commands and remote attaches.
       gdb = {
         command = gdb;
         args = [ "--interpreter=dap" ];
@@ -84,25 +76,18 @@ in
     configurations = {
       c = nativeConfigs;
       cpp = nativeConfigs;
-      # rust left unset: `:RustLsp debuggables` builds the config from the cargo model
-      # (correct binary + env), which a static entry could only compete with badly.
+      # rust left unset: `:RustLsp debuggables` builds a better config from the cargo model.
     };
 
-    # signs stay at nixvim's defaults (identical to nvim-dap's own).
   };
 
-  # nvim-dap-ui 4.x ships no user commands at all -> the keymaps call the Lua API.
   plugins.dap-ui.enable = true;
 
-  # Inline variable values next to the source while stopped.
   plugins.dap-virtual-text.enable = true;
 
-  # Registers dap.adapters.python (+ `debugpy` alias) and the python launch configs; no
-  # commands or keymaps of its own. The debuggee interpreter is resolved per session
-  # ($VIRTUAL_ENV / $CONDA_PREFIX / nearest .venv), so uv venvs need nothing installed here.
+  # The interpreter is resolved per session ($VIRTUAL_ENV / $CONDA_PREFIX / nearest .venv).
   plugins.dap-python.enable = true;
 
-  # Open the UI on session start, close it when the debuggee exits.
   extraConfigLuaPost = ''
     do
       local dap, dapui = require('dap'), require('dapui')
@@ -113,8 +98,6 @@ in
     end
   '';
 
-  # `<leader>d` is the debug prefix; the line-diagnostics float that used to sit on it moved
-  # to `<leader>dd` in keymaps.nix (a bare prefix map would wait out `timeoutlen` on each press).
   keymaps = [
     {
       key = "<leader>db";
@@ -127,7 +110,6 @@ in
       options.desc = "Clear all breakpoints";
     }
     {
-      # No argument: run the first configuration of this filetype, or pick when several exist.
       key = "<leader>dc";
       action = "<Cmd>DapContinue<CR>";
       options.desc = "Continue / start debugging";
@@ -158,7 +140,6 @@ in
       options.desc = "Terminate session";
     }
     {
-      # Lua API only - there is no `:DapRunLast` command.
       key = "<leader>dl";
       action.__raw = "function() require('dap').run_last() end";
       options.desc = "Re-run last configuration";
@@ -174,13 +155,11 @@ in
       options.desc = "Toggle DAP UI (sidebar + tray)";
     }
     {
-      # Runtime value of the word under the cursor; `K` stays LSP hover.
       key = "<leader>de";
       action.__raw = "function() require('dapui').eval() end";
       options.desc = "Evaluate under cursor (dap-ui hover)";
     }
     {
-      # No element id -> dap-ui asks which one.
       key = "<leader>df";
       action.__raw = "function() require('dapui').float_element() end";
       options.desc = "Floating dap-ui element";

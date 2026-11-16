@@ -3,7 +3,6 @@
     libvirtd.enable = true;
     docker = {
       enable = true;
-      enableOnBoot = true;
       rootless.enable = true;
       rootless.setSocketVariable = true;
     };
@@ -15,6 +14,4 @@
       addNetworkInterface = false;
     };
   };
-
-  networking.firewall.trustedInterfaces = [ "docker0" ];
 }

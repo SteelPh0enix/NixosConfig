@@ -1,16 +1,9 @@
 { lib, ... }:
 {
-  # External linters for the gaps LSP leaves open. `autoInstall` resolves each name to a nix
-  # package and puts it on the nvim wrapper PATH.
-  #
-  # `lintersByFt` has nixvim defaults (vale, jsonlint, hadolint, tflint, ...) that autoInstall
-  # would drag into the closure, hence `mkForce` instead of adding keys.
-  #
-  # Deliberately absent, because the LSP already publishes the same diagnostics:
-  #   sh/bash -> shellcheck (bash-language-server finds it on PATH)
-  #   python  -> ruff (plugins.lsp.servers.ruff runs the same rule engine, on-change)
-  #   c/cpp   -> clang-tidy (clangd starts with --clang-tidy)
-  # To hand one back to nvim-lint: disable the server side and re-add it below.
+  # External linters for the gaps LSP leaves open; `autoInstall` puts them on the wrapper PATH.
+  # `mkForce` because nixvim's own `lintersByFt` defaults would drag vale, jsonlint, hadolint
+  # and friends into the closure. shellcheck, ruff and clang-tidy stay out: the LSP servers
+  # above already publish those, so handing one back here means disabling it there first.
   plugins.lint = {
     enable = true;
     autoInstall.enable = true;
@@ -23,6 +16,6 @@
       ]; # nixd only reports parse/semantic errors
     };
 
-    # Lint on `:w` (nixvim's BufWritePost default); `linters = null` for manual-only linting.
+    # Lint on `:w`; `linters = null` for manual-only linting.
   };
 }

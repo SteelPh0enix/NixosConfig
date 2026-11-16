@@ -15,9 +15,9 @@ is the exception — it is kept identical on purpose.
 
 | thing | where it actually is |
 |---|---|
-| DNS, and the LAN names | AdGuard on `192.168.0.185`; `steelph0enix.framework` and `search.framework` are also written into `nixos/services.nix` as `hosts` entries, so they resolve even without it |
+| DNS, and the LAN names | AdGuard on `192.168.0.185`; `steelph0enix.framework` and `search.framework` are also written into `nixos/networking.nix` as `hosts` entries, so they resolve even without it |
 | pi's default provider `framework` | `steelph0enix.framework:51536` — that box's one LLM endpoint: gufo's qwen-next, or its Vulkan server once a preset is named. API key read from `secrets/` at request time |
-| SearXNG for pi's web search | `search.framework:7777`, set as `SEARXNG_URL` |
+| SearXNG for pi's and omp's web search | `search.framework:7777`, built from `settings.searchDomain`/`searxngPort` and exported as `SEARXNG_URL` (pi) or `searxng.endpoint` (omp) |
 
 What this box gives back: `llama-pc` (`steelph0enix.pc:51536`), the server every subagent — on either
 machine — runs on.
@@ -26,10 +26,11 @@ machine — runs on.
 
 | path | what lives there |
 |---|---|
-| `nix/settings.nix` | identity and shared paths — user, host id, the llama.cpp paths and ports; every module receives it as `settings` |
+| `nix/settings.nix` | merges the four tables below; every module receives the result as `settings` |
+| `nix/settings/` | `identity` (user, host id, checkouts), `paths` (weights, presets), `host` (LAN names, ports), `llm` (backend, resident models) |
 | `nix/` | overlays (`llama-cpp`, `flashpoint`, `phonto`, `ltrace`, a rust toolchain), the shared dev-tool list, nixpkgs config |
-| `nixos/` | boot and kernel, hardware, users, packages, services — and the network: unlike the other branch there is no `nixos/networking.nix`, the firewall and hosts entries live in `nixos/services.nix` |
-| `nixos/services/` | only two modules, both for llama.cpp; everything else is a `services.*` option in `nixos/services.nix` |
+| `nixos/` | boot and kernel, hardware, users, packages, services; `nixos/networking.nix` holds the firewall, the `hosts` entries and hostname |
+| `nixos/services/` | `llama-server-vulkan/`, `llama-server-rocm/`, `llama-logs/`, `printing.nix` and `tuned.nix` |
 | `nixos/desktop.nix` | the system half of the desktop: niri, the Noctalia greeter on greetd, gnome-keyring, UPower, SSH askpass |
 | `home-manager/` | the user: fish, packages, fonts, nixvim, `niri/` (layout, keybinds, rules), `noctalia.nix` (shell + theme templates), `phonto.nix` (video wallpaper), theming, xdg, vesktop, flashpoint, pi |
 | `secrets/` | gitignored, copied in by hand; on this box it holds one file (see below) |
@@ -57,7 +58,7 @@ with "flake does not provide attribute … homeConfigurations".
 | service | port | reach |
 |---|---|---|
 | llama.cpp server (Vulkan, presets) | 51536 | LAN — the only thing opened for real |
-| its log viewer | 51580 | loopback (a firewall rule exists, but the viewer binds `127.0.0.1`) |
+| `llama-logs`, its log viewer | 51580 | LAN (binds every interface) |
 | sshd | 22137 | LAN, keys only, `AllowUsers steelph0enix` |
 | CUPS | 631 | loopback |
 | avahi | 5353 | not opened, publishing off |
@@ -102,7 +103,7 @@ store-owned config. Noctalia provides the lock screen, idle, polkit agent and sc
 ## pi
 
 pi, the coding agent, is configured with the rest of the user config: `home-manager/pi/` holds its
-settings, `models.json` (three llama.cpp providers: this box's two servers and the other machine's),
+settings, `models.json` (two providers: `framework` on the other machine and `llama-pc` on this one),
 the prompt templates in `prompts/`, and its extensions — six directories, each documented as a
 `README.md` for use and an `AGENTS.md` for its internals:
 
@@ -114,6 +115,10 @@ the prompt templates in `prompts/`, and its extensions — six directories, each
 | [`searxng`](home-manager/pi/extensions/searxng/README.md) | `web_search` against the SearXNG instance on this box |
 | [`subagents`](home-manager/pi/extensions/subagents/README.md) | background subagents bound to named models, with concurrency limits |
 | [`webfetch`](home-manager/pi/extensions/webfetch/README.md) | `web_fetch` and `web_interact` through a local Chromium |
+
+omp, a pi fork, sits beside it in `home-manager/omp/` and mirrors what the `framework-pc` branch
+carries: no pc-local model rows, so it reaches `steelph0enix.framework` only and its subagents queue
+on that box's single slot.
 
 Its colours are *generated*: Noctalia's community `pi-agent` template writes
 `~/.pi/agent/themes/noctalia.json` from the live palette, which is why no theme file ships here. The

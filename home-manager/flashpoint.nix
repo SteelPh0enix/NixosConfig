@@ -1,5 +1,4 @@
 # The launcher app only (no game data); built by nix/overlays/flashpoint.nix.
-# https://flashpointarchive.org/datahub/Linux_Support
 { pkgs, ... }:
 {
   # The launcher takes the Flashpoint root from its working directory (~/.local/share/flashpoint,

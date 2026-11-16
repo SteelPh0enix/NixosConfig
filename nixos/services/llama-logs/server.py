@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Simple HTTP server with SSE endpoint for streaming journalctl logs.
-Run as: python3 nixos/services/llama-vulkan-logs/server.py [--service <unit>] [--port <port>]
+Run as: python3 nixos/services/llama-logs/server.py [--service <unit>] [--port <port>]
 Then visit: http://localhost:51580
 """
 
@@ -13,7 +13,6 @@ import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-# Get the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(SCRIPT_DIR, "index.html")
 
@@ -23,7 +22,6 @@ PORT = 51580
 
 
 def stream_logs() -> None:
-    """Continuously stream logs from journalctl via subprocess."""
     try:
         proc = subprocess.Popen(
             ["journalctl", "-fu", SERVICE_NAME, "--no-pager"],
@@ -42,7 +40,6 @@ def stream_logs() -> None:
 
 class LogHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: str) -> None:
-        """Suppress default logging."""
         pass
 
     def do_GET(self) -> None:
@@ -54,7 +51,6 @@ class LogHandler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def send_html(self) -> None:
-        """Serve the HTML interface from external file."""
         try:
             with open(HTML_FILE, "r", encoding="utf-8") as f:
                 html = f.read()
@@ -62,7 +58,6 @@ class LogHandler(BaseHTTPRequestHandler):
             self.send_error(500, "HTML template not found")
             return
 
-        # Substitute the service label into the template so the page names the unit it follows.
         label = SERVICE_NAME.replace("_", " ").replace("-", " ").upper()
         html = html.replace("__SERVICE_LABEL__", label)
 
@@ -80,7 +75,6 @@ class LogHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
-        # Send recent historical logs first
         try:
             proc = subprocess.Popen(
                 [
@@ -106,14 +100,12 @@ class LogHandler(BaseHTTPRequestHandler):
             )
             self.wfile.flush()
 
-        # Then stream new logs
         while True:
             try:
                 line = LOG_QUEUE.get(timeout=1)
                 self.wfile.write(f"event: log\ndata: {line}\n\n".encode())
                 self.wfile.flush()
             except queue.Empty:
-                # Send keepalive comment to prevent connection timeout
                 try:
                     self.wfile.write(b": keepalive\n\n")
                     self.wfile.flush()

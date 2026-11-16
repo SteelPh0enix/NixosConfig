@@ -1,25 +1,21 @@
 { pkgs, ... }:
 {
-  # Bar, launcher, control centre, tray, notifications, clipboard history, wallpaper, screenshots,
-  # night light, window switcher, power-profile widget, session lock + idle.
-  # See https://docs.noctalia.dev/v5
+  # https://docs.noctalia.dev/v5
   programs.noctalia = {
     enable = true;
     package = pkgs.noctalia; # v5; NOT pkgs.noctalia-shell (frozen v4)
-    systemd.enable = true; # PartOf/WantedBy = wayland.systemd.target; enable it HERE only
-    checkConfig = true; # builds `noctalia config validate` on the generated file
+    systemd.enable = true;
+    checkConfig = true;
 
     settings = {
-      # Values changed in the Settings GUI (SUPER+comma) land in ~/.local/state/noctalia/settings.toml,
-      # which merges LAST and wins over this file. Anything declared here must therefore also be
-      # deleted from that state file; Noctalia prunes an override once it matches the declarative value.
-      # `community` fetches the palette from api.noctalia.dev at runtime (cached in the state dir) -
-      # the choice is declarative, the palette file is not.
+      # Values changed in the Settings GUI land in ~/.local/state/noctalia/settings.toml, which merges
+      # LAST and wins over this file; a value declared here has to be deleted there too.
+      # `community` fetches the palette from api.noctalia.dev at runtime: only the choice is declarative.
       theme = {
         mode = "dark";
         source = "community";
         community_palette = "Cyberpunk";
-        wallpaper_scheme = "m3-content"; # only read when source = "wallpaper"
+        wallpaper_scheme = "m3-content";
         templates.builtin_ids = [
           "btop"
           "gtk3"
@@ -27,9 +23,8 @@
           "niri"
           "qt"
           "wezterm"
-        ]; # opt-in; list ids with `noctalia theme --list-templates`
-        # No lazygit: its hook merges the palette into ~/.config/lazygit/config.yml, which Home
-        # Manager writes from programs.lazygit.settings - a store symlink the hook cannot edit.
+        ];
+        # No lazygit: its palette hook cannot edit the store symlink home-manager writes.
         templates.community_ids = [
           "pi-agent"
           "discord"
@@ -42,27 +37,23 @@
           "fastfetch"
           "obs"
           "fzf"
-        ]; # opt-in; ids come from api.noctalia.dev/templates, cached in the state dir
+        ];
       };
 
       shell = {
         font_family = "Berkeley Mono";
-        setup_wizard_enabled = false; # declarative box: no first-run wizard
+        setup_wizard_enabled = false;
         corner_radius_scale = 0.7;
-        screen_time_enabled = true; # per-app usage tracking, shown in the control centre
-        launcher.show_app_actions = true; # .desktop actions (New Window, ...) in the launcher menu
+        screen_time_enabled = true;
+        launcher.show_app_actions = true;
         screenshot = {
-          directory = "~/Pictures/Screenshots"; # `~` is expanded; "" would mean XDG Pictures
+          directory = "~/Pictures/Screenshots";
           copy_to_clipboard = true;
         };
-        # Declaring the list REPLACES the built-in five actions (lock, logout, lock_and_suspend,
-        # reboot, shutdown). `lock` stays out of the panel: SUPER+L covers it (niri/config.kdl).
-        # A row `command` always runs via /bin/sh -c instead of the built-in handler;
-        # [shell.session.power] would override suspend/reboot/shutdown globally.
+        # Declaring the list REPLACES the built-in five actions. `lock` stays out: SUPER+L covers it.
         session.actions = [
           {
             action = "logout";
-            # Explicit rather than the built-in handler: niri asks for confirmation this way.
             command = "niri msg action quit";
           }
           { action = "suspend"; }
@@ -75,40 +66,33 @@
         ];
       };
 
-      # pkexec and removable-media prompts need a polkit agent; Noctalia's own is the only one here.
       shell.polkit_agent = true;
 
-      # phonto plays the animated wallpapers (home-manager/phonto.nix). Noctalia's wallpaper is a
-      # zwlr-layer-shell surface on the same layer, so exactly one of the two may be enabled.
+      # phonto plays the wallpapers (home-manager/phonto.nix), and Noctalia's is a layer-shell
+      # surface on the same layer: exactly one of the two may be enabled.
       wallpaper.enabled = false;
 
-      notification.enable_daemon = true; # Noctalia owns org.freedesktop.Notifications
+      notification.enable_daemon = true;
 
-      audio.enable_sounds = true; # master toggle for UI feedback sounds
+      audio.enable_sounds = true;
 
-      # Only the switch is declarative: calendar.account.* carries the Google account id and stays
-      # in ~/.local/state/noctalia/settings.toml.
       calendar.enabled = true;
 
       dock.enabled = false;
 
-      # DisplayPort panels expose nothing under /sys/class/backlight, so the brightness keys and the
-      # bar widget need DDC/CI: Noctalia shells out to `ddcutil` (systemPackages) over /dev/i2c-*
-      # (hardware.i2c). Without it: `noctalia msg brightness-up` -> "brightness control unavailable".
+      # The DP panels expose nothing under /sys/class/backlight, so brightness needs DDC/CI:
+      # Noctalia shells out to `ddcutil` over /dev/i2c-* (hardware.i2c).
       brightness.enable_ddcutil = true;
 
-      # Session lock: ext-session-lock-v1, unlock through PAM service "login" (hardcoded, so it uses
-      # the service NixOS already ships; passwords go through the setuid unix_chkpwd helper,
-      # fingerprint would need fprintd). There is no non-PAM fallback, so test SUPER+L on the very
-      # first session. It also holds a sleep inhibitor, so suspend locks first.
+      # Session lock unlocks through PAM service "login" (hardcoded) and the setuid unix_chkpwd
+      # helper: no non-PAM fallback, so test SUPER+L on the very first session. Holds a sleep
+      # inhibitor, so suspend locks first.
       lockscreen = {
         enabled = true;
         lock_before_suspend = true;
         fingerprint = false; # no fprintd on this host
       };
 
-      # Idle: ext_idle_notifier_v1 with native actions (lock | screen_off | suspend |
-      # lock_and_suspend | command): screen_off turns the monitors off and any input wakes them.
       idle = {
         behavior_order = [
           "lock"
@@ -126,11 +110,8 @@
         };
       };
 
-      # Names in a lane are widget types; [widget.<name>] re-tunes one or adds a second copy
-      # (e.g. [widget.clock-seconds] type = "clock"). The network and bluetooth widgets - plus the
-      # power-profile switch in the control centre - are why no nm-applet/blueman-applet is needed.
       bar.default = {
-        capsule = true; # pill background behind every widget; [widget.<name>].capsule overrides
+        capsule = true;
         start = [
           "launcher"
           "workspaces"
@@ -145,7 +126,6 @@
           "clock"
           "file-search"
         ];
-        # upstream's default lane minus battery (this is a desktop) and the wallpaper picker
         end = [
           "media"
           "tray"
@@ -162,23 +142,17 @@
       };
 
       widget.media = {
-        hide_when_no_media = true; # drop the widget while no MPRIS player is active
+        hide_when_no_media = true;
         show_progress = true;
-        title_scroll = "always"; # none | always | on_hover
+        title_scroll = "always";
       };
 
-      # A plugin widget has no built-in type name: the bar lane says "file-search", the plugin
-      # declares it as "<plugin id>:<widget id>" (see plugins.enabled). checkConfig therefore logs
-      # `unrecognized widget type` while building - the plugin registry is cloned into the state dir
-      # at runtime and the sandbox has none of it. Same command with HOME set reports no warning, and
-      # validate exits 0 on warnings, so this is noise, not a rejected key.
+      # checkConfig logs `unrecognized widget type` for this one: the plugin registry is cloned into
+      # the state dir at runtime, and the build sandbox has none of it. It exits 0 on warnings.
       widget.file-search.type = "nightwatch75/file-search:file-search";
 
-      # Widget-editor layouts (SUPER+comma -> Desktop / Lock screen). Geometry is absolute and
-      # per-output: cx/cy/box_* sit inside a placement_width x placement_height rect on a named
-      # connector, so this block describes THIS monitor setup (2560x1440 on DP-1) rather than a
-      # portable preference - moving the panels means redoing it in the editor, not on another host.
-      # schema_version is the editor's own stamp.
+      # The widget-editor layout is absolute and per-output: this describes the 2560x1440 pair on
+      # DP-1/DP-2, so moving a widget means redoing it in the editor. schema_version is its stamp.
       desktop_widgets = {
         grid = {
           cell_size = 16;
@@ -325,8 +299,6 @@
         ];
       };
 
-      # A login box on every connected panel. enabled = false keeps the editor layout parked:
-      # the lock screen itself is [lockscreen], driven by SUPER+L.
       lockscreen_widgets = {
         enabled = false;
         grid = {
@@ -397,10 +369,9 @@
         ];
       };
 
-      # No plugins are declared: "all" makes the shell git-clone the official+community sources on
-      # startup and every 6 h. Valid: "all" | "official" | "none".
+      # "all" would git-clone the official and community sources on startup and every 6 h.
       plugins.auto_update = "none";
-      plugins.enabled = [ "nightwatch75/file-search" ]; # plugins to load, as "author/name"
+      plugins.enabled = [ "nightwatch75/file-search" ];
     };
   };
 

@@ -1,6 +1,4 @@
-# llama.cpp router server: one process, presets from settings.llamaPresetsPath, models swapped in
-# on request. It serves the LAN (pi runs on the other box), so it stays a sandboxed system service
-# on its own user instead of something started from a terminal session.
+# llama.cpp router server: one process, models swapped in from the presets on request.
 {
   pkgs,
   lib,
@@ -13,18 +11,15 @@ let
     settings.llmHost
     "--port"
     (toString settings.llmPort)
-    # /slots, /props, /metrics: how n_ctx, the chat-template caps and the loaded preset get inspected.
     "--slots"
     "--props"
     "--metrics"
-    # How many models stay resident is per host; llama.cpp's autoload (on by default) then loads a
-    # preset when a request names it - not at boot. Switching autoload off would make the router
-    # answer 400 "model is not loaded" until something POSTs /load.
+    # Autoload (on by default) loads a named preset on request, not at boot; switching it off would
+    # make the router answer 400 until something POSTs /load.
     "--models-max"
     (toString settings.llamaModelsMax)
     "--models-preset"
     settings.llamaPresetsPath
-    # The browser chat and the t/s + pp/tg breakdown the log viewer follows.
     "--webui"
     "--perf"
   ];
@@ -37,8 +32,7 @@ in
   };
 
   systemd.services.llama-server-vulkan = {
-    # Kept configured, but only one backend may own the router port. Pick it with
-    # settings.llamaBackend; see nixos/services/llama-server-rocm.
+    # Kept configured, but only one backend may own the port: settings.llamaBackend picks it.
     enable = settings.llamaBackend == "vulkan";
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
@@ -56,7 +50,6 @@ in
       ExecStart = "${lib.getExe' pkgs.llama-cpp "llama-server"} ${lib.escapeShellArgs args}";
       User = "llama";
       Group = "llama";
-      # Vulkan wants renderD128, the DRM card node sits in video.
       SupplementaryGroups = [
         "video"
         "render"
@@ -64,13 +57,10 @@ in
       # `load-mode = mmap+mlock` in the presets needs far more than the non-privileged 8 KiB.
       LimitMEMLOCK = "infinity";
 
-      # A crash should not wedge the port.
       Restart = "on-failure";
       RestartSec = 5;
       TimeoutStopSec = 30;
 
-      # Weights and preset both live under /home, so home is exposed read-only rather than masked;
-      # everything else the service could touch is world-readable and outside any user's files.
       ProtectSystem = "strict";
       ProtectHome = "read-only";
       ReadOnlyPaths = [
@@ -97,7 +87,6 @@ in
       ProtectKernelModules = true;
       ProtectKernelTunables = true;
       ProtectControlGroups = true;
-      # The server only ever reads its own /proc entries.
       ProtectProc = "invisible";
       SystemCallArchitectures = "native";
       MemoryDenyWriteExecute = false; # the Vulkan driver JITs

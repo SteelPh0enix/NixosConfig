@@ -1,32 +1,16 @@
-# oh-my-pi's model catalog: the same servers and presets as home-manager/pi/models.json, ported to
-# omp's format. The two files are kept in step by hand - pi reads models.json, omp reads models.yml.
-#
-# `thinking.efforts` is omp's form of pi's `thinkingLevelMap`: the rungs a preset really accepts,
-# lowest first. omp clamps any level above the top rung down to it, which is what keeps the default
-# xhigh off the small presets. omp derives a ladder from the model id on its own, and these
-# preset names (cyber-tiel-coder, occult-nail, ...) say nothing about the model behind them, so the
-# ladders are stated here rather than guessed.
-#
-# Not ported yet, and worth a look once omp runs against these servers: omp's own llama.cpp wire
-# rules (packages/catalog/.../providers/llama.cpp.kdl) key on the provider being literally named
-# `llama.cpp`, so these providers get omp's plain-openai defaults instead - no thinking-format or
-# named-tool-choice downgrades. Both are per-model `compat:` keys if a preset rejects a request.
-#
-# The one default that costs real context: omp only replays a model's own reasoning to a "local"
-# backend (llama.cpp, LM Studio, vLLM, Ollama, or a loopback/RFC1918/.local baseUrl). These
-# hostnames are none of those, so the reasoning was dropped from every request while omp kept
-# counting it - the context estimate ran about twice the prompt the server actually saw, and
-# compaction fired at half the configured threshold. `replayReasoningContent` puts the reasoning
-# back on the wire, which is what these servers have always rendered.
+# omp's model catalog: the framework endpoint only, kept in step with home-manager/pi/models.json
+# by hand. `thinking.efforts` is omp's `thinkingLevelMap`; `replayReasoningContent` puts the
+# reasoning back on the wire for these hosts.
 providers:
   framework:
     baseUrl: http://steelph0enix.framework:51536/v1
     api: openai-completions
     apiKey: "!cat /home/steelph0enix/nixos-config/secrets/llama-strix-api-key"
     compat:
+      supportsStore: false
+      thinkingFormat: qwen-chat-template
+      qwenTemplateReasoningEffort: true
       replayReasoningContent: true
-      # Emits preserve_thinking, so the Qwen 3.8 template renders the replayed reasoning of older
-      # turns as <think> instead of dropping it.
       qwenPreserveThinking: true
     models:
       - id: "Qwen 3.8 Flash Next"
@@ -36,46 +20,3 @@ providers:
         thinking:
           mode: effort
           efforts: [low, medium, xhigh]
-
-  # This box's llama.cpp router. A --kv-unified preset shares one KV pool across its slots, so the
-  # window is stated per request: a lone request has the whole pool, parallel ones divide it. It
-  # is declared whole here because omp keeps at most one resident user of a slot at a time (see the
-  # slot notes in default.nix). Numbers read off /v1/models on this box, matching what pi's
-  # llama-compat extension computes at startup.
-  llama-pc:
-    baseUrl: http://steelph0enix.pc:51536/v1
-    api: openai-completions
-    auth: none
-    compat:
-      replayReasoningContent: true
-      # The Qwen template renders the replayed reasoning of older turns as <think> instead of
-      # dropping it. The other presets on this router have no Qwen template, and the field is
-      # inert for them.
-      qwenPreserveThinking: true
-    models:
-      - id: cyber-tiel-coder
-        name: "Cyber Tiel Coder"
-        contextWindow: 262144 # whole unified pool; its 2 slots divide it only when both run
-        maxTokens: 32768
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [low, medium, xhigh]
-      - id: qwen-27B
-        name: "Qwen 3.8 27B"
-        contextWindow: 262144
-        maxTokens: 32768
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [low, medium, xhigh]
-      # No omp role points here anymore - the side work runs on cyber-tiel-coder - but the row
-      # stays so the catalog matches pi's models.json and /model can still reach it.
-      - id: sharp-spark
-        name: "Sharp Spark X2.5 4B"
-        contextWindow: 262144 # 1048576 over 4 slots
-        maxTokens: 32768
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts: [minimal, low, medium, high]

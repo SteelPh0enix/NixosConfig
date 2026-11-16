@@ -7,16 +7,14 @@
 let
   inherit (settings) repoPath llamaCppPath;
 
-  # ANSI status lines: `printf` instead of fish's `set_color`, so any shell renders them.
-  # `'' ''` strings keep backslashes literal, which is exactly what printf needs here.
+  # printf instead of fish's set_color; `'' ''` strings keep the backslashes literal.
   say = sgr: message: ''printf '\033[1;${sgr}m%s\033[0m\n' ${lib.escapeShellArg message}'';
   error = say "31";
   warning = say "38;5;208"; # orange
   info = say "34";
   success = say "32";
 
-  # POSIX-sh scripts instead of fish functions: they also work from `nvim :!`, systemd-run,
-  # a non-interactive ssh session and any other shell.
+  # POSIX sh, not fish functions: they also work from `nvim :!` and a non-interactive ssh.
   script =
     name: description: text:
     pkgs.writeShellApplication {
@@ -31,20 +29,14 @@ let
   rsyncFlags = "--archive --recursive --mkpath --verbose --progress --human-readable";
 in
 {
-  # Fish stays the login shell; nothing below depends on it. This option is what makes
-  # `home.shellAliases` reach fish at all.
+  # This option is what makes `home.shellAliases` reach fish at all.
   programs.fish.enable = true;
 
-  # Exports the XDG_* session variables; ~/.local/bin itself goes into PATH system-wide
-  # (environment.localBinInPath), which also covers shells home-manager does not configure.
   xdg.enable = true;
 
   # ~/.npm/bin: programs.npm sets the global prefix to ~/.npm but never adds its bin to PATH.
   home.sessionPath = [ "$HOME/.npm/bin" ];
 
-  # Simple, shell-independent aliases. eza's own integration already provides
-  # ls/ll/la/lt/lla, so only `l` is added here - on purpose through `ls`, so it keeps eza's
-  # icons/--git/extraOptions.
   home.shellAliases = {
     l = "ls -lh";
     e = "$EDITOR";
@@ -142,13 +134,9 @@ in
       (script "os-rebuild-switch" "Build and switch to a new NixOS system configuration" ''
         ${info "Rebuilding NixOS and switching to the new build..."}
         nh os switch --keep-going
-        # niri needs no reload step: its watcher follows the swapped config symlink by itself
-        # (`niri msg action load-config-file` forces it), and Noctalia is a systemd user service.
         ${success "System rebuild complete, switched to new build."}
       '')
 
-      # `--commit-lock-file` is handled by `nix flake update` itself and no-ops when the
-      # lock file did not change.
       (script "os-update" "Update llama.cpp and the flake inputs, rebuild, commit flake.lock" ''
         ${info "=== Starting OS Update Sequence ==="}
         llama-cpp-update

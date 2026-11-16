@@ -19,10 +19,8 @@
       url = "github:e-tho/ucodenix";
     };
 
-    # Externally managed checkout (updated by the `llama-cpp-update` script).
-    # Deliberately unpinned: the working tree *is* the input, `nix flake update llama-cpp` is a no-op.
-    # Literal path required here - flake input URLs are read syntactically. Keep in sync with
-    # settings.llamaCppPath.
+    # Deliberately unpinned: the working tree *is* the input. Literal path, and kept in sync with
+    # settings.llamaCppPath, because flake input URLs are read syntactically.
     llama-cpp.url = "path:/home/steelph0enix/llama.cpp";
 
     nixvim = {
@@ -30,20 +28,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # pi coding agent, official flake. It ships packages only (no home-manager module), so
-    # home-manager/pi wires up the config with plain home-manager. No public binary cache, so a
-    # `nix flake update pi` means a few minutes of local building.
     pi.url = "github:earendil-works/pi/stable";
 
-    # oh-my-pi (`omp`), a pi fork, run side by side with it: omp reads and writes only ~/.omp, so
-    # nothing overlaps the ~/.pi/agent files home-manager/pi installs. Its flake does ship a
-    # home-manager module (programs.omp), which home-manager/omp uses. Do not make its nixpkgs
-    # follow ours: the package builds against its own pin (bun2nix, rust-overlay, a pinned rust).
-    # Its own rust-overlay lock trails the nightly its `rust-toolchain.toml` names, so pin one
-    # that carries it (2026-11-08); bump this when omp's nightly moves. Pinning the revision, not
-    # just the repo, keeps `nh --update` from selecting the stale overlay again, and this does
-    # not put rust-overlay into our package set.
-    # Built from source with no public binary cache, so the first build costs a while.
+    # oh-my-pi (`omp`), a pi fork, installed beside pi. Do not make its nixpkgs follow ours: it
+    # builds against its own bun2nix/rust pin. Its rust-overlay lock trails the nightly its
+    # `rust-toolchain.toml` names, so the revision is pinned too (2026-11-08) - bump it when that
+    # nightly moves.
     omp = {
       url = "github:can1357/oh-my-pi";
       inputs.rust-overlay = {
@@ -52,11 +42,8 @@
       };
     };
 
-    # Video wallpaper daemon (GPU decode). Used by home-manager/phonto.nix.
     phonto.url = "github:museslabs/phonto";
 
-    # Licensed, non-redistributable font files kept outside this repo (mode 700), consumed by
-    # home-manager/nonfree-fonts.nix. Refresh with `nix flake update berkeleyMono`.
     berkeleyMono = {
       url = "path:/home/steelph0enix/nixos-nonfree/berkeley-mono";
       flake = false;
@@ -72,7 +59,6 @@
     }@inputs:
     let
       settings = import ./nix/settings.nix;
-      # settings.hostId is also networking.hostName, which is what `nh os` autodetects.
       inherit (settings) hostId;
     in
     {
@@ -101,8 +87,6 @@
         };
       };
 
-      # Same toolchain as the system profile and VS Code's FHS environment; `:NixDevelop` in
-      # Neovim loads this shell.
       devShells.x86_64-linux.default =
         let
           pkgs = import nixpkgs {

@@ -1,16 +1,14 @@
 { config, pkgs, ... }:
 {
-  # xdg.enable is already on in shell.nix; xdg.mime (shared-mime-info + update-desktop-database over
-  # the profile) defaults to true on Linux, so only the associations and dirs below are needed.
   xdg.mimeApps = {
-    enable = true; # writes ~/.config/mimeapps.list
+    enable = true;
     defaultApplications = {
       "x-scheme-handler/http" = "firefox.desktop";
       "x-scheme-handler/https" = "firefox.desktop";
       "text/html" = "firefox.desktop";
       "inode/directory" = "thunar.desktop";
       "application/pdf" = "org.gnome.Evince.desktop";
-      "text/plain" = "nvim.desktop"; # Terminal=true, so terminal-exec opens it in wezterm
+      "text/plain" = "nvim.desktop";
       # Wildcard keys (`image/*`) are ignored for DEFAULTS by both xdg-mime and glib, and the
       # fallback is then the first claimant in the profile's mimeinfo.cache. Spell out the types.
       "image/png" = "imv.desktop";
@@ -25,28 +23,23 @@
       "audio/mpeg" = "io.github.quodlibet.QuodLibet.desktop";
       "audio/flac" = "io.github.quodlibet.QuodLibet.desktop";
       "audio/ogg" = "io.github.quodlibet.QuodLibet.desktop";
-      # thunar-archive-plugin drives whatever handles these
       "application/zip" = "org.gnome.FileRoller.desktop";
       "application/x-7z-compressed" = "org.gnome.FileRoller.desktop";
       "application/x-tar" = "org.gnome.FileRoller.desktop";
       "application/gzip" = "org.gnome.FileRoller.desktop";
       "x-scheme-handler/flashpoint" = "flashpoint.desktop";
-      # x-scheme-handler/mailto deliberately unset: no mail client installed ("Open with…" still works).
     };
   };
 
-  # Default Terminal Execution spec: what "Open Terminal here" and any Terminal=true desktop file
-  # launches. Without it those quietly do nothing.
+  # Without a Terminal Execution spec, Terminal=true desktop files quietly do nothing.
   xdg.terminal-exec = {
     enable = true;
     settings.default = [ "org.wezfurlong.wezterm.desktop" ];
   };
 
-  # Thunar's "Open Terminal Here" runs `exo-open --launch TerminalEmulator` (see Thunar's uca.xml).
-  # libexo knows nothing about xdg-terminal-exec or terminal desktop files: it reads this key file and
-  # resolves the value as a bare executable on $PATH (no arguments allowed), else falls back to
-  # xfce4-terminal and errors out. `wezterm` without `--cwd` starts in $HOME even though exo-open
-  # spawns it *in* the selected folder, hence the wrapper that turns that cwd into a flag.
+  # Thunar runs `exo-open --launch TerminalEmulator`, and libexo resolves this value as a bare
+  # executable on $PATH with no arguments. wezterm without `--cwd` starts in $HOME even though
+  # exo-open spawns it inside the selected folder, hence the wrapper.
   home.packages = [
     (pkgs.writeShellScriptBin "wezterm-terminal" ''
       exec ${config.programs.wezterm.package}/bin/wezterm start --cwd "$(pwd)" "$@"
@@ -58,11 +51,11 @@
     TerminalEmulator=wezterm-terminal
   '';
 
-  # Gives Noctalia real XDG directories to use for screenshots/wallpapers. Also writes
-  # user-dirs.conf (enabled = false) so xdg-user-dirs-update never rewrites this at runtime.
+  # Real XDG directories for Noctalia's screenshots and wallpapers; user-dirs.conf is written with
+  # enabled = false, so xdg-user-dirs-update never rewrites them.
   xdg.userDirs = {
     enable = true;
     createDirectories = true;
-    setSessionVariables = false; # the future default; apps read ~/.config/user-dirs.dirs
+    setSessionVariables = false;
   };
 }

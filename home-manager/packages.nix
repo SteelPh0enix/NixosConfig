@@ -1,7 +1,6 @@
 { pkgs, ... }:
 {
-  # Per-user applications only - environment.systemPackages would put them in every profile,
-  # root included.
+  # Per-user only: environment.systemPackages would put these in root's profile too.
   home.packages = with pkgs; [
     drawio
     dxvk
@@ -27,7 +26,7 @@
     teams-for-linux
     teamspeak6-client
     ungoogled-chromium
-    # winePackages is the 32-bit-only build; wineWow64Packages also runs 64-bit Windows exes
+    # wineWow64Packages runs 64-bit Windows exes; winePackages is the 32-bit-only build.
     wineWow64Packages.stagingFull
     winetricks
     xournalpp
@@ -36,9 +35,7 @@
 
   programs.git = {
     enable = true;
-    lfs = {
-      enable = true;
-    };
+    lfs.enable = true;
     package = pkgs.gitFull;
     settings = {
       user = {
@@ -73,8 +70,7 @@
 
   programs.vscode = {
     enable = true;
-    # FHS env for the language plugins: shared build tools from nix/dev-tools.nix plus the
-    # per-language bits.
+    # FHS env for the language plugins: nix/dev-tools.nix plus the per-language bits.
     package = pkgs.vscode.fhsWithPackages (
       ps:
       import ../nix/dev-tools.nix ps
@@ -128,15 +124,11 @@
       return config'';
   };
 
-  programs.yt-dlp = {
-    enable = true;
-  };
+  programs.yt-dlp.enable = true;
 
   programs.mpv = {
     enable = true;
 
-    # `package` instead of `programs.mpv.scripts`: the two are mutually exclusive and the
-    # unwrapped overrides below are needed too. waylandSupport already defaults to on.
     package = pkgs.mpv.override {
       mpv-unwrapped = pkgs.mpv-unwrapped.override {
         jackaudioSupport = true;

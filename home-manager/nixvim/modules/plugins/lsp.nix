@@ -1,49 +1,39 @@
 { pkgs, ... }:
-# Option values (nixd exprs) come from the shared settings file: Nixvim evaluates its own
-# module tree, so HM's extraSpecialArgs stop at nixvim/default.nix (the bridge is `hmConfig`).
+# The nixd exprs come from the shared settings file: nixvim evaluates its own module tree, so
+# home-manager's extraSpecialArgs stop at nixvim/default.nix.
 let
   inherit (import ../../../../nix/settings.nix) repoPath hostId;
   nixosFlake = ''(builtins.getFlake "${repoPath}")'';
 in
 {
-  # Binaries that LSP servers shell out to *at runtime*, looked up on the nvim process PATH:
-  #   nixfmt     - nixd textDocument/formatting (settings.formatting.command)
-  #   shellcheck - bash-language-server diagnostics
-  #   shfmt      - bash-language-server formatting
+  # Runtime dependencies of the servers, looked up on nvim's PATH: nixfmt for nixd,
+  # shellcheck and shfmt for bashls.
   extraPackages = [
     pkgs.nixfmt
     pkgs.shellcheck
     pkgs.shfmt
   ];
 
-  # Signature float while typing; also covers the case where the insert-mode `<C-s>` save
-  # mapping shadows Neovim's default `<C-S>` signature help.
   plugins.lsp-signature.enable = true;
 
   plugins.lsp = {
     enable = true;
 
-    # ---- C / C++ ----
-    # clangd takes almost all of its knobs from argv (or a `.clangd` YAML in the repo).
+    # clangd takes its knobs from argv or a `.clangd` in the repo.
     servers.clangd = {
       enable = true;
 
       cmd = [
         "clangd"
-        # Cross-file completion/goto beyond the single on-demand parsed tree.
         "--background-index"
-        # clang-tidy diagnostics *through* clangd; adding `c`/`cpp` -> clangtidy to
-        # plugins.lint would publish the same checks twice.
+        # Through clangd; a clangtidy entry in plugins.lint would publish these checks twice.
         "--clang-tidy"
         "--completion-style=detailed"
         # No `<algorithm>` appearing in a header you never included.
         "--header-insertion=never"
-        # Without this clangd's own formatting falls back to LLVM style, so `<leader>cF`
-        # (LSP-only) would reformat projects that have no .clang-format. Note `<leader>cf`
-        # prefers conform's clang-format CLI, which has no such switch.
+        # Otherwise clangd formats in LLVM style, so `<leader>cF` would reformat projects that
+        # carry no .clang-format.
         "--fallback-style=none"
-        # `-j` unset: clangd defaults to all cores. Cross-compiling additionally needs
-        # "--query-driver=/path/to/g++".
       ];
 
       # Root = where the compilation database lives. `rootMarkers` REPLACES the list (a list
@@ -59,9 +49,8 @@ in
       ];
     };
 
-    # ---- Nix ----
-    # Option docs/completion resolve against the eval of this very flake; home-manager is a
-    # NixOS module here (no standalone homeConfigurations), hence the `home-manager.users` hop.
+    # Option docs resolve against the eval of this flake; home-manager is a NixOS module here,
+    # hence the `home-manager.users` hop.
     servers.nixd = {
       enable = true;
 
@@ -78,10 +67,9 @@ in
       };
     };
 
-    # Keys under `settings` are the server's own; nixvim namespaces most of them (`Lua`,
-    # `yaml`, ...) but not all - basedpyright needs the `basedpyright.` prefix by hand.
+    # Keys under `settings` are the server's own; nixvim namespaces most, but basedpyright needs
+    # its `basedpyright.` prefix by hand.
     servers = {
-      # Lua: wezterm's extraConfig, `__raw` blocks in this config, Neovim API analysis.
       lua_ls = {
         enable = true;
         settings = {
@@ -95,53 +83,40 @@ in
         };
       };
 
-      bashls.enable = true; # shellcheck/shfmt come from extraPackages
+      bashls.enable = true;
 
-      # Types only; it never formats, so `<leader>cf` still uses conform/ruff.
-      # settings left empty on purpose: basedpyright's own default typeCheckingMode is
-      # "recommended" (pinning "standard" would *relax* it), and LSP settings beat
-      # pyproject.toml outright - per-project strictness belongs in pyproject.toml.
+      # Types only. Settings left empty on purpose: the default typeCheckingMode is "recommended"
+      # (pinning "standard" would relax it), and LSP settings beat pyproject.toml.
       basedpyright.enable = true;
 
-      # The built-in `ruff server` (>= 0.5.3), not the deprecated `ruff_lsp`: lint + format +
-      # autofix with the same rule engine/config discovery as `ruff check` on CI.
+      # The built-in `ruff server` (>= 0.5.3), not the deprecated `ruff_lsp`.
       ruff.enable = true;
 
-      jsonls.enable = true; # flake.lock, dashboards/*.json
-      yamlls.enable = true; # docker-compose.yml
-      marksman.enable = true; # markdown, pairs with render-markdown
-      # Re-enable once nixpkgs gives neocmakelsp pkg-config/oniguruma: this rev's rust hook
-      # sets RUSTONIG_SYSTEM_LIBONIG and its build fails without them.
+      jsonls.enable = true;
+      yamlls.enable = true;
+      marksman.enable = true;
+      # Re-enable once nixpkgs gives neocmakelsp pkg-config/oniguruma: its rust hook sets
+      # RUSTONIG_SYSTEM_LIBONIG and the build fails without them.
       neocmake.enable = false;
-      # Schema-aware completion/diagnostics for every .toml; conform's taplo CLI still wins
-      # for formatting (lsp_format = "fallback").
+      # conform's taplo CLI still wins for formatting (lsp_format = "fallback").
       taplo.enable = true;
 
-      # Fish: deliberately no server. fish_indent (conform) + `fish -n` (lint) + the fish
-      # treesitter parser already cover format, syntax errors and highlighting.
+      # Fish: deliberately no server - fish_indent, `fish -n` and treesitter already cover it.
     };
 
-    # Parameter names/types from clangd, option info from nixd.
     inlayHints = true;
 
-    # Buffer-local keymaps, registered on `LspAttach`. Neovim's own defaults already cover
-    # hover (`K`), `gra`/`grn`/`grr`/`gri`/`grt`/`grx` and `gO` (:help lsp-defaults).
     keymaps = {
       lspBuf = {
         "gd" = "definition";
         "gD" = "declaration";
       };
 
-      # Anything that is not a plain `vim.lsp.buf` call. lspconfig's `:LspStart`/`:LspStop`
-      # don't exist on Nvim >= 0.11, so these use core's `:lsp` subcommands (:help :lsp-enable).
-      # `:lsp enable` is deliberately unmapped: without a server name it also attaches
-      # Neovim's built-in configs (bare `:lsp enable` attached nil_ls in a Nix buffer).
-      # Re-attaching after a stop is just a FileType reload (<leader>ls).
+      # lspconfig's `:LspStart`/`:LspStop` do not exist on Nvim >= 0.11, so these use core's
+      # `:lsp` subcommands. `:lsp enable` is deliberately unmapped: without a server name it also
+      # attaches Neovim's built-in configs (it pulled nil_ls into a Nix buffer).
       extra = [
         {
-          # clangd's private switchSourceHeader request; lspconfig's clangd.lua registers the
-          # command in its on_attach, so no extra plugin is needed. Buffer-local, so it E492s
-          # where clangd is not the client.
           key = "<leader>ch";
           action = "<Cmd>LspClangdSwitchSourceHeader<CR>";
           options.desc = "Switch source/header (clangd buffers only)";

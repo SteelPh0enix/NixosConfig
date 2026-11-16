@@ -2,9 +2,8 @@
 let
   inherit (settings) userName;
 
-  # Coral Edge TPU boards: every boot mode needs raw USB/hidraw access without root.
-  # `serial` adds the stable /dev/coral_micro_UART* symlink, `autosuspend` keeps the
-  # application-mode device from being runtime-suspended mid-flash.
+  # Coral Edge TPU boards need raw USB/hidraw access without root; `serial` adds the stable
+  # /dev/coral_micro_UART* symlink, `autosuspend` keeps an app-mode device awake mid-flash.
   tpuModes = [
     {
       desc = "ROM bootloader";
@@ -84,18 +83,15 @@ in
     "amdgpu.tmz=0"
     "amdgpu.noretry=0"
     "split_lock_detect=off"
-    # HDA autosuspend = audible buzzing on the analog output. tuned keeps it off afterwards, these
-    # cover the window before tuned activates a profile (see services.nix).
+    # HDA autosuspend buzzes on the analog output; these cover the window before tuned's profiles
+    # take over (nixos/services/tuned.nix).
     "snd-hda-intel.power_save=0"
     "snd-hda-intel.power_save_controller=N"
-    # llama.cpp and the JVM never madvise(MADV_HUGEPAGE), so the `madvise` default of the kernel
-    # would leave their heaps on 4K pages.
+    # llama.cpp and the JVM never madvise(MADV_HUGEPAGE), so the default would leave them on 4K pages.
     "transparent_hugepage=always"
   ];
 
   hardware.enableRedistributableFirmware = true;
-  # AMD microcode comes from ucodenix (`nixos/services.nix`), whose blobs are fresher than
-  # linux-firmware's; `microcode.amd_sha_check=off` above is what lets them load.
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;
   hardware.amdgpu = {
@@ -103,15 +99,13 @@ in
     overdrive.enable = true; # also what LACT uses to change clocks/voltages
   };
 
-  # /dev/i2c-* + i2c-dev, so DDC/CI brightness control works (Noctalia's brightness keys).
+  # /dev/i2c-* + i2c-dev for DDC/CI brightness (Noctalia's brightness keys).
   hardware.i2c.enable = true;
 
-  # Installs lact, its systemd.packages units, and wants lactd at multi-user.target.
   services.lact.enable = true;
 
   hardware.bluetooth = {
     enable = true;
-    powerOnBoot = true;
     settings = {
       General = {
         Experimental = true;

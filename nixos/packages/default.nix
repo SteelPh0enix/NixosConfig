@@ -16,21 +16,18 @@
   programs.cpu-energy-meter.enable = true;
   programs.dconf.enable = true;
 
-  # D-Bus thumbnailer service (org.freedesktop.thumbnails.Thumbnailer). programs.thunar does not
-  # pull it in, so without this Thunar shows generic icons for everything.
+  # Thunar does not pull the D-Bus thumbnailer in, and shows generic icons without it.
   services.tumbler.enable = true;
 
-  # nix-direnv and every shell integration default to true.
   programs.direnv.enable = true;
 
   programs.evince.enable = true;
 
   programs.firefox.enable = true;
 
-  # Login shell (users.defaultUserShell); also what puts fish into /etc/shells.
   programs.fish.enable = true;
 
-  # sshfs and the AppImage binfmt handler both need the setuid fusermount3.
+  # sshfs and the AppImage handler both need the setuid fusermount3.
   programs.fuse.enable = true;
 
   programs.fzf.fuzzyCompletion = true;
@@ -51,8 +48,7 @@
   programs.ssh.startAgent = true;
   programs.tcpdump.enable = true;
 
-  # Dolphin leaves with plasma6. System-wide so volman/D-Bus/udisks2 integration works
-  # (programs.thunar is a NixOS option; home-manager has no equivalent).
+  # System-wide so volman and D-Bus integration work (home-manager has no thunar option).
   programs.thunar = {
     enable = true;
     plugins = with pkgs; [
@@ -63,9 +59,7 @@
 
   programs.obs-studio = {
     enable = true;
-    # No virtual camera: v4l2loopback's output carries its own depmod maps, which
-    # collide with the kernel's in the module tree and break the build
-    # (nixpkgs#576406). Set `enableVirtualCamera` back once that is fixed.
+    # No virtual camera: v4l2loopback's depmod maps collide with the kernel's (nixpkgs#576406).
     plugins = [
       pkgs.obs-studio-plugins.waveform
       pkgs.obs-studio-plugins.obs-vnc
@@ -98,12 +92,10 @@
     ];
   };
 
-  # No Big Picture console session; gamescope stays for per-process use. It was enabled
-  # implicitly by programs.steam.gamescopeSession, so it must be named explicitly now.
+  # No gamescope session; the package is used per process.
   programs.gamescope.enable = true;
 
   qt.enable = true;
 
-  # The niri module enables xdg.portal itself and adds its own portal.
   xdg.portal.xdgOpenUsePortal = true;
 }

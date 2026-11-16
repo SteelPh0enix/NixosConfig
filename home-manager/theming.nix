@@ -1,6 +1,5 @@
 { pkgs, config, ... }:
 {
-  # GTK and cursor theme for the session: nothing else writes these per user.
   gtk = {
     enable = true;
     # GTK's built-in Adwaita, no ":dark" suffix: GTK 3 only splits that off $GTK_THEME, so in

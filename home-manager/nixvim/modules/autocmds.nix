@@ -1,8 +1,5 @@
 _: {
-  # NixVim's autocmd options are `autoCmd`/`autoGroups`; each entry maps to
-  # `nvim_create_autocmd` with either `callback` (raw Lua) or `command` (viml).
   autoCmd = [
-    # Flash the yanked region (vim.hl is the 0.10+ home for on_yank).
     {
       event = [ "TextYankPost" ];
       desc = "Highlight yanked text";
@@ -13,8 +10,7 @@ _: {
       '';
     }
 
-    # Reopen where you left off; `"` is the last cursor position, guarded against a stale
-    # mark past the end of a file that shrank since.
+    # `"` is the last cursor position: guard it past the end of a file that shrank since.
     {
       event = [ "BufReadPost" ];
       desc = "Restore last cursor position";
@@ -29,7 +25,7 @@ _: {
       '';
     }
 
-    # opts.autoread reloads silently when the buffer is unmodified - this makes that visible.
+    # autoread reloads silently when the buffer is unmodified; this makes that visible.
     {
       event = [ "FileChangedShellPost" ];
       desc = "Autoreload changed files";
@@ -40,15 +36,15 @@ _: {
       '';
     }
 
-    # Terminal buffers (toggleterm, `:terminal`, dap's term executor) are not code.
+    # Terminal buffers (toggleterm, `:terminal`, dap's executor) are not code.
     {
       event = [ "TermOpen" ];
       desc = "Clean up terminal windows";
       command = "setlocal nonumber norelativenumber signcolumn=no foldcolumn=0";
     }
 
-    # Per-filetype width guides, kept in sync with the real formatter configs
-    # (rustfmt 100, ruff 88, clang-format 80/120, nixfmt 100) instead of a global colorcolumn.
+    # Width guides mirror the formatter configs (rustfmt 100, ruff 88, clang-format 80/120,
+    # nixfmt 100) instead of a global colorcolumn.
     {
       event = [ "FileType" ];
       pattern = [ "rust" ];

@@ -2,28 +2,21 @@ final: _:
 let
   version = "14.0.3";
 
-  # Flashpoint's "main version" for Linux: the launcher (Launcher/), the content index (Data/, with
-  # the 450 MB flashpoint.sqlite that makes the game list), the support applications (FPSoftware/),
-  # the legacy web root (Legacy/) and FP's own bundled Libraries + Wine runtime.
-  # https://flashpointarchive.org/datahub/Linux_Support
   bundle = final.fetchurl {
     url = "https://download.flashpointarchive.org/upload/fp14.0.3_lin_20251201.7z";
     hash = "sha256-85OpjFw14imnRMECsMtTJwsbTxs+vUDWBPmDI0RKSx8=";
   };
 in
 {
-  # The bundle is unpacked into ~/.local/share/flashpoint on first run rather than run from the
-  # store: the launcher wants a Flashpoint root it can write to (launcher.log, game records, the
-  # downloaded data packs, the Wine prefix).
+  # Unpacked into ~/.local/share/flashpoint on first run: the launcher wants a root it can write
+  # to (launcher.log, game records, data packs, the Wine prefix).
   flashpoint = final.buildFHSEnv {
     pname = "flashpoint";
     inherit version;
     executableName = "flashpoint";
 
-    # Dependency list from the Linux Support page: X11 + XWayland, GTK2/3, NSS, PulseAudio/PipeWire,
-    # PHP, 7-Zip and Wine. 32-bit Windows content runs through the WoW64 wine, so the docs' extra
-    # i686 libXcomposite/libpulse packages are not needed (that wine build pulls in no 32-bit Unix
-    # libraries at all).
+    # Dependency list from the Linux Support page. 32-bit Windows content runs through the WoW64
+    # wine, which pulls in no 32-bit Unix libraries, so the docs' i686 packages are not needed.
     targetPkgs =
       pkgs: with pkgs; [
         alsa-lib
@@ -48,28 +41,26 @@ in
         libxi
         libxkbcommon
         libxrandr
-        libxt # native Flash projector
+        libxt
         nss
         nspr
-        p7zip # unpacks the bundle, then extracts the game data packs
+        p7zip
         pango
-        php # the Legacy router.php
+        php
         pipewire
         pulseaudio
         udev
-        vulkan-loader # the ICDs come from /run/opengl-driver/share, already on XDG_DATA_DIRS
-        wayland # Wine's Wayland driver and Electron's ozone backend dlopen libwayland-client/-cursor
+        vulkan-loader
+        wayland
         wineWow64Packages.stagingFull
-        xdg-utils # xdg-open, what the HTML5 platform hands the url to
+        xdg-utils
       ];
 
-    # Electron's chrome-sandbox needs to be setuid-root (the docs have you chown it in the install
-    # dir); nothing declared here does that, so it runs with --no-sandbox.
+    # Electron's chrome-sandbox needs to be setuid-root, which nothing declared here does, so it
+    # runs with --no-sandbox.
     runScript = final.writeShellScript "flashpoint-run" ''
       set -eu
       root="''${XDG_DATA_HOME:-$HOME/.local/share}/flashpoint"
-      # Excluded because this container replaces them: the bundled Libraries (Debian's system libs)
-      # and FP's Wine runtime (nixpkgs' wine below, in a prefix of its own).
       if [ "$(cat "$root/.bundle" 2>/dev/null)" != "${bundle}" ]; then
         echo "unpacking the Flashpoint bundle into $root (~2.2 GB, first run only)" >&2
         mkdir -p "$root"

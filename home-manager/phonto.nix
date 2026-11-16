@@ -9,8 +9,7 @@ in
 {
   home.packages = [ phontoPkg ];
 
-  # One random clip per panel, from ~/Pictures/Wallpapers. Keep that directory at panel
-  # resolution - HEVC stays cheap to decode, the originals live in ~/Pictures/originalWallpapers:
+  # One random clip per panel, from ~/Pictures/Wallpapers: keep those at panel resolution.
   #   ffmpeg -i in.mp4 -vf scale=2560:1440:flags=lanczos -c:v libx265 -preset slow -crf 23 \
   #     -tag:v hvc1 -colorspace bt709 -color_primaries bt709 -color_trc bt709 -an out.mp4
   xdg.configFile."phonto/config.toml".text = ''

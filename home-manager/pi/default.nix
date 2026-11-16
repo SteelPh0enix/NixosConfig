@@ -1,37 +1,32 @@
-# The pi coding agent and its resources: the package comes from pi's own flake, everything else is
-# plain home-manager. Anything not listed here stays pi-owned: auth.json, sessions/, trust.json, and
-# the settings.json keys pi writes itself.
+# The package comes from pi's own flake; everything else here is plain home-manager.
 {
   lib,
   pkgs,
   pi,
+  settings,
   ...
 }:
 let
   piPkg = pi.packages.${pkgs.stdenv.hostPlatform.system}.pi;
   agentDir = ".pi/agent";
 
-  settings = {
+  piSettings = {
     defaultProvider = "framework";
     defaultModel = "Qwen 3.8 Flash Next";
-    # xhigh where the preset has a rung for it; a model whose `thinkingLevelMap` maps xhigh to null
-    # (lfm, sharp-spark) just gets no effort sent. Same choice as home-manager/omp for omp.
+    # xhigh where the preset has a rung for it; a model that maps xhigh to null sends no effort.
     defaultThinkingLevel = "xhigh";
     theme = "noctalia";
     transport = "auto";
     treeFilterMode = "default";
     enableSkillCommands = true;
     enableInstallTelemetry = false;
-    # +name keeps read, bash, edit, write and adds codemode
     defaultTools = [ "+codemode" ];
-    # Compaction triggers at contextWindow - reserveTokens, the summary's own output is capped at
-    # 0.8 * reserveTokens, and keepRecentTokens is what survives a compaction unsummarized. At the
-    # 16384 default a 512k-context model kept truncating the summaries it needed to stay under.
+    # reserveTokens also caps the summary; keepRecentTokens survives unsummarized.
     compaction = {
       reserveTokens = 32768;
       keepRecentTokens = 32768;
     };
-    packages = [ ]; # keep the key: it overwrites whatever settings.json already declares
+    packages = [ ]; # the key has to stay: it overwrites what settings.json already declares
     retry = {
       maxRetries = 5;
       baseDelayMs = 10000;
@@ -43,13 +38,9 @@ let
     };
   };
 
-  settingsFile = pkgs.writeText "pi-settings.json" (builtins.toJSON settings);
+  settingsFile = pkgs.writeText "pi-settings.json" (builtins.toJSON piSettings);
 
-  # settings.json is the one file here that stays real: pi writes its own keys into it, so the
-  # managed ones are merged over it on activation instead of the file being replaced outright.
-  # models.json needs no such care - pi reads it and reloads it on /model but never writes it - so
-  # it is installed like the rest of the config. Its single secret stays out of git (see the note
-  # where it is linked below).
+  # settings.json is merged: pi writes its own keys into it; models.json is read-only to pi.
   mergeSettings = pkgs.writeShellApplication {
     name = "pi-settings-merge";
     runtimeInputs = [ pkgs.jq ];
@@ -58,7 +49,6 @@ let
         dir="$HOME/${agentDir}"
         mkdir -p "$dir"
 
-        # Managed keys win, keys pi wrote itself survive.
         settings="$dir/settings.json"
         tmp="$(mktemp "$dir/settings.json.XXXXXX")"
         if [ -f "$settings" ]; then
@@ -77,66 +67,41 @@ let
 in
 {
   home.packages = [
-    # The webfetch extension drives agent-browser (its own lookup paths are npm-based).
     pkgs.agent-browser
     piPkg
   ];
 
-  # Read by the extensions at runtime; LLAMA_COMPAT_DEBUG=1 shows what llama-compat changed in the catalog.
   home.sessionVariables = {
     PI_WEBFETCH_BIN = "${pkgs.agent-browser}/bin/agent-browser";
-    # SearXNG runs on fwpc, so the extension's 127.0.0.1:7777 default never connects from here.
-    SEARXNG_URL = "http://search.framework:7777";
-    # LLAMA_COMPAT_DEBUG = "1";
+    # SearXNG runs on the framework box, not here.
+    SEARXNG_URL = "http://${settings.searchDomain}:${toString settings.searxngPort}";
   };
 
-  # pi's conventional agent-dir locations: APPEND_SYSTEM.md extends the system prompt, extensions/
-  # loads .ts files and directories with an index.ts, prompts/ becomes slash commands.
-  # No themes: Noctalia's community `pi-agent` template writes
-  # ~/.pi/agent/themes/noctalia.json from the live palette, and a copy here would only collide on
-  # the name `noctalia`.
+  # No themes: Noctalia's `pi-agent` template writes ~/.pi/agent/themes/noctalia.json.
   home.file = {
-    # Endpoints and model metadata. The strix router answers 401 without a key, and its key is not
-    # in here: `apiKey` holds a `!command` that reads it out of the untracked secrets/ at request
-    # time, so the same file works on every machine. Copy secrets/llama-strix-api-key over by hand.
+    # The router answers 401 without a key; `apiKey` reads the untracked secrets/ file at request
+    # time, so no secret is in git.
     "${agentDir}/models.json".source = ./models.json;
     "${agentDir}/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
-    # Context compaction handled by another model: the summarizer subagent's model writes the summary,
-    # so the conversation it reads is clipped by its own window rather than by pi's 2000-char-per-result
-    # fit for the session model that just ran out of one.
+    # Compaction delegated to the summarizer subagent, whose window clips the conversation.
     "${agentDir}/extensions/compact-delegate".source = ./extensions/compact-delegate;
     "${agentDir}/extensions/llama-compat".source = ./extensions/llama-compat;
-    # llama-dx shows what the server is doing with the current request: prefill progress and speed,
-    # tokens left to process, decode speed, KV reuse and speculative-decode acceptance, in a bar under
-    # the input box. Needs --slots on each instance (a llama.cpp default). LLAMA_DX_DEBUG=1 logs polls.
-    # The whole directory, since it is several .ts files importing each other. test-utils/ holds the
-    # dev-only scripts: preview, harness against a real instance, check against a fake one.
+    # Prefill/decode progress, KV reuse and speculative-decode acceptance under the input box.
     "${agentDir}/extensions/llama-dx".source = ./extensions/llama-dx;
-    # web_search against the SearXNG this box runs (nixos/services/searxng.nix), reached through SEARXNG_URL.
+    # web_search against the SearXNG on the framework box, reached through SEARXNG_URL.
     "${agentDir}/extensions/searxng".source = ./extensions/searxng;
-    # Background subagents: spawn named tasks bound to a provider/model, watch them, collect results.
-    # Multi-file (index/config/state/task/ui), so the whole directory is copied as-is.
     "${agentDir}/extensions/subagents".source = ./extensions/subagents;
-    # web_fetch and web_interact, driven through agent-browser - which is why the package and PI_WEBFETCH_BIN
-    # appear above, and why the extension's README starts with its install steps.
+    # web_fetch and web_interact, driven through agent-browser (see PI_WEBFETCH_BIN above).
     "${agentDir}/extensions/webfetch".source = ./extensions/webfetch;
-    # Which subagents exist, and how many may run at once: one *model* at a time, because the router keeps a single
-    # preset resident and running a *different* one alongside would swap the card. `groups: { pc: 1 }` means that; a
-    # model's own slot count, stated under `slots` from its preset's `--parallel`, then decides how many of the same
-    # preset run together (a model left out has one). Each subagent is bound to what its preset is good at; its
-    # context size is read from the server at spawn.
+    # One model at a time: the router keeps a single preset resident.
     "${agentDir}/subagents.json".source = ./subagents.json;
-    # What each subagent is told about itself. subagents.json names these by its own `prompt` key, resolved against
-    # that file's directory, so `subagents/coder.md` is this one; they are read at startup with the config, so an edit
-    # needs a pi restart. Linked one by one - `${agentDir}/subagents` is a real directory already, holding the lease
-    # database the concurrency store keeps - and a reviewer-dense reuses reviewer.md rather than repeating it.
+    # Linked one by one: `${agentDir}/subagents` already exists and holds the concurrency store's state.
     "${agentDir}/subagents/assistant.md".source = ./subagents/assistant.md;
     "${agentDir}/subagents/coder.md".source = ./subagents/coder.md;
     "${agentDir}/subagents/researcher.md".source = ./subagents/researcher.md;
     "${agentDir}/subagents/reviewer.md".source = ./subagents/reviewer.md;
     "${agentDir}/subagents/summarizer.md".source = ./subagents/summarizer.md;
     "${agentDir}/subagents/worker.md".source = ./subagents/worker.md;
-    # Link every template by name instead of replacing the whole directory.
     "${agentDir}/prompts" = {
       source = ./prompts;
       recursive = true;

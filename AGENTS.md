@@ -8,7 +8,8 @@ machine is and runs; read that first if it isn't obvious yet.
 This flake builds `steelph0enix-pc` and nothing else. `framework-pc` is the other branch, for
 `RX-78-FPC`, and the two have diverged (547 commits here that aren't there, 988 there that aren't
 here): never assume a file, an option or a comment means the same thing on both. Share something by
-cherry-picking it deliberately — `home-manager/pi/` is the one part that is kept identical.
+cherry-picking it deliberately — `home-manager/pi/` and `home-manager/omp/` are the parts kept
+identical.
 
 The box runs its own checkout at `~/nixos-config` on this branch, and it is not always in step with
 `origin/main-pc` (right now three `flake.lock` commits sit unpushed there). So: change and commit
@@ -76,31 +77,22 @@ groups, and comments that say *why*, since almost every odd value here is a work
 
 ## Couplings that break quietly
 
-- **The `hosts` entries in `nixos/services.nix`** are what keep `steelph0enix.framework`,
+- **The `hosts` entries in `nixos/networking.nix`** are what keep `steelph0enix.framework`,
   `search.framework` and `steelph0enix.pc` resolvable. `models.json` and `SEARXNG_URL` name those
   hosts, so moving or renaming a box breaks pi on both — and it breaks *only* the things that resolve,
   because DNS for everything else is AdGuard on `192.168.0.185`. When that box is down, this one loses
-  its default provider and every lookup that isn't in `hosts`. The `resolvconf` options there
-  (`timeout:2 attempts:3 single-request-reopen`) are a mitigation for AdGuard dropping about one UDP
-  reply in twenty, and at glibc's defaults a lost reply costs five seconds; don't remove them as noise.
-- **Ports.** `nix/settings.nix` holds `llmPort`, `llamaLogsPort` and `strataPort`, and
-  `nixos/services.nix` opens them; there is no separate firewall file to remember. `llmPort` is the
-  router endpoint and `llamaBackend` decides which unit listens on it, so only one ever does; Strata
-  has a port of its own. The log viewer binds every interface (`server.py --host` defaults to the
-  IPv4 wildcard address), so 51580 is what makes it reachable; if you open something, check what it
+  its default provider and every lookup that isn't in `hosts`.
+- **Ports.** `nix/settings/host.nix` holds `llmPort` and `llamaLogsPort`, and `nixos/networking.nix`
+  opens them. `llmPort` is the router endpoint and `llamaBackend` decides which unit listens on it, so
+  only one ever does. The log viewer binds every interface (`server.py --host` defaults to the IPv4
+  wildcard address), so 51580 is what makes it reachable; if you open something, check what it
   actually binds (`ss -tulpn`).
 - **The preset is `/mnt/NVMe/LLMs/llama-server.ini`, untracked.** A rebuild never deploys edits to it,
   and a change to the disk layout takes the server with it. `nixos/hardware-configuration.nix` is
   where those `/mnt` mounts come from.
-- **Strata (`nixos/services/strata`) is a second engine for the same card**, on port 51537, and the
-  two units `Conflicts=` each other, and only llama-server-vulkan is wanted at boot - stopping Strata
-  does not start the router again. Its image is built by hand from the `Dockerfile` in that
-  directory (like the ROCm toolbox), its ~65 GB of model files live under `/mnt/NVMe/LLMs/strata`
-  untracked, and so do the engine arguments it is tuned with (`settings.strataEngineArgs`) - the unit
-  rewrites those into Strata's own config on every start, since the entry point forwards only the
-  settings it has a variable for. **Stop it with SIGTERM, never `docker kill`**: the graceful path
-  tears the ROCm context down, a kill leaves the driver holding the model's GTT - measured as 15 GB
-  of system RAM unreclaimable until a GPU reset (`mem_info_gtt_used` shows it).
+- **`llama-server-rocm` is the other engine for the same card**, off by default (`llamaBackend` is
+  `vulkan`). Its container image is built by hand from `llama-server-rocm/llama-server-rocm.nix`'s
+  header. Only one unit may hold 51536, and the log viewer follows whichever does.
 - **tuned owns the CPU side.** It is enabled with `ppdSupport`, so `powerManagement.cpuFreqGovernor`
   and any hand-rolled governor would fight it; the same goes for audio power saving, which tuned
   disables and the kernel parameter repeats.
@@ -113,10 +105,12 @@ groups, and comments that say *why*, since almost every odd value here is a work
   config here is a store symlink, so dropping `include optional=true "noctalia.kdl"` makes the
   template try to append to a read-only file and the colours never reach the compositor.
 
-## The subagent fleet lives here
+## The pi subagent fleet lives here
 
-Most subagents run on this box's server (provider `llama-pc`), through the `pc` group, which allows one
-model at a time. So a live test of an extension, or a big model swap, is felt on the other machine too,
+omp has no fleet on this branch: it points at the framework endpoint only. pi's fleet is this.
+
+Most of pi's subagents run on this box's server (provider `llama-pc`), through the `pc` group, which
+allows one model at a time. So a live test of an extension, or a big model swap, is felt on the other machine too,
 and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
 `assistant-smart`) is the exception: it runs on the framework box's gufo server, the model the main
 session itself uses (provider `framework`), through the `framework` group, also one model at a time.
@@ -152,14 +146,15 @@ directory:
 
 ## Where a change goes
 
-A new service is a file in `nixos/services/` listed in `nixos/services/default.nix` — but note that
-the network on this branch lives in `nixos/services.nix`, not a `nixos/networking.nix`, so firewall,
-`hosts` and ssh options are edited there. What only the user needs goes in `home-manager/packages.nix`;
+A new service is a file in `nixos/services/` listed in `nixos/services/default.nix` if it sets
+several options, and a `services.*` line in `nixos/services.nix` if it is a one-liner. The network —
+firewall, `hosts`, hostname — lives in `nixos/networking.nix`. What only the user needs goes in
+`home-manager/packages.nix`;
 `nixos/packages/` is for the system. The desktop has two halves: `nixos/desktop.nix` (niri, greetd
 and the Noctalia greeter, keyring, UPower) and the user side — `home-manager/niri/` for the
 compositor config, `home-manager/noctalia.nix` (whose theme templates generate things like pi's
-theme) and `home-manager/phonto.nix` for the shell and the wallpaper. Identity — user, host, ports,
-paths — comes from `nix/settings.nix` and is never repeated.
+theme) and `home-manager/phonto.nix` for the shell and the wallpaper. Identity, paths, host names and
+ports come from `nix/settings/*.nix` (merged by `nix/settings.nix`) and are never repeated.
 
 ## Noise worth knowing
 

@@ -13,7 +13,6 @@
   # ~/.local/bin for every login shell, without going through home-manager's xdg options.
   environment.localBinInPath = true;
 
-  # `programs.nix-index.enable` is set by the nix-index-database module.
   programs.nix-index-database.comma.enable = true;
 
   # nh is the OS manager: `flake` exports NH_FLAKE, so `nh os switch` needs no path, and the

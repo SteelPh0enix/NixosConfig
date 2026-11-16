@@ -1,4 +1,2 @@
-# NixOS/home-manager modules here are written in the long-form style (one `programs.X`,
-# `services.Y`, `boot.Z` assignment per option block, each carrying its own comment). Merging
-# them into nested attrsets loses those comments, so the repeated-keys lint is off repo-wide.
+# Long-form option blocks keep their own comments; merging them into attrsets would lose them.
 disabled = ["repeated_keys"]

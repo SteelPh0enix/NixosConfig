@@ -1,12 +1,10 @@
 _final: prev:
 let
-  # LTO archives hold only GCC IR, so they must be indexed with the LTO plugin; the cc-wrapper
-  # ships plain `ar`, which cannot (link then fails with undefined references).
+  # LTO archives hold only GCC IR: index them with the LTO plugin, not the cc-wrapper's plain `ar`.
   ltoAr = "${prev.stdenv.cc.cc}/bin/gcc-ar";
   ltoRanlib = "${prev.stdenv.cc.cc}/bin/gcc-ranlib";
 
-  # Built from the local checkout (flake input `llama-cpp`), see the `llama-cpp-update` script.
-  # Vulkan is what this GPU speaks, so it is the only backend we build (nixos/services/llama-server-vulkan).
+  # Built from the local checkout (flake input `llama-cpp`); Vulkan is the only backend we build.
   llama-cpp-with =
     {
       useCuda ? false,
@@ -14,36 +12,33 @@ let
       useRocm ? false,
       useVulkan ? true,
     }:
-    # No WebUI: its `npm run build` dies on `llama-brand`, which importNpmLock turns into a `file:`
-    # symlink npm 11 never unpacks, so the favicons the PWA generator wants are missing. Temporary:
-    # the server then serves no chat page (server-http.cpp skips the asset routes).
+    # No WebUI: its npm build dies on a `file:` symlink npm 11 never unpacks (nixpkgs#576406).
     (prev.llamaPackages.llama-cpp.override {
-      inherit useCuda useMetalKit useRocm useVulkan;
+      inherit
+        useCuda
+        useMetalKit
+        useRocm
+        useVulkan
+        ;
       useWebUi = false;
-    })
-    .overrideAttrs
+    }).overrideAttrs
       (
         _finalAttrs: prevAttrs: {
-          # Still unconditional upstream: `useWebUi` only gates postPatch and the cmake flag, and a
-          # leftover `webui` attribute would keep npm in the build graph.
+          # `useWebUi` only gates postPatch and the cmake flag; a leftover `webui` keeps npm in.
           webui = null;
 
-          # Add 'cacert' to the build inputs so SSL certificates are available
           nativeBuildInputs = (prevAttrs.nativeBuildInputs or [ ]) ++ [ prev.cacert ];
 
-          # Tell CMake/Curl where to find the certificates
           SSL_CERT_FILE = "${prev.cacert}/etc/ssl/certs/ca-bundle.crt";
 
-          # Zen 3 ISA, stated explicitly (`-march=native` needs the cc-wrapper purity guard off,
-          # which lets one derivation hash hide two binaries).
+          # Zen 3 ISA stated explicitly: `-march=native` needs the purity guard off, and then one
+          # derivation hash can hide two binaries.
           NIX_CFLAGS_COMPILE = "-march=znver3 -mtune=znver3";
 
-          # Release is what the cmake hook picks by default (-O3 -DNDEBUG); pinned so an
-          # upstream default flip cannot silently drop us to a slower build type.
+          # Pinned: an upstream default flip would silently pick a slower build type.
           cmakeBuildType = "Release";
 
-          # Whole-build IPO. ggml's own GGML_LTO only reaches the ggml/ targets, leaving
-          # libllama, common and server unoptimized.
+          # ggml's own GGML_LTO only reaches the ggml/ targets, leaving the rest unoptimized.
           cmakeFlags = (prevAttrs.cmakeFlags or [ ]) ++ [
             (prev.lib.cmakeBool "CMAKE_INTERPROCEDURAL_OPTIMIZATION" true)
             (prev.lib.cmakeFeature "CMAKE_C_COMPILER_AR" ltoAr)
@@ -57,12 +52,8 @@ in
 {
   llama-cpp = llama-cpp-with { };
 
-  # ffmpeg-full (so mpv too) builds whisper.cpp, which forwards cudaSupport/rocmSupport/vulkanSupport
-  # to llama-cpp. Those default to the nixpkgs config, and `rocmSupport = true` here (for other
-  # packages), so whisper was pulling a hipcc GGML_HIP llama.cpp with every ROCm GPU target on top
-  # of Vulkan. llama.cpp is reached under upstream's names - useCuda/useRocm/useVulkan - which is
-  # what this mapping is for; the flags are pinned so whisper always gets exactly `llama-cpp`
-  # above, and ROCm stays available to the rest of the package set.
+  # whisper.cpp forwards cuda/rocm/vulkan support to llama-cpp, and those default to the nixpkgs
+  # config's `rocmSupport = true`, so it would build a hipcc llama.cpp on top of Vulkan.
   whisper-cpp =
     (prev.whisper-cpp.override {
       cudaSupport = false;
@@ -78,8 +69,8 @@ in
     }).overrideAttrs
       (
         _finalAttrs: prevAttrs: {
-          # talk-llama's cmake asks for llama.cpp 0.6.0 and accepts only that major version, which
-          # our 1.0.0 checkout fails even though the bump touched nothing but the version number.
+          # talk-llama's cmake accepts only llama.cpp 0.6.x, and the 1.0.0 bump changed the version
+          # number alone.
           postPatch = (prevAttrs.postPatch or "") + ''
             substituteInPlace examples/talk-llama/CMakeLists.txt \
               --replace-fail 'find_package(llama 0.6.0 REQUIRED)' 'find_package(llama REQUIRED)'

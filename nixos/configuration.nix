@@ -12,6 +12,7 @@
     ./hardware-configuration.nix
     ./hardware.nix
     ./locale.nix
+    ./networking.nix
     ./nix.nix
     ./nixpkgs.nix
     ./packages

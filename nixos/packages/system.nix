@@ -13,8 +13,6 @@
     fd
     file
     flac
-    fwupd
-    fwupd-efi
     gparted
     hdparm
     hyprpicker # colour picker
@@ -32,7 +30,7 @@
     p7zip
     parallel-full
     parted
-    pavucontrol # per-application mixing (Plasma's volume control is gone)
+    pavucontrol # per-application mixing
     pciutils
     psmisc
     radeontop
@@ -42,7 +40,6 @@
     socat
     sshfs
     sysstat
-    tcpdump
     traceroute
     tree
     uhubctl

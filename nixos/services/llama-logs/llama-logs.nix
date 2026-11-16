@@ -1,6 +1,5 @@
-# Journal tail of the router unit (settings.llamaRouterService) over HTTP. server.py + index.html live next to this file
-# and are packaged into the Nix store so the unprivileged llama-logs user can reach them
-# (the working checkout is mode 0700 and not world-traversable).
+# Journal tail of the router unit (settings.llamaRouterService) over HTTP. server.py and index.html
+# are copied into the store, since the checkout is 0700 and the llama-logs user cannot read it.
 {
   pkgs,
   settings,
@@ -9,7 +8,7 @@
 let
   # Flake path literals reach the store under hashed names (`…-server.py`), so the copies have to
   # name the targets: server.py reads index.html from its own directory.
-  viewer = pkgs.runCommand "llama-vulkan-logs-viewer" { } ''
+  viewer = pkgs.runCommand "llama-logs-viewer" { } ''
     mkdir -p $out
     cp ${./server.py} $out/server.py
     cp ${./index.html} $out/index.html
@@ -24,7 +23,7 @@ in
     extraGroups = [ "systemd-journal" ];
   };
 
-  systemd.services.llama-vulkan-logs = {
+  systemd.services.llama-logs = {
     description = "Web interface for ${settings.llamaRouterService} logs (${toString settings.llamaLogsPort})";
     wantedBy = [ "multi-user.target" ];
     after = [
