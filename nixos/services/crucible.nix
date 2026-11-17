@@ -1,5 +1,5 @@
-# Crucible serves Qwen3.8-Flash-Next on `llmPort` and checks the Bearer key itself; it is the boot
-# engine, and the other three engines start by hand and conflict with it.
+# Crucible serves Qwen3.8-Flash-Next on `llmPort` and checks the Bearer key itself; it boots when
+# `settings.defaultLlmEngine` names it, and the other engines start by hand and conflict with it.
 {
   pkgs,
   lib,
@@ -44,8 +44,7 @@ in
   systemd.services.crucible = {
     description = "Crucible engine, Qwen3.8-Flash-Next EXL3 (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/jaedync/crucible-strix-halo" ];
-    # Boot engine: loads the weights at boot.
-    wantedBy = [ "multi-user.target" ];
+    wantedBy = lib.optionals (settings.defaultLlmEngine == "crucible") [ "multi-user.target" ];
     after = [
       "gufo.service"
       "gufo-auth.service"

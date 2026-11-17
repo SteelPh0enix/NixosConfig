@@ -1,5 +1,6 @@
 # Gufo serves Qwen3.8-Flash-Next on loopback; gufo-auth owns `llmPort` and checks the Bearer
-# key. Gufo starts by hand, and the units conflict with the other engines.
+# key. Both units boot together when `settings.defaultLlmEngine` names gufo, and conflict with
+# the other engines.
 {
   pkgs,
   lib,
@@ -60,8 +61,7 @@ in
   systemd.services.gufo = {
     description = "Gufo engine, Qwen3.8-Flash-Next (127.0.0.1:${toString settings.gufoUpstreamPort}, behind gufo-auth on :${toString settings.llmPort})";
     documentation = [ "https://github.com/gufo-org/gufo" ];
-    # Starts by hand; crucible is the boot engine.
-    wantedBy = [ ];
+    wantedBy = lib.optionals (settings.defaultLlmEngine == "gufo") [ "multi-user.target" ];
     # One engine at a time: a start stops the others first and orders that stop ahead of the
     # start, so the port is free and the memory released before the weights load.
     after = [
@@ -146,8 +146,7 @@ in
   systemd.services.gufo-auth = {
     description = "Authenticating caddy front door for gufo (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://caddyserver.com/docs/caddyfile" ];
-    # Trips with gufo, by hand.
-    wantedBy = [ ];
+    wantedBy = lib.optionals (settings.defaultLlmEngine == "gufo") [ "multi-user.target" ];
     after = [
       "crucible.service"
       "llama-server-rocm.service"

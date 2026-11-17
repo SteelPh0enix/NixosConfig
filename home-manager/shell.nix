@@ -5,7 +5,14 @@
   ...
 }:
 let
-  inherit (settings) repoPath llamaCppPath;
+  inherit (settings)
+    repoPath
+    llamaCppPath
+    llmEngineUnits
+    defaultLlmEngine
+    ;
+
+  allLlmUnits = lib.concatLists (lib.attrValues llmEngineUnits);
 
   # ANSI status lines via printf, so any shell renders them.
   say = sgr: message: ''printf '\033[1;${sgr}m%s\033[0m\n' ${lib.escapeShellArg message}'';
@@ -274,6 +281,18 @@ in
         ${info "Rebuilding NixOS with updated inputs..."}
         nh os boot --keep-going --repair --show-trace --install-bootloader
         ${success "=== OS Update done! ==="}
+      '')
+
+      (script "stop-llm" "Stop all LLM engines" ''
+        ${info "Stopping all LLM engines..."}
+        sudo systemctl stop ${lib.escapeShellArgs allLlmUnits}
+        ${success "Stopped!"}
+      '')
+
+      (script "start-llm" "Start the default LLM engine" ''
+        ${info "Starting the default LLM engine (${defaultLlmEngine})..."}
+        sudo systemctl start ${lib.escapeShellArgs llmEngineUnits.${defaultLlmEngine}}
+        ${success "Started!"}
       '')
 
       # ROCm venv for the conversion scripts.

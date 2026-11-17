@@ -1,5 +1,19 @@
 { llamaModelsPath }:
 {
+  # The engines that share llmPort; the units conflict, so only one is up at a time. Each engine
+  # names the units it needs: gufo is unreachable without the caddy front door that owns llmPort.
+  llmEngineUnits = {
+    crucible = [ "crucible" ];
+    gufo = [
+      "gufo-auth"
+      "gufo"
+    ];
+    llama-server-rocm = [ "llama-server-rocm" ];
+    llama-server-vulkan = [ "llama-server-vulkan" ];
+  };
+  # The engine that boots with the system; the others start by hand.
+  defaultLlmEngine = "crucible";
+
   # Models kept resident at once.
   llamaModelsMax = 1;
 

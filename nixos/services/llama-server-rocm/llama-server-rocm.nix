@@ -3,6 +3,7 @@
 {
   config,
   pkgs,
+  lib,
   settings,
   ...
 }:
@@ -29,9 +30,8 @@ in
   systemd.services.llama-server-rocm = {
     description = "llama.cpp router server, ROCm container (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/halo-box/strix-llama.cpp" ];
-    # Starts by hand; crucible is the boot engine. Conflicts= excludes the others; After= orders
-    # their stop ahead of this start.
-    wantedBy = [ ];
+    wantedBy = lib.optionals (settings.defaultLlmEngine == "llama-server-rocm") [ "multi-user.target" ];
+    # Conflicts= excludes the others; After= orders their stop ahead of this start.
     after = [
       "crucible.service"
       "llama-server-vulkan.service"

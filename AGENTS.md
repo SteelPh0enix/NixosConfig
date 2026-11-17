@@ -53,7 +53,8 @@ The Vulkan engine is a NixOS unit (`llama-server-vulkan`), built from the `llama
 by `nix/overlays/llama-cpp.nix` — Vulkan only, `-march=znver5` (x86-64-v4 is not enough for the
 AVX512 extensions here), LTO — running as the `llm` user with
 `--slots --props --metrics --models-max 1 --webui`. It starts by hand like the other three engines;
-crucible is the boot engine. Keep autoload on: with it off the server answers
+`settings.defaultLlmEngine` (`nix/settings/llm.nix`) names the one that boots with the system. Keep
+autoload on: with it off the server answers
 `400 "model is not loaded"` instead of loading a named preset. Its process is sandboxed
 (`ProtectSystem=strict`, `ProtectHome=read-only`, `LimitMEMLOCK=infinity`, `MemoryDenyWriteExecute`
 off for the Vulkan JIT, `GGML_VK_VISIBLE_DEVICES=0` because llvmpipe shows up as a second device).

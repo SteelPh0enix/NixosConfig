@@ -28,8 +28,10 @@ in
   systemd.services.llama-server-vulkan = {
     description = "llama.cpp router server, Vulkan (${settings.llmHost}:${toString settings.llmPort})";
     documentation = [ "https://github.com/ggml-org/llama.cpp/tree/master/tools/server" ];
-    # Starts by hand; crucible is the boot engine. A start stops the other engines first.
-    wantedBy = [ ];
+    wantedBy = lib.optionals (settings.defaultLlmEngine == "llama-server-vulkan") [
+      "multi-user.target"
+    ];
+    # A start stops the other engines first.
     after = [
       "crucible.service"
       "gufo-auth.service"
