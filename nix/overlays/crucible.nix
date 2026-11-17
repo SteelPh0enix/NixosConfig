@@ -3,7 +3,7 @@
 # one set keeps its glibc, libstdc++ and HIP runtime a single snapshot.
 inputs: _final: prev:
 let
-  version = "0.37.0";
+  version = "0.37.2";
   rocm = import inputs.gufo.inputs.nixpkgs-rocm10.outPath {
     inherit (prev.stdenv.hostPlatform) system;
   };
@@ -25,12 +25,12 @@ in
       owner = "jaedync";
       repo = "crucible-strix-halo";
       tag = "v${version}";
-      hash = "sha256-Uv7/bM0zLc01hciLSdvY9fHJdpSYoOrgSK6WwyWHnWQ=";
+      hash = "sha256-eRKAONULk52VYuuB270qajVrkp/LKh6ldfqkgFD1RRM=";
     };
 
     engine = rocm.fetchurl {
       url = "https://github.com/jaedync/crucible-strix-halo/releases/download/v${version}/crucible-engine-v${version}-gfx1151-rocm7.2-linux-x86_64.gz";
-      hash = "sha256-U6P7SRFB86QgXQljvBQwTm8dNFHV5OrPEb/JkxX6Uzo=";
+      hash = "sha256-QR+azxJq1e+JzInoSFHfpd1WPeeMFAxBs8Q059N4F8g=";
     };
 
     nativeBuildInputs = [
