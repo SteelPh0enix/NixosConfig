@@ -283,10 +283,16 @@ in
         ${success "=== OS Update done! ==="}
       '')
 
+      # The engines conflict with each other pairwise, so one transaction stopping them all is a
+      # cyclic one; each unit gets its own transaction instead.
       (script "stop-llm" "Stop all LLM engines" ''
         ${info "Stopping all LLM engines..."}
-        sudo systemctl stop ${lib.escapeShellArgs allLlmUnits}
-        ${success "Stopped!"}
+        status=0
+        for unit in ${lib.escapeShellArgs allLlmUnits}; do
+          sudo systemctl stop "$unit" || status=1
+        done
+        [ "$status" -eq 0 ] && ${success "Stopped!"}
+        exit "$status"
       '')
 
       (script "start-llm" "Start the default LLM engine" ''
