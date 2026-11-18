@@ -69,10 +69,12 @@ in
     }).overrideAttrs
       (
         _finalAttrs: prevAttrs: {
-          # talk-llama accepts only llama.cpp 0.6.x, and our 1.0.0 checkout fails that check.
+          # talk-llama pins an exact llama.cpp version, and nixpkgs' own fetchpatch rewrites that
+          # pin (currently 0.6.0 -> 1.0.0) before postPatch runs. The local checkout's version never
+          # matches either, so strip the requirement instead of chasing the exact text.
           postPatch = (prevAttrs.postPatch or "") + ''
-            substituteInPlace examples/talk-llama/CMakeLists.txt \
-              --replace-fail 'find_package(llama 0.6.0 REQUIRED)' 'find_package(llama REQUIRED)'
+            sed -i 's/find_package(llama [0-9.]* REQUIRED)/find_package(llama REQUIRED)/' \
+              examples/talk-llama/CMakeLists.txt
           '';
         }
       );
