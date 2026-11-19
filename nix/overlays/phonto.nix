@@ -9,6 +9,15 @@ inputs: final: _: {
     src = inputs.phonto;
     cargoLock.lockFile = "${inputs.phonto}/Cargo.lock";
 
+    # The random picker filters by a hardcoded extension allowlist, so still images never join
+    # --rand/--display-rand even though GStreamer plays them fine when named explicitly. Adding
+    # the extensions is what keeps the JPEGs in ~/Pictures/Wallpapers in the rotation.
+    postPatch = ''
+      substituteInPlace src/wallpaper.rs --replace-fail \
+        '["mp4", "mkv", "webm", "avi", "mov", "gif", "ogv"]' \
+        '["mp4", "mkv", "webm", "avi", "mov", "gif", "ogv", "jpg", "jpeg", "png"]'
+    '';
+
     nativeBuildInputs = with final; [
       pkg-config
       wrapGAppsHook4
