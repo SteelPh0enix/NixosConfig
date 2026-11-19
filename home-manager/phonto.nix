@@ -9,7 +9,9 @@ in
 {
   home.packages = [ phontoPkg ];
 
-  # One random clip per panel, from ~/Pictures/Wallpapers: keep those at panel resolution.
+  # One random pick per panel, from ~/Pictures/Wallpapers. The whole rotation is shaped to an
+  # exact 2560x1440 canvas (videos via the recipe below, stills blur-padded from
+  # /mnt/HDD/nebulas), so --scale stretch covers the panel: no bars, no crop, no distortion.
   #   ffmpeg -i in.mp4 -vf scale=2560:1440:flags=lanczos -c:v libx265 -preset slow -crf 23 \
   #     -tag:v hvc1 -colorspace bt709 -color_primaries bt709 -color_trc bt709 -an out.mp4
   xdg.configFile."phonto/config.toml".text = ''
@@ -36,7 +38,7 @@ in
     };
 
     Service = {
-      ExecStart = "${phontoPkg}/bin/phonto";
+      ExecStart = "${phontoPkg}/bin/phonto --scale stretch";
       RuntimeMaxSec = 15 * 60;
       Restart = "always";
       RestartSec = 5;
