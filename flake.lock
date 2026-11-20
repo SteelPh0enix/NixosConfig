@@ -204,11 +204,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1795112654,
-        "narHash": "sha256-EyRd9sKo/RIuZIXEkP6UkvRqHdF8xoM2MBeRsjE4tJ0=",
+        "lastModified": 1795174598,
+        "narHash": "sha256-clPmV2Li8N14YIZTzGtVx9SZOyz1lRJiyYqOoYfm9ng=",
         "owner": "gufo-org",
         "repo": "gufo",
-        "rev": "11a51d2f124477cf6082c732b9b13660b412f1a5",
+        "rev": "b51001436af83bc00131a2732944578c4b5cbe7b",
         "type": "github"
       },
       "original": {
@@ -244,8 +244,8 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1795114531,
-        "narHash": "sha256-L4cqgr5RbsAdlZK743rv3zru+dRfwySKOXkOzKOZPUE=",
+        "lastModified": 1795174813,
+        "narHash": "sha256-ysqzdO8HXmTICO79xTWXrAgd35zrsNScY/jwQEs+b7U=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -392,11 +392,11 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1794890597,
-        "narHash": "sha256-lME2lHoDHAaSHP3/okgiVoJ0icVEvsQH8LeU3We7tcc=",
+        "lastModified": 1795085501,
+        "narHash": "sha256-S5keGWzaKpuXo9MNoIC2FfTIuTyTnx8P4NhYJMEsTLI=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "04906337b6d53e8bb0eaf0470ae9f070a4d4eb55",
+        "rev": "0bb8272318b4ca41bf0edc6224df3e3e3046b70d",
         "type": "github"
       },
       "original": {
@@ -471,11 +471,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1795114217,
-        "narHash": "sha256-HscdBSImuQD07hsyN78B0/3HsvcBtLqQnmKZU//FvCI=",
+        "lastModified": 1795170430,
+        "narHash": "sha256-XDovDyrQ9OwIQGJJmLhhF8UeWs95KhuG7NpuaM+RsQs=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "4530cba18f6f68c0ba405966cd8dfd1093a03152",
+        "rev": "21d93e49fbe3d3bd81e9245ddbf085271a53bf4d",
         "type": "github"
       },
       "original": {
@@ -490,11 +490,11 @@
         "nixpkgs-darwin-x64": "nixpkgs-darwin-x64_2"
       },
       "locked": {
-        "lastModified": 1794312108,
-        "narHash": "sha256-0dKtABQqfvCLF0WOydu5rpycMqC+N8Pc9Ex4BWKElyw=",
+        "lastModified": 1795171460,
+        "narHash": "sha256-UVQnOMYikjxi7JREcxPZh/Uamy0l4rBvhawHR/MZZgo=",
         "owner": "earendil-works",
         "repo": "pi",
-        "rev": "b4afdddf44e059c67ccf5097e5317d913521b470",
+        "rev": "faac585884ae2c013a6b1400f3e9e77f10b34bac",
         "type": "github"
       },
       "original": {
