@@ -28,11 +28,11 @@ machine — runs on.
 |---|---|
 | `nix/settings.nix` | merges the four tables below; every module receives the result as `settings` |
 | `nix/settings/` | `identity` (user, host id, checkouts), `paths` (weights, presets), `host` (LAN names, ports), `llm` (backend, resident models) |
-| `nix/` | overlays (`llama-cpp`, `flashpoint`, `phonto`, `ltrace`, a rust toolchain), the shared dev-tool list, nixpkgs config |
+| `nix/` | overlays (`llama-cpp`, `flashpoint`, `ltrace`, a rust toolchain), the shared dev-tool list, nixpkgs config |
 | `nixos/` | boot and kernel, hardware, users, packages, services; `nixos/networking.nix` holds the firewall, the `hosts` entries and hostname |
 | `nixos/services/` | `llama-server-vulkan/`, `llama-server-rocm/`, `llama-logs/`, `printing.nix` and `tuned.nix` |
 | `nixos/desktop.nix` | the system half of the desktop: niri, the Noctalia greeter on greetd, gnome-keyring, UPower, SSH askpass |
-| `home-manager/` | the user: fish, packages, fonts, nixvim, `niri/` (layout, keybinds, rules), `noctalia.nix` (shell + theme templates), `phonto.nix` (video wallpaper), theming, xdg, vesktop, flashpoint, pi |
+| `home-manager/` | the user: fish, packages, fonts, nixvim, `niri/` (layout, keybinds, rules), `noctalia.nix` (shell + theme templates), `swaybg.nix` (static wallpaper), theming, xdg, vesktop, flashpoint, pi |
 | `secrets/` | gitignored, copied in by hand; on this box it holds one file (see below) |
 
 ## Rebuild
@@ -87,8 +87,8 @@ the household is the Docker Compose stack on the framework box.
 
 niri under greetd, with Noctalia v5: the community *Cyberpunk* palette, the dock, DDC/CI
 brightness, and `systemd.enable` so the session starts through systemd. wezterm is the terminal
-(Noctalia colours, Berkeley Mono, 120x30), phonto paints a video wallpaper through a user unit that
-stops after 15 minutes, and `home-manager/theming.nix` propagates the palette to the rest of the
+(Noctalia colours, Berkeley Mono, 120x30), swaybg paints a random still per panel through a user
+unit that stops after 15 minutes, and `home-manager/theming.nix` propagates the palette to the rest
 user session. Hardware-specific pieces: LACT for the 7900 XT, a Coral Edge TPU udev rule, the Moondrop
 Dawn Pro 2 audio device owned by the user, low-latency PipeWire (48 kHz, quantum 32) and the full
 Bluetooth codec set. `amdgpu` gets `gpu_recovery`, `gfx_off=0`, `runpm=0` on the kernel command line,

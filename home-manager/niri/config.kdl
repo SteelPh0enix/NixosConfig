@@ -55,7 +55,7 @@ layout {
         width 1
     }
 
-    // phonto plays the wallpaper on the background layer (home-manager/phonto.nix), so niri must
+    // swaybg plays the wallpaper on the background layer (home-manager/swaybg.nix), so niri must
     // not paint an opaque workspace over it.
     background-color "transparent"
 }

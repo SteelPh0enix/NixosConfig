@@ -15,7 +15,7 @@
     ./nonfree-fonts.nix
     ./niri
     ./noctalia.nix
-    ./phonto.nix
+    ./swaybg.nix
     ./nixvim
     ./pi
     ./omp

@@ -42,8 +42,6 @@
       };
     };
 
-    phonto.url = "github:museslabs/phonto";
-
     berkeleyMono = {
       url = "path:/home/steelph0enix/nixos-nonfree/berkeley-mono";
       flake = false;

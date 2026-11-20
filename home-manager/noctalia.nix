@@ -68,7 +68,7 @@
 
       shell.polkit_agent = true;
 
-      # phonto plays the wallpapers (home-manager/phonto.nix), and Noctalia's is a layer-shell
+      # swaybg plays the wallpapers (home-manager/swaybg.nix), and Noctalia's is a layer-shell
       # surface on the same layer: exactly one of the two may be enabled.
       wallpaper.enabled = false;
 

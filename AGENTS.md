@@ -153,7 +153,7 @@ firewall, `hosts`, hostname — lives in `nixos/networking.nix`. What only the u
 `nixos/packages/` is for the system. The desktop has two halves: `nixos/desktop.nix` (niri, greetd
 and the Noctalia greeter, keyring, UPower) and the user side — `home-manager/niri/` for the
 compositor config, `home-manager/noctalia.nix` (whose theme templates generate things like pi's
-theme) and `home-manager/phonto.nix` for the shell and the wallpaper. Identity, paths, host names and
+theme) and `home-manager/swaybg.nix` for the wallpaper. Identity, paths, host names and
 ports come from `nix/settings/*.nix` (merged by `nix/settings.nix`) and are never repeated.
 
 ## Noise worth knowing

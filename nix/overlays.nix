@@ -4,6 +4,5 @@ inputs: [
   (import ./overlays/flashpoint.nix)
   (import ./overlays/llama-cpp.nix)
   (import ./overlays/ltrace.nix)
-  (import ./overlays/phonto.nix inputs)
   (import ./overlays/pymediainfo.nix)
 ]
