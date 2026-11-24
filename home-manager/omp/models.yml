@@ -1,4 +1,4 @@
-# omp's model catalog: the framework endpoint only, kept in step with home-manager/pi/models.json
+# omp's model catalog: the LAN llama.cpp endpoints, kept in step with home-manager/pi/models.json
 # by hand. `thinking.efforts` is omp's `thinkingLevelMap`; `replayReasoningContent` puts the
 # reasoning back on the wire for these hosts.
 providers:
@@ -20,3 +20,19 @@ providers:
         thinking:
           mode: effort
           efforts: [low, medium, xhigh]
+  llama-pc:
+    baseUrl: http://steelph0enix.pc:51536/v1
+    api: openai-completions
+    auth: none
+    compat:
+      supportsStore: false
+      replayReasoningContent: true
+    models:
+      - id: "Inkling 2 Mini"
+        contextWindow: 250000
+        maxTokens: 32768
+        reasoning: true
+        thinking:
+          mode: effort
+          # effort strings the Inkling template names; it also takes a 0.0-0.99 float
+          efforts: [minimal, low, medium, high, xhigh]
