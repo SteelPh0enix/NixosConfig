@@ -37,9 +37,13 @@ let
   '';
 in
 {
-  # The cache spills here; the llm account can write /home/LLMs, but ProtectHome makes it read-only
-  # unless the folder is named in ReadWritePaths, which needs it to exist before the mount.
-  systemd.tmpfiles.rules = [ "d ${settings.crucibleStatePath} 0700 llm llm - -" ];
+  # The engine's own home and the cache that spills into it, both llm-owned: crucible 0.38 refuses
+  # a state folder whose parent chain another user can change, which rules out /home/LLMs.
+  # ReadWritePaths below also needs the state folder to exist before the /home mount.
+  systemd.tmpfiles.rules = [
+    "d ${settings.crucibleHomePath} 0700 llm llm - -"
+    "d ${settings.crucibleStatePath} 0700 llm llm - -"
+  ];
 
   systemd.services.crucible = {
     description = "Crucible engine, Qwen3.8-Flash-Next EXL3 (${settings.llmHost}:${toString settings.llmPort})";
@@ -62,9 +66,10 @@ in
 
     # The measured run of docs/QUICKSTART.md, step 6, plus py unbuffering for the journal.
     environment = {
-      # The engine keeps --state-dir only under $HOME, and llm's own home is on the root
-      # filesystem, which has no room for the 200 GiB cache; the pack it serves sits here too.
-      HOME = settings.llamaModelsPath;
+      # HOME moves with the state folder: llm's real home is on the root filesystem, which has no
+      # room for the 200 GiB cache, and 0.38 wants the state folder changeable by `llm` or root
+      # only, which the engine's own home satisfies.
+      HOME = settings.crucibleHomePath;
       CRUCIBLE_PLE_HOST = "1";
       CRUCIBLE_COMPACT_STATE = "1";
       CRUCIBLE_PLE_FETCH = "1";

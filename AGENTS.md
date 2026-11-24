@@ -72,16 +72,18 @@ binary from jaedync/crucible-strix-halo, packaged by `nix/overlays/crucible.nix`
 upstream checked the release engine on; the Python front end comes from that same set, so its glibc and
 libstdc++ are one snapshot with the HIP runtime. It is not built from source: upstream only qualifies
 a source build with the 7.2.4 compiler. It serves Qwen3.8-Flash-Next from the EXL3 4.05 bpw pack
-(`4.05bpw_h6_ng6` under `/home/LLMs/models/qwen/3.8-Flash-Next/`) in **one** 262144-token session -
+(`4.05bpw_h6_ng6` under `/home/crucible/models/qwen/3.8-Flash-Next/`) in **one** 262144-token session -
 upstream measured 4, but a second slot puts the weights and both slot states at 92.5 GiB of
 unreclaimable GTT and OOMed the box on 2026-11-15, so raise `--streams` only with that headroom
 measured. It binds `llmPort` itself and checks the Bearer key with `--api-key-file`, so unlike gufo there is
 no caddy front door: the unit copies `secrets/llama-strix-api-key` into `/var/lib/crucible/api-key`,
-and rotating it means restarting `crucible`. Its conversation cache spills to
-`/home/LLMs/crucible-states` (`--state-dir`, 200 GiB), writable through `ProtectHome=read-only` by
-being named in `ReadWritePaths`; the engine only accepts a `--state-dir` below `$HOME`, and `llm`'s
-own home is on the root filesystem, so the unit sets `HOME=/home/LLMs` - move that variable with the
-directory, not just the flag. Version and both hashes sit in the overlay, not in a flake input, so
+and rotating it means restarting `crucible`. Everything of the engine sits in its own home
+`/home/crucible` (`llm`-owned, 0700): the pack under `models/qwen/3.8-Flash-Next/`, and the
+conversation cache at `/home/crucible/crucible-states` (`--state-dir`, 200 GiB), writable through
+`ProtectHome=read-only` by being named in `ReadWritePaths`. Crucible 0.38 accepts a `--state-dir`
+outside `$HOME` but refuses one whose parent chain anyone but its user or root can change, which
+rules out the human-owned `/home/LLMs`, so the unit sets `HOME=/home/crucible` - move that variable
+with the directory, not just the flag. Version and both hashes sit in the overlay, not in a flake input, so
 `nh os switch` needs no network; `crucible-update` resolves the newest release, rewrites those three
 values and leaves the file alone when it is already current.
 

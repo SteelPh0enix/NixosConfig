@@ -6,6 +6,10 @@ rec {
   llamaPresetsPath = "${llamaModelsPath}/llama-server.ini";
   llamaRocmPresetsPath = "${llamaModelsPath}/llama-server-rocm.ini";
   llamaRocmToolboxesPath = "${llamaModelsPath}/amd-strix-halo-toolboxes";
+  # Crucible's own home on the /home filesystem: since 0.38 its state folder needs a parent chain
+  # only `llm` or root can change, and /home/LLMs is the human account's tree. The EXL3 pack it
+  # serves lives here too, so no engine data stays with the human.
+  crucibleHomePath = "/home/crucible";
 
   nasPath = "/mnt/NAS";
   nas2Path = "/mnt/NAS2";
