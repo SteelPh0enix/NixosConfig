@@ -73,10 +73,11 @@ upstream checked the release engine on; the Python front end comes from that sam
 libstdc++ are one snapshot with the HIP runtime. It is not built from source: upstream only qualifies
 a source build with the 7.2.4 compiler. It serves Qwen3.8-Flash-Next from the EXL3 4.05 bpw pack
 (`4.05bpw_h6_ng6` under `/home/crucible/models/qwen/3.8-Flash-Next/`) in **two** 262144-token sessions
-(`--streams ${settings.crucibleStreams}`) - upstream measured 4, but a second slot puts the weights
-and both slot states at 92.5 GiB of unreclaimable GTT and OOMed the box on 2026-11-15, so raise
-`crucibleStreams` only with that headroom measured. It binds `llmPort` itself and checks the Bearer
-key with `--api-key-file`, so unlike gufo there is
+(`--streams ${settings.crucibleStreams}`) - measured 2026-11-25 with both slots filled to ~250k:
+GTT peaked at 94.7 of 124 GiB and nothing OOMed (cgroup `oom_kill 0`, kernel OOM 0, MemAvailable
+floor 18 GiB), so 2 fits; the 2026-11-15 OOM at 92.5 GiB was a second slot on top of GTT a
+SIGKILLed predecessor still held. It binds `llmPort` itself and checks the Bearer key with
+`--api-key-file`, so unlike gufo there is
 no caddy front door: the unit copies `secrets/llama-strix-api-key` into `/var/lib/crucible/api-key`,
 and rotating it means restarting `crucible`. Everything of the engine sits in its own home
 `/home/crucible` (`llm`-owned, 0700): the pack under `models/qwen/3.8-Flash-Next/`, and the

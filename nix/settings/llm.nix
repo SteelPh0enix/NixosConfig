@@ -40,8 +40,8 @@
   # The model id pi and omp pin for the framework endpoint.
   crucibleServedModelName = "Qwen 3.8 Flash Next";
 
-  # Parallel sessions the engine serves at once (`--streams`). Upstream measured 4, but a second
-  # slot puts the weights and both slot states at 92.5 GiB of unreclaimable GTT and OOMed the box
-  # on 2026-11-15, so 2 is the ceiling until headroom is re-measured on this box.
+  # Parallel sessions the engine serves at once (`--streams`). Measured 2026-11-25 with both slots
+  # full (~250k tokens each): GTT peak 94.7 of 124 GiB, no OOM, so 2 fits; the 2026-11-15 OOM was a
+  # second slot on top of GTT a killed predecessor still held. Upstream measured 4, but 3 would not fit.
   crucibleStreams = 2;
 }
