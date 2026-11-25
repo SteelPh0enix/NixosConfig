@@ -21,7 +21,7 @@ let
       --port ${toString settings.llmPort} \
       --model-id ${lib.escapeShellArg settings.crucibleServedModelName} \
       --api-key-file "$STATE_DIRECTORY/api-key" \
-      --streams 1 \
+      --streams ${toString settings.crucibleStreams} \
       --ctx 262144 \
       --prefill 4096 \
       --conversation-cache-mib 9700 \

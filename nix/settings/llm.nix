@@ -39,4 +39,9 @@
   crucibleStatePath = "${crucibleHomePath}/crucible-states";
   # The model id pi and omp pin for the framework endpoint.
   crucibleServedModelName = "Qwen 3.8 Flash Next";
+
+  # Parallel sessions the engine serves at once (`--streams`). Upstream measured 4, but a second
+  # slot puts the weights and both slot states at 92.5 GiB of unreclaimable GTT and OOMed the box
+  # on 2026-11-15, so 2 is the ceiling until headroom is re-measured on this box.
+  crucibleStreams = 2;
 }

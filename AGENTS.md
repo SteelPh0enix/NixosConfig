@@ -72,10 +72,11 @@ binary from jaedync/crucible-strix-halo, packaged by `nix/overlays/crucible.nix`
 upstream checked the release engine on; the Python front end comes from that same set, so its glibc and
 libstdc++ are one snapshot with the HIP runtime. It is not built from source: upstream only qualifies
 a source build with the 7.2.4 compiler. It serves Qwen3.8-Flash-Next from the EXL3 4.05 bpw pack
-(`4.05bpw_h6_ng6` under `/home/crucible/models/qwen/3.8-Flash-Next/`) in **one** 262144-token session -
-upstream measured 4, but a second slot puts the weights and both slot states at 92.5 GiB of
-unreclaimable GTT and OOMed the box on 2026-11-15, so raise `--streams` only with that headroom
-measured. It binds `llmPort` itself and checks the Bearer key with `--api-key-file`, so unlike gufo there is
+(`4.05bpw_h6_ng6` under `/home/crucible/models/qwen/3.8-Flash-Next/`) in **two** 262144-token sessions
+(`--streams ${settings.crucibleStreams}`) - upstream measured 4, but a second slot puts the weights
+and both slot states at 92.5 GiB of unreclaimable GTT and OOMed the box on 2026-11-15, so raise
+`crucibleStreams` only with that headroom measured. It binds `llmPort` itself and checks the Bearer
+key with `--api-key-file`, so unlike gufo there is
 no caddy front door: the unit copies `secrets/llama-strix-api-key` into `/var/lib/crucible/api-key`,
 and rotating it means restarting `crucible`. Everything of the engine sits in its own home
 `/home/crucible` (`llm`-owned, 0700): the pack under `models/qwen/3.8-Flash-Next/`, and the
@@ -193,9 +194,9 @@ model at a time. So a live test of an extension, or a big model swap, is felt on
 and a model left loaded blocks the fleet. The `-smart` trio (`coder-smart`, `reviewer-smart`,
 `assistant-smart`) is the exception: it runs on the framework box's boot engine, the model the main
 session itself uses (provider `framework`), through the `framework` group, also one model at a time.
-That engine serves one 262k slot, which the main agent permanently sits on, so `subagents.json`'s 1
-slot serializes the `-smart` trio behind the main session: one task at a time, the slowest and the
-most capable thing here. Crucible boots with the system, so after a plain reboot the
+That engine serves two 262k slots (`settings.crucibleStreams`), so one `-smart` task can sit beside
+the main session instead of queueing behind it; `subagents.json`'s 1 slot still serializes the
+trio behind each other: one task at a time, the slowest and the most capable thing here.
 `framework` endpoint is Crucible serving `Qwen 3.8 Flash Next` - the name it serves under exactly; the
 llama.cpp preset catalog, or gufo's one slot, is the answer only once another engine has been started
 by hand on top of it.
