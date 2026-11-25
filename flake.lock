@@ -204,11 +204,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1795514870,
-        "narHash": "sha256-nX9Aia+IZ3xfTiuJeiPUiZGcZbwPugSmCEt6PKHd8YY=",
+        "lastModified": 1795571442,
+        "narHash": "sha256-jfmUznish+5A9UudYVbHVUXnHRkfcCT4xxjN48K508U=",
         "owner": "gufo-org",
         "repo": "gufo",
-        "rev": "282be272acecd2089ef6372c1757bc2f4b19c96c",
+        "rev": "3a6897bb881d93f0b32d17a46a9958de083ae0a7",
         "type": "github"
       },
       "original": {
@@ -224,11 +224,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795366757,
-        "narHash": "sha256-Tp4Kh4R7ID1f2mMCDlb2PiFQ/DZZsnXB2u2juWN+TT4=",
+        "lastModified": 1795534022,
+        "narHash": "sha256-xkRZ+PcPWaAyf9YrEBszYD5w2S6/Ac2tIfsufzd4dEQ=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "3b8140d21fa0a70b1b38c2ed29853dfe686234a6",
+        "rev": "b56bcd042b5e69ad188eca20d9bec1bfbf3dd453",
         "type": "github"
       },
       "original": {
@@ -244,8 +244,8 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1795516874,
-        "narHash": "sha256-HWFW51YaUa2nBMQ2D1jr++xwS4H+L0bwbYDaZRfpr/k=",
+        "lastModified": 1795605113,
+        "narHash": "sha256-ltZfUVjvgaZ/8O0kx3r/HgW/5ZKOEow54LwBlJrnKPA=",
         "path": "/home/steelph0enix/llama.cpp",
         "type": "path"
       },
@@ -262,11 +262,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793527794,
-        "narHash": "sha256-ZCz0zE+Lgb3hBn+u3n39Txegdw3jI/SVkQjR+TjClh4=",
+        "lastModified": 1795576432,
+        "narHash": "sha256-rjTISH0+eXrTDEotD0vyIDwXz7Si4pia/0leqrU5Qj4=",
         "owner": "ryoppippi",
         "repo": "nix-bun",
-        "rev": "4170f2a531122ac75aa45d823bd69e6e9a77563f",
+        "rev": "fa153e965e21148e26ee60269755727f8ed087ff",
         "type": "github"
       },
       "original": {
@@ -471,11 +471,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1795430470,
-        "narHash": "sha256-9bYHr2pWysRDjPyAZR8jmLbw/9oUUPBMwJ8yagrojZA=",
+        "lastModified": 1795603636,
+        "narHash": "sha256-g68d3GrNlMxWL83IgOVgzKmCO5gWAEQAUGP/JDOXFTY=",
         "owner": "can1357",
         "repo": "oh-my-pi",
-        "rev": "0aefd54236b60109f8423423bebb2995c237cf0a",
+        "rev": "9025be136a7b1f5c5c50d19ea6cfe4e96921dbcb",
         "type": "github"
       },
       "original": {
