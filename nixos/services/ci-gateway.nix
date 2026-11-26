@@ -39,11 +39,32 @@ let
     "api.github.com"
     "codeload.github.com"
     "objects.githubusercontent.com"
+    "release-assets.githubusercontent.com"
     "index.crates.io"
     "static.crates.io"
     "registry.npmjs.org"
     "pypi.org"
     "files.pythonhosted.org"
+    # Modrinth/CurseForge reads and jar downloads for pack CI: packwiz refresh/export, modlist and license audit.
+    "api.modrinth.com"
+    "cdn.modrinth.com"
+    "api.curseforge.com"
+    "cdn.curseforge.com"
+    ".forgecdn.net"
+    # Loader/Minecraft downloads for verify-server tier 2: Mojang manifests/libs/server jar,
+    # Fabric/Quilt/NeoForge/Forge installer metadata and maven jars.
+    "launchermeta.mojang.com"
+    "piston-meta.mojang.com"
+    "piston-data.mojang.com"
+    "libraries.minecraft.net"
+    "resources.download.minecraft.net"
+    "meta.fabricmc.net"
+    "maven.fabricmc.net"
+    "quiltmc.org"
+    "maven.quiltmc.org"
+    "maven.neoforged.net"
+    "files.minecraftforge.net"
+    "maven.minecraftforge.net"
   ];
 in
 {
