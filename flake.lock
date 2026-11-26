@@ -92,6 +92,22 @@
         "type": "github"
       }
     },
+    "disco-elysium-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1795711672,
+        "narHash": "sha256-VQIC3aIQHhob5NZ5hiyENLeuoqTr324OSM2VyzsQvkA=",
+        "owner": "SteelPh0enix",
+        "repo": "DiscoElysiumSkills",
+        "rev": "35dbe61ce1e899bab790a6359ee8981aa72992ac",
+        "type": "github"
+      },
+      "original": {
+        "owner": "SteelPh0enix",
+        "repo": "DiscoElysiumSkills",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -449,6 +465,7 @@
     "root": {
       "inputs": {
         "berkeleyMono": "berkeleyMono",
+        "disco-elysium-skills": "disco-elysium-skills",
         "home-manager": "home-manager",
         "llama-cpp": "llama-cpp",
         "nix-index-database": "nix-index-database",
