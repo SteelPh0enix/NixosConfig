@@ -46,6 +46,14 @@
       url = "path:/home/steelph0enix/nixos-nonfree/berkeley-mono";
       flake = false;
     };
+
+    # Disco Elysium skills pack for omp, pulled from GitHub: a git submodule would be an
+    # empty dir in this flake's own store source. Source-only input (the repo has no
+    # flake.nix); consumed as ${disco-elysium-skills}/.omp in home-manager/omp.
+    disco-elysium-skills = {
+      url = "github:SteelPh0enix/DiscoElysiumSkills";
+      flake = false;
+    };
   };
 
   outputs =
