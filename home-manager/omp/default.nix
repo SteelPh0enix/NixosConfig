@@ -86,6 +86,8 @@ in
       personality = "pragmatic";
       treeFilterMode = "default";
       todo.eager = "always";
+      todo.reminders = false;
+      todo.midRunNudges = "off";
 
       task.showResolvedModelBadge = true;
       # One subagent at a time on the engine's only slot, and no side request probing it.
