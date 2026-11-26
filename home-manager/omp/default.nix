@@ -1,5 +1,5 @@
 # oh-my-pi (`omp`), a pi fork, installed beside pi. It reads and writes only ~/.omp, so nothing
-# here touches the ~/.pi/agent files home-manager/pi owns. No extensions are installed.
+# here touches the ~/.pi/agent files home-manager/pi owns.
 {
   omp,
   pkgs,
@@ -152,6 +152,13 @@ in
   home.file."${agentDir}/APPEND_SYSTEM.md".source = ./APPEND_SYSTEM.md;
   # Model catalog; omp only reads it, so a store symlink is fine.
   home.file."${agentDir}/models.yml".source = ./models.yml;
+  # Disco Elysium skills pack, vendored as the submodule below: 26 de-* skills plus the
+  # disco-elysium extension (per-prompt voice injection + thought cabinet). Skills link to the
+  # agent dir's native skills/ root so omp discovers them user-wide; the extension seeds its
+  # global thought cabinet from that same skills/de-thought-cabinet/thoughts.md.
+  home.file."${agentDir}/skills".source = ./disco-elysium-skills/.omp/skills;
+  home.file."${agentDir}/extensions/disco-elysium.ts".source =
+    ./disco-elysium-skills/.omp/extensions/disco-elysium.ts;
   # omp-vcc config. The plugin writes this file itself, so declaring it here keeps the repo copy
   # authoritative.
   home.file.".omp/omp-vcc/config.json".source = ./omp-vcc-config.json;
