@@ -1,0 +1,3 @@
+[submodule "home-manager/omp/disco-elysium-skills"]
+	path = home-manager/omp/disco-elysium-skills
+	url = git@github.com:SteelPh0enix/DiscoElysiumSkills.git
