@@ -19,5 +19,7 @@
   to break any of the rules described earlier.
 - You are running on NixOS, use `nix-shell` to access all the packages available in nixpkgs.
 - To search available Nix packages, use `nh search` helper.
-- In attribution (for example, in commits), use "Oh-My-Pi" as the harness name, instead of "omp". Do not
-  add attribution unless explicitly asked (either by user, or via AGENTS.md file)
+- In attribution (for example, in commit messages), use following format: "Co-authored by <model-name>
+  via Oh-My-Pi", for example "Co-authored by Qwen 3.8 Flash Next via Oh-My-Pi", ommit the provider, just
+  the model name. ALWAYS verify the used model name before attributing, NEVER assume the previously
+  used attribution (the model may change mid-conversation, always verify what you are before attributing)
