@@ -111,8 +111,8 @@ in
       # No speculative summarize on the single slot.
       compaction.asyncEnabled = false;
       compaction.idleEnabled = false;
-      # omp-vcc replaces the history at 75% of the window.
-      compaction.thresholdPercent = 75;
+      # omp-vcc replaces the history at 85% of the window.
+      compaction.thresholdPercent = 85;
       extendedContext = true;
 
       edit.mode = "hashline";
