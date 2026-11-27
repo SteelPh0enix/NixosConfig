@@ -68,7 +68,7 @@ in
       statusLine.compactThinkingLevel = false;
       statusLine.showHookStatus = true;
 
-      theme.dark = "dark-retro";
+      theme.dark = "dark-neon-noir";
       theme.light = "light-retro";
       symbolPreset = "nerd";
 
@@ -86,7 +86,7 @@ in
       readLineNumbers = true;
       personality = "pragmatic";
       treeFilterMode = "default";
-      todo.eager = "always";
+      todo.eager = "preferred";
       todo.reminders = false;
       todo.midRunNudges = "off";
 
