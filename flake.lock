@@ -95,11 +95,11 @@
     "disco-elysium-skills": {
       "flake": false,
       "locked": {
-        "lastModified": 1795711672,
-        "narHash": "sha256-VQIC3aIQHhob5NZ5hiyENLeuoqTr324OSM2VyzsQvkA=",
+        "lastModified": 1795867653,
+        "narHash": "sha256-vLHF2SIUzF6CSubojQvm75A4mMT9V8R3/zgbRUjTFAs=",
         "owner": "SteelPh0enix",
         "repo": "DiscoElysiumSkills",
-        "rev": "35dbe61ce1e899bab790a6359ee8981aa72992ac",
+        "rev": "0efe29abddd54604fcd880cd3209e48c6d38f504",
         "type": "github"
       },
       "original": {
